@@ -127,7 +127,21 @@ environment:
   - DEBUG_LOG=false  # Habilitar/deshabilitar logs de debug (true/false)
 ```
 
-**DEBUG_LOG**: Cuando está habilitado (`true`), muestra un panel de debug en la esquina inferior derecha con logs detallados de todas las operaciones de búsqueda de precios. Útil para debugging y troubleshooting.
+### Habilitar Debug Logs
+
+Para activar el panel de debug, modifica tu `compose.yaml`:
+
+```yaml
+environment:
+  - DEBUG_LOG=true  # Cambiar a true para habilitar
+```
+
+Luego reconstruye:
+```bash
+docker compose up -d --build --force-recreate
+```
+
+**Nota**: Los logs están deshabilitados por defecto para no afectar el rendimiento en producción.
 
 ### Panel de Debug
 
