@@ -3,11 +3,23 @@ import yfinance as yf
 import threading
 import time
 import uuid
+import os
 
 app = Flask(__name__)
 
 monitores = {}
 historial_alertas = []
+
+# Cargar versión desde archivo
+def cargar_version():
+    try:
+        version_file = os.path.join(os.path.dirname(__file__), 'version.txt')
+        with open(version_file, 'r') as f:
+            return f.read().strip()
+    except:
+        return "1.0.0"
+
+VERSION = cargar_version()
 
 def monitor_background():
     while True:
@@ -39,6 +51,9 @@ HTML_TEMPLATE = """
 </head>
 <body class="bg-light" onload="actualizar()">
     <div class="container mt-5">
+        <div style="position:absolute;top:10px;right:15px;font-size:12px;color:#666;padding:8px;border:1px solid #ddd;border-radius:4px;background:#f9f9f9;">
+            📦 v<span id="version">{{ version }}</span>
+        </div>
         <h3>📈 Piloto Financiero</h3>
         <div class="card p-3 mb-4">
             <form onsubmit="event.preventDefault(); añadir();" class="row g-3">
@@ -59,6 +74,8 @@ HTML_TEMPLATE = """
         </div>
     </div>
     <script>
+        let versionActual = '{{ version }}';
+        
         async function añadir() {
             const err = document.getElementById('error-msg');
             err.style.display = 'none';
@@ -80,6 +97,21 @@ HTML_TEMPLATE = """
             try {
                 const r = await fetch('/api/data'); 
                 const d = await r.json();
+                
+                // Verificar si la versión ha cambiado
+                if (d.version && d.version !== versionActual) {
+                    console.log('Nueva versión detectada:', d.version);
+                    versionActual = d.version;
+                    document.getElementById('version').textContent = d.version;
+                    // Mostrar notificación de actualización
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-info position-fixed top-0 start-50 translate-middle-x mt-3';
+                    alert.textContent = '🔄 Aplicación actualizada a v' + d.version;
+                    alert.style.zIndex = '9999';
+                    document.body.appendChild(alert);
+                    setTimeout(() => alert.remove(), 3000);
+                }
+                
                 document.getElementById('tabla').innerHTML = Object.entries(d.monitores).map(([id, v]) => `
                     <tr><td><strong>${v.ticker}</strong></td><td>${v.current || '...'}</td><td>${v.target}</td>
                     <td><span class="badge ${v.triggered?'bg-danger':'bg-success'}">${v.triggered?'ALERTA':'Vigilando'}</span></td>
@@ -94,10 +126,12 @@ HTML_TEMPLATE = """
 """
 
 @app.route('/')
-def index(): return render_template_string(HTML_TEMPLATE)
+def index(): 
+    return render_template_string(HTML_TEMPLATE, version=cargar_version())
 
 @app.route('/api/data')
-def get_data(): return jsonify({"monitores": monitores, "alertas": historial_alertas})
+def get_data(): 
+    return jsonify({"monitores": monitores, "alertas": historial_alertas, "version": cargar_version()})
 
 def es_isin(codigo):
     """Verifica si el código parece ser un ISIN (formato: 2 letras + 9 dígitos)"""
