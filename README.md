@@ -85,7 +85,18 @@ La versión se muestra en la esquina superior derecha de la interfaz. Esto te ay
 - `version.txt` - Versión mostrada en la interfaz
 - `compose.yaml` - `BUILD_VERSION` en args
 
-## 📁 Estructura del Proyecto
+## � Búsqueda Inteligente de Activos
+
+La aplicación es inteligente para encontrar activos:
+
+- **Tickers directos**: `AAPL`, `BTC-USD`, `MSFT`
+- **ISINs**: `ES0105065009`, `FR0000121014`, etc.
+- **Búsqueda automática**: Si un ISIN falla, automáticamente busca el ticker correspondiente
+
+**Ejemplos de ISINs que funcionan:**
+- `ES0105065009` - Telefónica (España)
+- `DE0005933931` - Siemens (Alemania)
+- `FR0000121014` - LVMH (Francia) - ¡Ahora soportado!
 
 ```
 piloto_financiero/
@@ -161,4 +172,5 @@ Desarrollado como piloto financiero para monitoreo de activos.
 
 ---
 
-**Última actualización**: 8 de mayo de 2026
+**Última actualización**: 8 de mayo de 2026 - v1.0.1
+**Cambios**: Mejorada búsqueda de ISINs con resolución automática de tickers

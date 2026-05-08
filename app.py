@@ -133,34 +133,99 @@ def index():
 def get_data(): 
     return jsonify({"monitores": monitores, "alertas": historial_alertas, "version": cargar_version()})
 
-def es_isin(codigo):
-    """Verifica si el código parece ser un ISIN (formato: 2 letras + 9 dígitos)"""
-    return len(codigo) == 12 and codigo[:2].isalpha() and codigo[2:].isdigit()
+def buscar_ticker_por_isin(isin):
+    """Intenta encontrar el ticker correspondiente a un ISIN"""
+    try:
+        print(f"Buscando ticker para ISIN: {isin}")
+        # Usar la función de búsqueda de yfinance
+        search = yf.Search(isin, max_results=5)
+        if search and hasattr(search, 'quotes') and search.quotes:
+            for quote in search.quotes:
+                if hasattr(quote, 'symbol') and quote.symbol:
+                    ticker = quote.symbol
+                    print(f"Encontrado ticker candidato: {ticker}")
+                    # Verificar que este ticker tenga datos
+                    try:
+                        test_ticker = yf.Ticker(ticker)
+                        test_hist = test_ticker.history(period="1d")
+                        if not test_hist.empty:
+                            print(f"✓ Ticker válido encontrado: {ticker}")
+                            return ticker
+                    except:
+                        continue
+        print(f"No se encontró ticker válido para ISIN: {isin}")
+        return None
+    except Exception as e:
+        print(f"Error buscando ticker para ISIN {isin}: {e}")
+        return None
 
 def obtener_precio(ticker_str):
     """Intenta obtener el precio de varias formas para mayor robustez"""
     try:
+        print(f"Intentando obtener precio para: {ticker_str}")
         t = yf.Ticker(ticker_str)
+        
         # Intento 1: fast_info (más rápido pero menos confiable)
         try:
             precio = t.fast_info.get('last_price')
             if precio and precio > 0:
+                print(f"✓ Precio obtenido via fast_info: {precio}")
                 return precio
-        except:
-            pass
+            else:
+                print(f"✗ fast_info devolvió precio inválido: {precio}")
+        except Exception as e:
+            print(f"✗ Error en fast_info: {e}")
         
         # Intento 2: history (más confiable)
-        hist = t.history(period="1d")
-        if not hist.empty:
-            return hist['Close'].iloc[-1]
+        try:
+            hist = t.history(period="1d")
+            if not hist.empty:
+                precio = hist['Close'].iloc[-1]
+                print(f"✓ Precio obtenido via history: {precio}")
+                return precio
+            else:
+                print("✗ History devolvió datos vacíos")
+        except Exception as e:
+            print(f"✗ Error en history: {e}")
         
         # Intento 3: info (último recurso)
-        info = t.info
-        if 'regularMarketPrice' in info and info['regularMarketPrice']:
-            return info['regularMarketPrice']
+        try:
+            info = t.info
+            if info and 'regularMarketPrice' in info and info['regularMarketPrice']:
+                precio = info['regularMarketPrice']
+                print(f"✓ Precio obtenido via info: {precio}")
+                return precio
+            else:
+                print(f"✗ Info no contiene regularMarketPrice válido: {info.get('regularMarketPrice') if info else 'None'}")
+        except Exception as e:
+            print(f"✗ Error en info: {e}")
+        
+        # Intento 4: buscar ticker alternativo si es ISIN
+        if es_isin(ticker_str):
+            print(f"Intentando buscar ticker alternativo para ISIN: {ticker_str}")
+            try:
+                # Algunos ISIN pueden tener un ticker asociado
+                search_results = yf.Search(ticker_str)
+                if search_results and hasattr(search_results, 'quotes') and search_results.quotes:
+                    for quote in search_results.quotes[:3]:  # Probar los primeros 3 resultados
+                        if hasattr(quote, 'symbol'):
+                            alt_ticker = quote.symbol
+                            print(f"Probando ticker alternativo: {alt_ticker}")
+                            try:
+                                alt_t = yf.Ticker(alt_ticker)
+                                alt_hist = alt_t.history(period="1d")
+                                if not alt_hist.empty:
+                                    precio = alt_hist['Close'].iloc[-1]
+                                    print(f"✓ Precio obtenido via ticker alternativo {alt_ticker}: {precio}")
+                                    return precio
+                            except:
+                                continue
+            except Exception as e:
+                print(f"✗ Error buscando ticker alternativo: {e}")
         
         raise ValueError(f"No data available for {ticker_str}")
     except Exception as e:
+        print(f"✗ Error general obteniendo precio para {ticker_str}: {e}")
         raise Exception(f"No se pudo obtener precio: {e}")
 
 @app.route('/api/add', methods=['POST'])
@@ -174,7 +239,26 @@ def add_monitor():
         ticker_name = ticker_input
         
         # Intentar obtener precio con la función robusta
-        precio = obtener_precio(ticker_input)
+        try:
+            precio = obtener_precio(ticker_input)
+        except Exception as e:
+            # Si es ISIN y falló, intentar buscar el ticker correspondiente
+            if es_isin(ticker_input):
+                print(f"ISIN {ticker_input} falló, buscando ticker alternativo...")
+                ticker_alternativo = buscar_ticker_por_isin(ticker_input)
+                if ticker_alternativo:
+                    print(f"Intentando con ticker alternativo: {ticker_alternativo}")
+                    try:
+                        precio = obtener_precio(ticker_alternativo)
+                        ticker_name = f"{ticker_input} ({ticker_alternativo})"  # Mostrar ISIN + ticker
+                        print(f"✓ Éxito con ticker alternativo: {ticker_alternativo}")
+                    except Exception as e2:
+                        print(f"✗ Ticker alternativo también falló: {e2}")
+                        raise Exception(f"ISIN no encontrado ni como ISIN ni como ticker alternativo")
+                else:
+                    raise Exception(f"ISIN no encontrado y no se pudo encontrar ticker alternativo")
+            else:
+                raise e
 
         m_id = str(uuid.uuid4())
         monitores[m_id] = {
