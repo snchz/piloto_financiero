@@ -42,7 +42,7 @@ HTML_TEMPLATE = """
         <h3>📈 Piloto Financiero</h3>
         <div class="card p-3 mb-4">
             <form onsubmit="event.preventDefault(); añadir();" class="row g-3">
-                <div class="col-md-4"><input type="text" id="t" class="form-control" placeholder="Ticker (AAPL, BTC-USD)" required></div>
+                <div class="col-md-4"><input type="text" id="t" class="form-control" placeholder="Ticker o ISIN (AAPL, ES0105065009)" required></div>
                 <div class="col-md-4"><input type="number" step="0.01" id="obj" class="form-control" placeholder="Precio Objetivo" required></div>
                 <div class="col-md-4"><button class="btn btn-primary w-100">Añadir Alerta</button></div>
             </form>
@@ -99,24 +99,47 @@ def index(): return render_template_string(HTML_TEMPLATE)
 @app.route('/api/data')
 def get_data(): return jsonify({"monitores": monitores, "alertas": historial_alertas})
 
+def es_isin(codigo):
+    """Verifica si el código parece ser un ISIN (formato: 2 letras + 9 dígitos)"""
+    return len(codigo) == 12 and codigo[:2].isalpha() and codigo[2:].isdigit()
+
 @app.route('/api/add', methods=['POST'])
 def add_monitor():
     try:
         data = request.json
-        ticker_name = data.get('ticker', '').upper().strip()
-        if not ticker_name: return jsonify({"ok":False}), 400
+        ticker_input = data.get('ticker', '').upper().strip()
+        if not ticker_input: return jsonify({"ok":False}), 400
         
         target = float(data['target'])
-        t = yf.Ticker(ticker_name)
+        ticker_name = ticker_input
         
-        # Intento de obtener precio con validación
-        precio = t.fast_info.get('last_price')
-        
-        if precio is None or precio == 0:
-            # Reintento si fast_info falla (algunos activos lo requieren)
-            hist = t.history(period="1d")
-            if hist.empty: raise ValueError("No data")
-            precio = hist['Close'].iloc[-1]
+        # Si parece ser ISIN, intentar buscarlo como ISIN
+        if es_isin(ticker_input):
+            try:
+                t = yf.Ticker(ticker_input)
+                precio = t.fast_info.get('last_price')
+                if precio is None or precio == 0:
+                    hist = t.history(period="1d")
+                    if hist.empty: raise ValueError("No data")
+                    precio = hist['Close'].iloc[-1]
+                # Mantener el ISIN como identificador visual pero usar su ticker si está disponible
+                ticker_name = ticker_input
+            except:
+                # Si falla como ISIN, intentar como ticker normal
+                t = yf.Ticker(ticker_input)
+                precio = t.fast_info.get('last_price')
+                if precio is None or precio == 0:
+                    hist = t.history(period="1d")
+                    if hist.empty: raise ValueError("No data")
+                    precio = hist['Close'].iloc[-1]
+        else:
+            # Búsqueda como ticker normal
+            t = yf.Ticker(ticker_input)
+            precio = t.fast_info.get('last_price')
+            if precio is None or precio == 0:
+                hist = t.history(period="1d")
+                if hist.empty: raise ValueError("No data")
+                precio = hist['Close'].iloc[-1]
 
         m_id = str(uuid.uuid4())
         monitores[m_id] = {
@@ -128,7 +151,7 @@ def add_monitor():
         }
         return jsonify({"ok":True})
     except Exception as e:
-        print(f"Error añadiendo {ticker_name}: {e}")
+        print(f"Error añadiendo {ticker_input}: {e}")
         return jsonify({"ok":False}), 400
 
 @app.route('/api/delete/<m_id>', methods=['DELETE'])
