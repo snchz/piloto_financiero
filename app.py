@@ -9,6 +9,7 @@ app = Flask(__name__)
 
 monitores = {}
 historial_alertas = []
+debug_logs = []  # Lista para almacenar logs de debug
 
 # Cargar versión desde archivo
 def cargar_version():
@@ -20,6 +21,22 @@ def cargar_version():
         return "1.0.0"
 
 VERSION = cargar_version()
+DEBUG_LOG = os.getenv('DEBUG_LOG', 'false').lower() == 'true'
+
+def add_debug_log(message, level="INFO"):
+    """Añade un log de debug si está habilitado"""
+    if DEBUG_LOG:
+        timestamp = time.strftime('%H:%M:%S')
+        log_entry = {
+            'id': str(uuid.uuid4()),
+            'timestamp': timestamp,
+            'level': level,
+            'message': message
+        }
+        debug_logs.insert(0, log_entry)  # Insertar al principio
+        # Mantener solo los últimos 100 logs
+        if len(debug_logs) > 100:
+            debug_logs.pop()
 
 def monitor_background():
     while True:
@@ -48,6 +65,52 @@ HTML_TEMPLATE = """
 <head>
     <title>Monitor Bolsa</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .debug-panel {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 400px;
+            max-height: 300px;
+            background: rgba(0,0,0,0.9);
+            color: #fff;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 1000;
+            display: none;
+        }
+        .debug-toggle {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            z-index: 1001;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .debug-toggle:hover {
+            background: #0056b3;
+        }
+        .debug-logs {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .log-INFO { background: rgba(0,123,255,0.1); }
+        .log-ERROR { background: rgba(220,53,69,0.1); color: #ff6b6b; }
+        .log-WARNING { background: rgba(255,193,7,0.1); color: #ffc107; }
+    </style>
 </head>
 <body class="bg-light" onload="actualizar()">
     <div class="container mt-5">
@@ -73,8 +136,20 @@ HTML_TEMPLATE = """
             <div class="col-md-4" id="alertas"></div>
         </div>
     </div>
+    
+    <!-- Panel de Debug -->
+    <button class="debug-toggle" onclick="toggleDebug()" title="Toggle Debug Logs">🐛</button>
+    <div class="debug-panel" id="debugPanel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <strong>Debug Logs</strong>
+            <button onclick="clearLogs()" style="background:none;border:none;color:#fff;cursor:pointer;">🗑️</button>
+        </div>
+        <div class="debug-logs" id="debugLogs"></div>
+    </div>
+    
     <script>
         let versionActual = '{{ version }}';
+        let debugEnabled = {{ debug_enabled|tojson }};
         
         async function añadir() {
             const err = document.getElementById('error-msg');
@@ -117,8 +192,49 @@ HTML_TEMPLATE = """
                     <td><span class="badge ${v.triggered?'bg-danger':'bg-success'}">${v.triggered?'ALERTA':'Vigilando'}</span></td>
                     <td><button onclick="eliminar('${id}')" class="btn btn-sm btn-outline-danger">x</button></td></tr>`).join('');
                 document.getElementById('alertas').innerHTML = d.alertas.map(a => `<div class="alert alert-warning p-2">${a.time}: ${a.msg}</div>`).join('');
-            } catch(e) {}
+                
+                // Actualizar logs de debug si están habilitados
+                if (debugEnabled) {
+                    actualizarLogs();
+                }
+            } catch(e) {
+                console.error('Error actualizando:', e);
+            }
         }
+        
+        async function actualizarLogs() {
+            try {
+                const r = await fetch('/api/logs');
+                const d = await r.json();
+                if (d.enabled) {
+                    document.getElementById('debugLogs').innerHTML = d.logs.map(log => 
+                        `<div class="log-entry log-${log.level}">[${log.timestamp}] ${log.level}: ${log.message}</div>`
+                    ).join('');
+                }
+            } catch(e) {
+                console.error('Error obteniendo logs:', e);
+            }
+        }
+        
+        function toggleDebug() {
+            const panel = document.getElementById('debugPanel');
+            const toggle = document.querySelector('.debug-toggle');
+            
+            if (panel.style.display === 'none' || panel.style.display === '') {
+                panel.style.display = 'block';
+                toggle.style.display = 'none';
+                if (debugEnabled) actualizarLogs();
+            } else {
+                panel.style.display = 'none';
+                toggle.style.display = 'block';
+            }
+        }
+        
+        function clearLogs() {
+            fetch('/api/logs', {method: 'DELETE'});
+            document.getElementById('debugLogs').innerHTML = '';
+        }
+        
         setInterval(actualizar, 5000);
     </script>
 </body>
@@ -127,82 +243,97 @@ HTML_TEMPLATE = """
 
 @app.route('/')
 def index(): 
-    return render_template_string(HTML_TEMPLATE, version=cargar_version())
+    return render_template_string(HTML_TEMPLATE, version=cargar_version(), debug_enabled=DEBUG_LOG)
 
 @app.route('/api/data')
 def get_data(): 
     return jsonify({"monitores": monitores, "alertas": historial_alertas, "version": cargar_version()})
 
+@app.route('/api/logs')
+def get_logs():
+    """Endpoint para obtener logs de debug (solo si está habilitado)"""
+    if not DEBUG_LOG:
+        return jsonify({"logs": [], "enabled": False})
+    return jsonify({"logs": debug_logs, "enabled": True})
+
+@app.route('/api/logs', methods=['DELETE'])
+def clear_logs():
+    """Endpoint para limpiar logs de debug"""
+    if DEBUG_LOG:
+        debug_logs.clear()
+        add_debug_log("Logs limpiados manualmente")
+    return jsonify({"ok": True})
+
 def buscar_ticker_por_isin(isin):
     """Intenta encontrar el ticker correspondiente a un ISIN"""
     try:
-        print(f"Buscando ticker para ISIN: {isin}")
+        add_debug_log(f"Buscando ticker para ISIN: {isin}")
         # Usar la función de búsqueda de yfinance
         search = yf.Search(isin, max_results=5)
         if search and hasattr(search, 'quotes') and search.quotes:
             for quote in search.quotes:
                 if hasattr(quote, 'symbol') and quote.symbol:
                     ticker = quote.symbol
-                    print(f"Encontrado ticker candidato: {ticker}")
+                    add_debug_log(f"Encontrado ticker candidato: {ticker}")
                     # Verificar que este ticker tenga datos
                     try:
                         test_ticker = yf.Ticker(ticker)
                         test_hist = test_ticker.history(period="1d")
                         if not test_hist.empty:
-                            print(f"✓ Ticker válido encontrado: {ticker}")
+                            add_debug_log(f"✓ Ticker válido encontrado: {ticker}")
                             return ticker
                     except:
                         continue
-        print(f"No se encontró ticker válido para ISIN: {isin}")
+        add_debug_log(f"No se encontró ticker válido para ISIN: {isin}")
         return None
     except Exception as e:
-        print(f"Error buscando ticker para ISIN {isin}: {e}")
+        add_debug_log(f"Error buscando ticker para ISIN {isin}: {e}")
         return None
 
 def obtener_precio(ticker_str):
     """Intenta obtener el precio de varias formas para mayor robustez"""
     try:
-        print(f"Intentando obtener precio para: {ticker_str}")
+        add_debug_log(f"Intentando obtener precio para: {ticker_str}")
         t = yf.Ticker(ticker_str)
         
         # Intento 1: fast_info (más rápido pero menos confiable)
         try:
             precio = t.fast_info.get('last_price')
             if precio and precio > 0:
-                print(f"✓ Precio obtenido via fast_info: {precio}")
+                add_debug_log(f"✓ Precio obtenido via fast_info: {precio}")
                 return precio
             else:
-                print(f"✗ fast_info devolvió precio inválido: {precio}")
+                add_debug_log(f"✗ fast_info devolvió precio inválido: {precio}")
         except Exception as e:
-            print(f"✗ Error en fast_info: {e}")
+            add_debug_log(f"✗ Error en fast_info: {e}")
         
         # Intento 2: history (más confiable)
         try:
             hist = t.history(period="1d")
             if not hist.empty:
                 precio = hist['Close'].iloc[-1]
-                print(f"✓ Precio obtenido via history: {precio}")
+                add_debug_log(f"✓ Precio obtenido via history: {precio}")
                 return precio
             else:
-                print("✗ History devolvió datos vacíos")
+                add_debug_log("✗ History devolvió datos vacíos")
         except Exception as e:
-            print(f"✗ Error en history: {e}")
+            add_debug_log(f"✗ Error en history: {e}")
         
         # Intento 3: info (último recurso)
         try:
             info = t.info
             if info and 'regularMarketPrice' in info and info['regularMarketPrice']:
                 precio = info['regularMarketPrice']
-                print(f"✓ Precio obtenido via info: {precio}")
+                add_debug_log(f"✓ Precio obtenido via info: {precio}")
                 return precio
             else:
-                print(f"✗ Info no contiene regularMarketPrice válido: {info.get('regularMarketPrice') if info else 'None'}")
+                add_debug_log(f"✗ Info no contiene regularMarketPrice válido: {info.get('regularMarketPrice') if info else 'None'}")
         except Exception as e:
-            print(f"✗ Error en info: {e}")
+            add_debug_log(f"✗ Error en info: {e}")
         
         # Intento 4: buscar ticker alternativo si es ISIN
         if es_isin(ticker_str):
-            print(f"Intentando buscar ticker alternativo para ISIN: {ticker_str}")
+            add_debug_log(f"Intentando buscar ticker alternativo para ISIN: {ticker_str}")
             try:
                 # Algunos ISIN pueden tener un ticker asociado
                 search_results = yf.Search(ticker_str)
@@ -210,22 +341,23 @@ def obtener_precio(ticker_str):
                     for quote in search_results.quotes[:3]:  # Probar los primeros 3 resultados
                         if hasattr(quote, 'symbol'):
                             alt_ticker = quote.symbol
-                            print(f"Probando ticker alternativo: {alt_ticker}")
+                            add_debug_log(f"Probando ticker alternativo: {alt_ticker}")
                             try:
                                 alt_t = yf.Ticker(alt_ticker)
                                 alt_hist = alt_t.history(period="1d")
                                 if not alt_hist.empty:
                                     precio = alt_hist['Close'].iloc[-1]
-                                    print(f"✓ Precio obtenido via ticker alternativo {alt_ticker}: {precio}")
+                                    add_debug_log(f"✓ Precio obtenido via ticker alternativo {alt_ticker}: {precio}")
                                     return precio
                             except:
                                 continue
             except Exception as e:
-                print(f"✗ Error buscando ticker alternativo: {e}")
+                add_debug_log(f"✗ Error buscando ticker alternativo: {e}")
         
+        add_debug_log(f"✗ No se pudo obtener precio para {ticker_str}")
         raise ValueError(f"No data available for {ticker_str}")
     except Exception as e:
-        print(f"✗ Error general obteniendo precio para {ticker_str}: {e}")
+        add_debug_log(f"✗ Error general obteniendo precio para {ticker_str}: {e}")
         raise Exception(f"No se pudo obtener precio: {e}")
 
 @app.route('/api/add', methods=['POST'])
@@ -233,10 +365,13 @@ def add_monitor():
     try:
         data = request.json
         ticker_input = data.get('ticker', '').upper().strip()
-        if not ticker_input: return jsonify({"ok":False}), 400
+        if not ticker_input: 
+            add_debug_log("Intento de añadir monitor sin ticker")
+            return jsonify({"ok":False}), 400
         
         target = float(data['target'])
         ticker_name = ticker_input
+        add_debug_log(f"Añadiendo monitor para {ticker_input} con objetivo {target}")
         
         # Intentar obtener precio con la función robusta
         try:
@@ -244,16 +379,16 @@ def add_monitor():
         except Exception as e:
             # Si es ISIN y falló, intentar buscar el ticker correspondiente
             if es_isin(ticker_input):
-                print(f"ISIN {ticker_input} falló, buscando ticker alternativo...")
+                add_debug_log(f"ISIN {ticker_input} falló, buscando ticker alternativo...")
                 ticker_alternativo = buscar_ticker_por_isin(ticker_input)
                 if ticker_alternativo:
-                    print(f"Intentando con ticker alternativo: {ticker_alternativo}")
+                    add_debug_log(f"Intentando con ticker alternativo: {ticker_alternativo}")
                     try:
                         precio = obtener_precio(ticker_alternativo)
                         ticker_name = f"{ticker_input} ({ticker_alternativo})"  # Mostrar ISIN + ticker
-                        print(f"✓ Éxito con ticker alternativo: {ticker_alternativo}")
+                        add_debug_log(f"✓ Éxito con ticker alternativo: {ticker_alternativo}")
                     except Exception as e2:
-                        print(f"✗ Ticker alternativo también falló: {e2}")
+                        add_debug_log(f"✗ Ticker alternativo también falló: {e2}")
                         raise Exception(f"ISIN no encontrado ni como ISIN ni como ticker alternativo")
                 else:
                     raise Exception(f"ISIN no encontrado y no se pudo encontrar ticker alternativo")
@@ -268,9 +403,10 @@ def add_monitor():
             'tipo': 'superior' if target > precio else 'inferior', 
             'triggered': False
         }
+        add_debug_log(f"✓ Monitor añadido exitosamente: {ticker_name} (ID: {m_id})")
         return jsonify({"ok":True})
     except Exception as e:
-        print(f"Error añadiendo {ticker_input}: {e}")
+        add_debug_log(f"✗ Error añadiendo monitor para {ticker_input}: {e}")
         return jsonify({"ok":False}), 400
 
 @app.route('/api/delete/<m_id>', methods=['DELETE'])

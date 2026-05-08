@@ -116,6 +116,36 @@ piloto_financiero/
 - **Containerización**: Docker & Docker Compose
 - **Orquestación**: Dockge
 
+## 🔧 Configuración
+
+### Variables de Entorno
+
+La aplicación soporta las siguientes variables de entorno en `compose.yaml`:
+
+```yaml
+environment:
+  - DEBUG_LOG=false  # Habilitar/deshabilitar logs de debug (true/false)
+```
+
+**DEBUG_LOG**: Cuando está habilitado (`true`), muestra un panel de debug en la esquina inferior derecha con logs detallados de todas las operaciones de búsqueda de precios. Útil para debugging y troubleshooting.
+
+### Panel de Debug
+
+Cuando `DEBUG_LOG=true`, aparece un botón 🐛 en la esquina inferior derecha. Al hacer clic:
+
+- **Muestra logs en tiempo real** de todas las operaciones de búsqueda
+- **Colores por nivel**: INFO (azul), WARNING (amarillo), ERROR (rojo)
+- **Botón de limpiar** para resetear los logs
+- **Máximo 100 entradas** para evitar sobrecarga de memoria
+
+**Ejemplo de logs:**
+```
+[14:23:15] INFO: Intentando obtener precio para: AAPL
+[14:23:15] INFO: ✓ Precio obtenido via fast_info: 175.43
+[14:23:16] INFO: Añadiendo monitor para AAPL con objetivo 180.0
+[14:23:16] INFO: ✓ Monitor añadido exitosamente: AAPL
+```
+
 ## 🔧 API Endpoints
 
 ### `GET /`
@@ -172,5 +202,5 @@ Desarrollado como piloto financiero para monitoreo de activos.
 
 ---
 
-**Última actualización**: 8 de mayo de 2026 - v1.0.1
-**Cambios**: Mejorada búsqueda de ISINs con resolución automática de tickers
+**Última actualización**: 8 de mayo de 2026 - v1.0.2
+**Cambios**: Panel de debug con logs detallados para troubleshooting
