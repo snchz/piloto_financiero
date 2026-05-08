@@ -103,6 +103,32 @@ def es_isin(codigo):
     """Verifica si el código parece ser un ISIN (formato: 2 letras + 9 dígitos)"""
     return len(codigo) == 12 and codigo[:2].isalpha() and codigo[2:].isdigit()
 
+def obtener_precio(ticker_str):
+    """Intenta obtener el precio de varias formas para mayor robustez"""
+    try:
+        t = yf.Ticker(ticker_str)
+        # Intento 1: fast_info (más rápido pero menos confiable)
+        try:
+            precio = t.fast_info.get('last_price')
+            if precio and precio > 0:
+                return precio
+        except:
+            pass
+        
+        # Intento 2: history (más confiable)
+        hist = t.history(period="1d")
+        if not hist.empty:
+            return hist['Close'].iloc[-1]
+        
+        # Intento 3: info (último recurso)
+        info = t.info
+        if 'regularMarketPrice' in info and info['regularMarketPrice']:
+            return info['regularMarketPrice']
+        
+        raise ValueError(f"No data available for {ticker_str}")
+    except Exception as e:
+        raise Exception(f"No se pudo obtener precio: {e}")
+
 @app.route('/api/add', methods=['POST'])
 def add_monitor():
     try:
@@ -113,33 +139,8 @@ def add_monitor():
         target = float(data['target'])
         ticker_name = ticker_input
         
-        # Si parece ser ISIN, intentar buscarlo como ISIN
-        if es_isin(ticker_input):
-            try:
-                t = yf.Ticker(ticker_input)
-                precio = t.fast_info.get('last_price')
-                if precio is None or precio == 0:
-                    hist = t.history(period="1d")
-                    if hist.empty: raise ValueError("No data")
-                    precio = hist['Close'].iloc[-1]
-                # Mantener el ISIN como identificador visual pero usar su ticker si está disponible
-                ticker_name = ticker_input
-            except:
-                # Si falla como ISIN, intentar como ticker normal
-                t = yf.Ticker(ticker_input)
-                precio = t.fast_info.get('last_price')
-                if precio is None or precio == 0:
-                    hist = t.history(period="1d")
-                    if hist.empty: raise ValueError("No data")
-                    precio = hist['Close'].iloc[-1]
-        else:
-            # Búsqueda como ticker normal
-            t = yf.Ticker(ticker_input)
-            precio = t.fast_info.get('last_price')
-            if precio is None or precio == 0:
-                hist = t.history(period="1d")
-                if hist.empty: raise ValueError("No data")
-                precio = hist['Close'].iloc[-1]
+        # Intentar obtener precio con la función robusta
+        precio = obtener_precio(ticker_input)
 
         m_id = str(uuid.uuid4())
         monitores[m_id] = {
