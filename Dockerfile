@@ -3,5 +3,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
+COPY version.txt .
+# ARG para invalidar caché con cada cambio
+ARG BUILD_VERSION=1.0.0
+LABEL version=${BUILD_VERSION}
 EXPOSE 5000
 CMD ["python", "app.py"]

@@ -1,7 +1,10 @@
 # Version: 1.0.0
 services:
   piloto-financiero:
-    build: .
+    build:
+      context: .
+      args:
+        - BUILD_VERSION=1.0.0
     container_name: piloto-financiero
     ports:
       - "5000:5000"
