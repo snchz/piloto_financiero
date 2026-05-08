@@ -15,7 +15,10 @@ def monitor_background():
             if data['triggered']: continue
             try:
                 ticker = yf.Ticker(data['ticker'])
+                # Usamos basic_info o history como alternativa más estable si fast_info falla
                 precio_actual = ticker.fast_info['last_price']
+                if precio_actual is None: continue
+                
                 data['current'] = round(precio_actual, 2)
                 if (data['tipo'] == 'superior' and precio_actual >= data['target']) or \
                    (data['tipo'] == 'inferior' and precio_actual <= data['target']):
@@ -23,7 +26,7 @@ def monitor_background():
                     mensaje = f"🔔 {data['ticker']} alcanzó {data['target']} (Actual: {precio_actual:.2f})"
                     historial_alertas.insert(0, {'id': str(uuid.uuid4()), 'msg': mensaje, 'time': time.strftime('%H:%M:%S')})
             except: pass
-        time.sleep(10)
+        time.sleep(15) # Aumentamos un poco el margen para evitar bloqueos
 
 threading.Thread(target=monitor_background, daemon=True).start()
 
@@ -43,10 +46,11 @@ HTML_TEMPLATE = """
                 <div class="col-md-4"><input type="number" step="0.01" id="obj" class="form-control" placeholder="Precio Objetivo" required></div>
                 <div class="col-md-4"><button class="btn btn-primary w-100">Añadir Alerta</button></div>
             </form>
+            <div id="error-msg" class="text-danger mt-2" style="display:none;">⚠️ Ticker no válido o error de conexión.</div>
         </div>
         <div class="row">
             <div class="col-md-8">
-                <table class="table bg-white shadow-sm">
+                <table class="table bg-white shadow-sm rounded">
                     <thead><tr><th>Ticker</th><th>Actual</th><th>Objetivo</th><th>Estado</th><th>-</th></tr></thead>
                     <tbody id="tabla"></tbody>
                 </table>
@@ -56,18 +60,32 @@ HTML_TEMPLATE = """
     </div>
     <script>
         async function añadir() {
-            await fetch('/api/add', {method:'POST', headers:{'Content-Type':'application/json'}, 
-            body: JSON.stringify({ticker: document.getElementById('t').value, target: document.getElementById('obj').value})});
-            actualizar();
+            const err = document.getElementById('error-msg');
+            err.style.display = 'none';
+            const res = await fetch('/api/add', {
+                method:'POST', 
+                headers:{'Content-Type':'application/json'}, 
+                body: JSON.stringify({ticker: document.getElementById('t').value, target: document.getElementById('obj').value})
+            });
+            if (res.ok) {
+                document.getElementById('t').value = '';
+                document.getElementById('obj').value = '';
+                actualizar();
+            } else {
+                err.style.display = 'block';
+            }
         }
         async function eliminar(id) { await fetch('/api/delete/'+id, {method:'DELETE'}); actualizar(); }
         async function actualizar() {
-            const r = await fetch('/api/data'); const d = await r.json();
-            document.getElementById('tabla').innerHTML = Object.entries(d.monitores).map(([id, v]) => `
-                <tr><td>${v.ticker}</td><td>${v.current || '...'}</td><td>${v.target}</td>
-                <td><span class="badge ${v.triggered?'bg-danger':'bg-success'}">${v.triggered?'ALERTA':'Vigilando'}</span></td>
-                <td><button onclick="eliminar('${id}')" class="btn btn-sm btn-danger">x</button></td></tr>`).join('');
-            document.getElementById('alertas').innerHTML = d.alertas.map(a => `<div class="alert alert-warning">${a.time}: ${a.msg}</div>`).join('');
+            try {
+                const r = await fetch('/api/data'); 
+                const d = await r.json();
+                document.getElementById('tabla').innerHTML = Object.entries(d.monitores).map(([id, v]) => `
+                    <tr><td><strong>${v.ticker}</strong></td><td>${v.current || '...'}</td><td>${v.target}</td>
+                    <td><span class="badge ${v.triggered?'bg-danger':'bg-success'}">${v.triggered?'ALERTA':'Vigilando'}</span></td>
+                    <td><button onclick="eliminar('${id}')" class="btn btn-sm btn-outline-danger">x</button></td></tr>`).join('');
+                document.getElementById('alertas').innerHTML = d.alertas.map(a => `<div class="alert alert-warning p-2">${a.time}: ${a.msg}</div>`).join('');
+            } catch(e) {}
         }
         setInterval(actualizar, 5000);
     </script>
@@ -83,13 +101,35 @@ def get_data(): return jsonify({"monitores": monitores, "alertas": historial_ale
 
 @app.route('/api/add', methods=['POST'])
 def add_monitor():
-    data = request.json
-    ticker = data['ticker'].upper()
-    target = float(data['target'])
-    precio = yf.Ticker(ticker).fast_info['last_price']
-    m_id = str(uuid.uuid4())
-    monitores[m_id] = {'ticker':ticker, 'target':target, 'current':round(precio,2), 'tipo':'superior' if target > precio else 'inferior', 'triggered':False}
-    return jsonify({"ok":True})
+    try:
+        data = request.json
+        ticker_name = data.get('ticker', '').upper().strip()
+        if not ticker_name: return jsonify({"ok":False}), 400
+        
+        target = float(data['target'])
+        t = yf.Ticker(ticker_name)
+        
+        # Intento de obtener precio con validación
+        precio = t.fast_info.get('last_price')
+        
+        if precio is None or precio == 0:
+            # Reintento si fast_info falla (algunos activos lo requieren)
+            hist = t.history(period="1d")
+            if hist.empty: raise ValueError("No data")
+            precio = hist['Close'].iloc[-1]
+
+        m_id = str(uuid.uuid4())
+        monitores[m_id] = {
+            'ticker': ticker_name, 
+            'target': target, 
+            'current': round(precio, 2), 
+            'tipo': 'superior' if target > precio else 'inferior', 
+            'triggered': False
+        }
+        return jsonify({"ok":True})
+    except Exception as e:
+        print(f"Error añadiendo {ticker_name}: {e}")
+        return jsonify({"ok":False}), 400
 
 @app.route('/api/delete/<m_id>', methods=['DELETE'])
 def delete_monitor(m_id):
