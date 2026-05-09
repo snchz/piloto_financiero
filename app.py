@@ -349,53 +349,9 @@ def buscar_ticker_por_isin(isin):
                 if not ticker:
                     continue
                 add_debug_log(f"Encontrado ticker candidato: {ticker}")
-                try:
-                    test_ticker = yf.Ticker(ticker)
-                    precio_valido = None
-
-                    try:
-                        precio_valido = test_ticker.fast_info.get('last_price')
-                        if precio_valido:
-                            add_debug_log(f"✓ Precio válido desde fast_info para {ticker}: {precio_valido}")
-                    except Exception as inner_e:
-                        add_debug_log(f"✗ Error en fast_info para {ticker}: {inner_e}")
-
-                    if not precio_valido:
-                        try:
-                            test_hist = test_ticker.history(period="5d")
-                            if not test_hist.empty:
-                                precio_valido = test_hist['Close'].iloc[-1]
-                                add_debug_log(f"✓ Precio válido desde history 5d para {ticker}: {precio_valido}")
-                            else:
-                                add_debug_log(f"✗ Ticker sin datos históricos en 5d: {ticker}")
-                        except Exception as inner_e:
-                            add_debug_log(f"✗ Error en history para {ticker}: {inner_e}")
-
-                    if not precio_valido:
-                        try:
-                            info = test_ticker.info
-                            precio_valido = info.get('regularMarketPrice') if info else None
-                            add_debug_log(f"Info raw para {ticker}: {str(info)[:300]!r}")
-                            if precio_valido:
-                                add_debug_log(f"✓ Precio válido desde info para {ticker}: {precio_valido}")
-                            else:
-                                add_debug_log(f"✗ Info no contiene regularMarketPrice para {ticker}")
-                        except Exception as inner_e:
-                            add_debug_log(f"✗ Error en info para {ticker}: {inner_e}")
-
-                    if not precio_valido:
-                        precio_valido = obtener_precio_yahoo_quote(ticker)
-                        if precio_valido is not None:
-                            add_debug_log(f"✓ Precio válido desde Yahoo Quote para {ticker}: {precio_valido}")
-
-                    if precio_valido:
-                        add_debug_log(f"✓ Ticker válido encontrado: {ticker}")
-                        isin_cache[isin] = ticker
-                        return ticker
-                    add_debug_log(f"✗ Ticker candidato {ticker} no proporciona precio válido")
-                except Exception as inner_e:
-                    add_debug_log(f"✗ Error verificando ticker {ticker}: {inner_e}")
-                    continue
+                add_debug_log(f"Asumiendo ticker alternativo válido para ISIN {isin}: {ticker}")
+                isin_cache[isin] = ticker
+                return ticker
         except requests.exceptions.RequestException as e:
             add_debug_log(f"✗ Error buscando ticker para ISIN {isin}: {e}")
             continue
