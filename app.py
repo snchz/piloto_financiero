@@ -27,6 +27,7 @@ SEARCH_SESSION.mount("https://", HTTPAdapter(max_retries=RETRY_STRATEGY))
 monitores = {}
 historial_alertas = []
 debug_logs = []  # Lista para almacenar logs de debug
+isin_cache = {}
 
 # Cargar versión desde archivo
 def cargar_version():
@@ -305,10 +306,15 @@ def buscar_ticker_por_isin(isin):
     ]
     params = {"q": isin, "quotesCount": 5}
 
+    if isin in isin_cache:
+        add_debug_log(f"Usando cache de ISIN para {isin}: {isin_cache[isin]}")
+        return isin_cache[isin]
+
     for url in search_endpoints:
         try:
             add_debug_log(f"Buscando ticker para ISIN: {isin} via {url}")
             response = SEARCH_SESSION.get(url, params=params, headers=SEARCH_HEADERS, timeout=10)
+            add_debug_log(f"Yahoo Search respuesta: status={response.status_code} content_type={response.headers.get('Content-Type')} text={response.text[:300]!r}")
             if response.status_code == 429:
                 add_debug_log("✗ 429 rate limit de Yahoo Search, esperando 2 segundos")
                 time.sleep(2)
@@ -342,12 +348,12 @@ def buscar_ticker_por_isin(isin):
 
                     if not precio_valido:
                         try:
-                            test_hist = test_ticker.history(period="1d")
+                            test_hist = test_ticker.history(period="5d")
                             if not test_hist.empty:
                                 precio_valido = test_hist['Close'].iloc[-1]
-                                add_debug_log(f"✓ Precio válido desde history para {ticker}: {precio_valido}")
+                                add_debug_log(f"✓ Precio válido desde history 5d para {ticker}: {precio_valido}")
                             else:
-                                add_debug_log(f"✗ Ticker sin datos históricos: {ticker}")
+                                add_debug_log(f"✗ Ticker sin datos históricos en 5d: {ticker}")
                         except Exception as inner_e:
                             add_debug_log(f"✗ Error en history para {ticker}: {inner_e}")
 
@@ -355,6 +361,7 @@ def buscar_ticker_por_isin(isin):
                         try:
                             info = test_ticker.info
                             precio_valido = info.get('regularMarketPrice') if info else None
+                            add_debug_log(f"Info raw para {ticker}: {str(info)[:300]!r}")
                             if precio_valido:
                                 add_debug_log(f"✓ Precio válido desde info para {ticker}: {precio_valido}")
                             else:
@@ -364,6 +371,7 @@ def buscar_ticker_por_isin(isin):
 
                     if precio_valido:
                         add_debug_log(f"✓ Ticker válido encontrado: {ticker}")
+                        isin_cache[isin] = ticker
                         return ticker
                 except Exception as inner_e:
                     add_debug_log(f"✗ Error verificando ticker {ticker}: {inner_e}")
@@ -376,6 +384,7 @@ def buscar_ticker_por_isin(isin):
             continue
 
     add_debug_log(f"No se encontró ticker válido para ISIN: {isin}")
+    isin_cache[isin] = None
     return None
 
 def es_isin(codigo):
@@ -404,12 +413,21 @@ def obtener_precio(ticker_str):
             hist = t.history(period="1d")
             if not hist.empty:
                 precio = hist['Close'].iloc[-1]
-                add_debug_log(f"✓ Precio obtenido via history: {precio}")
+                add_debug_log(f"✓ Precio obtenido via history 1d: {precio}")
                 return precio
-            else:
-                add_debug_log("✗ History devolvió datos vacíos")
+            add_debug_log("✗ History 1d devolvió datos vacíos, intento 5d")
         except Exception as e:
-            add_debug_log(f"✗ Error en history: {e}")
+            add_debug_log(f"✗ Error en history 1d: {e}")
+
+        try:
+            hist = t.history(period="5d")
+            if not hist.empty:
+                precio = hist['Close'].iloc[-1]
+                add_debug_log(f"✓ Precio obtenido via history 5d: {precio}")
+                return precio
+            add_debug_log("✗ History 5d devolvió datos vacíos")
+        except Exception as e:
+            add_debug_log(f"✗ Error en history 5d: {e}")
         
         # Intento 3: info (último recurso)
         try:
