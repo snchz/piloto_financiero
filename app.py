@@ -4,6 +4,7 @@ import threading
 import time
 import uuid
 import os
+import json
 import importlib.metadata
 import requests
 from requests.adapters import HTTPAdapter
@@ -53,10 +54,36 @@ RETRY_STRATEGY = Retry(
 )
 SEARCH_SESSION.mount("https://", HTTPAdapter(max_retries=RETRY_STRATEGY))
 
+DATA_DIR = 'data'
+DATA_FILE = os.path.join(DATA_DIR, 'monitores.json')
+
 monitores = {}
 historial_alertas = []
 debug_logs = []  # Lista para almacenar logs de debug
 isin_cache = {}
+
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
+
+def cargar_monitores():
+    global monitores, historial_alertas
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                monitores = data.get('monitores', {})
+                historial_alertas = data.get('alertas', [])
+        except Exception:
+            pass
+
+def guardar_monitores():
+    try:
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump({'monitores': monitores, 'alertas': historial_alertas}, f, ensure_ascii=False, indent=4)
+    except Exception:
+        pass
+
+cargar_monitores()
 
 # Cargar versión desde archivo
 def cargar_version():
@@ -117,6 +144,7 @@ def monitor_background():
                     data['triggered'] = True
                     mensaje = f"🔔 {data['ticker']} alcanzó {data['target']} (Actual: {precio_actual:.2f})"
                     historial_alertas.insert(0, {'id': str(uuid.uuid4()), 'msg': mensaje, 'time': time.strftime('%H:%M:%S')})
+                    guardar_monitores()
             except: pass
         time.sleep(15) # Aumentamos un poco el margen para evitar bloqueos
 
@@ -192,7 +220,7 @@ HTML_TEMPLATE = """
         <div class="row">
             <div class="col-md-8">
                 <table class="table bg-white shadow-sm rounded">
-                    <thead><tr><th>Ticker</th><th>Actual</th><th>Objetivo</th><th>Estado</th><th>-</th></tr></thead>
+                    <thead><tr><th>Ticker</th><th>Nombre</th><th>Actual</th><th>Objetivo</th><th>Estado</th><th>-</th></tr></thead>
                     <tbody id="tabla"></tbody>
                 </table>
             </div>
@@ -270,7 +298,7 @@ HTML_TEMPLATE = """
                 }
                 
                 document.getElementById('tabla').innerHTML = Object.entries(d.monitores).map(([id, v]) => `
-                    <tr><td><strong>${v.ticker}</strong></td><td>${v.current || '...'}</td><td>${v.target}</td>
+                    <tr><td><strong>${v.ticker}</strong></td><td>${v.name || ''}</td><td>${v.current || '...'}</td><td>${v.target}</td>
                     <td><span class="badge ${v.triggered?'bg-danger':'bg-success'}">${v.triggered?'ALERTA':'Vigilando'}</span></td>
                     <td>
                         <button onclick="editar('${id}', ${v.target})" class="btn btn-sm btn-outline-secondary" title="Editar objetivo">✏️</button>
@@ -565,6 +593,15 @@ def obtener_precio(ticker_str):
         add_debug_log(f"✗ Error general obteniendo precio para {ticker_str}: {e}")
         raise Exception(f"No se pudo obtener precio: {e}")
 
+def obtener_nombre(ticker_str):
+    """Intenta obtener el nombre corto o largo del ticker."""
+    try:
+        t = yf.Ticker(ticker_str)
+        info = t.info
+        return info.get('shortName') or info.get('longName') or ""
+    except Exception:
+        return ""
+
 @app.route('/api/add', methods=['POST'])
 def add_monitor():
     try:
@@ -602,15 +639,19 @@ def add_monitor():
             else:
                 raise e
 
+        asset_name = obtener_nombre(actual_ticker)
+
         m_id = str(uuid.uuid4())
         monitores[m_id] = {
             'ticker': ticker_name,
             'symbol': actual_ticker,
+            'name': asset_name,
             'target': target,
             'current': round(precio, 2),
             'tipo': 'superior' if target > precio else 'inferior',
             'triggered': False
         }
+        guardar_monitores()
         add_debug_log(f"✓ Monitor añadido exitosamente: {ticker_name} (ID: {m_id})")
         return jsonify({"ok":True})
     except Exception as e:
@@ -619,7 +660,9 @@ def add_monitor():
 
 @app.route('/api/delete/<m_id>', methods=['DELETE'])
 def delete_monitor(m_id):
-    if m_id in monitores: del monitores[m_id]
+    if m_id in monitores: 
+        del monitores[m_id]
+        guardar_monitores()
     return jsonify({"ok":True})
 
 @app.route('/api/edit/<m_id>', methods=['PUT'])
@@ -633,6 +676,7 @@ def edit_monitor(m_id):
             if precio is not None:
                 monitores[m_id]['tipo'] = 'superior' if new_target > precio else 'inferior'
             monitores[m_id]['triggered'] = False
+            guardar_monitores()
             add_debug_log(f"Monitor {m_id} actualizado a nuevo objetivo: {new_target}")
             return jsonify({"ok": True})
         except Exception as e:
