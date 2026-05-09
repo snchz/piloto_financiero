@@ -405,6 +405,31 @@ def es_isin(codigo):
     """Verifica si el código parece ser un ISIN (formato: 2 letras + 9 dígitos)"""
     return len(codigo) == 12 and codigo[:2].isalpha() and codigo[2:].isdigit()
 
+def obtener_precio_yahoo_quote(ticker_str):
+    """Obtiene precio desde el endpoint quote de Yahoo Finance como fallback."""
+    try:
+        url = f"https://query1.finance.yahoo.com/v7/finance/quote"
+        params = {"symbols": ticker_str}
+        add_debug_log(f"Fallback quote Yahoo para {ticker_str}: {url} {params}")
+        response = SEARCH_SESSION.get(url, params=params, headers=SEARCH_HEADERS, timeout=10)
+        add_debug_log(f"Yahoo Quote respuesta: status={response.status_code} content_type={response.headers.get('Content-Type')} text={response.text[:500]!r}")
+        response.raise_for_status()
+        data = response.json()
+        result = data.get('quoteResponse', {}).get('result', [])
+        if not result:
+            add_debug_log(f"✗ Quote Yahoo sin result para {ticker_str}")
+            return None
+        quote = result[0]
+        precio = quote.get('regularMarketPrice')
+        if precio is not None:
+            add_debug_log(f"✓ Precio obtenido via Yahoo Quote para {ticker_str}: {precio}")
+            return precio
+        add_debug_log(f"✗ Quote Yahoo no contiene regularMarketPrice para {ticker_str}: {quote}")
+        return None
+    except Exception as e:
+        add_debug_log(f"✗ Error en Yahoo Quote para {ticker_str}: {e}")
+        return None
+
 def obtener_precio_yahoo_chart(ticker_str):
     """Obtiene precio desde el endpoint chart de Yahoo Finance como fallback."""
     try:
@@ -488,7 +513,14 @@ def obtener_precio(ticker_str):
         except Exception as e:
             add_debug_log(f"✗ Error en info: {e}")
 
-        # Intento 4: fallback directo a Yahoo Chart
+        # Intento 4: fallback directo a Yahoo Quote
+        add_debug_log(f"Intentando fallback Yahoo Quote para {ticker_str}")
+        precio_quote = obtener_precio_yahoo_quote(ticker_str)
+        if precio_quote is not None:
+            return precio_quote
+
+        # Intento 5: fallback directo a Yahoo Chart
+        add_debug_log(f"Intentando fallback Yahoo Chart para {ticker_str}")
         precio_chart = obtener_precio_yahoo_chart(ticker_str)
         if precio_chart is not None:
             return precio_chart
