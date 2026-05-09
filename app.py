@@ -383,10 +383,16 @@ def buscar_ticker_por_isin(isin):
                         except Exception as inner_e:
                             add_debug_log(f"✗ Error en info para {ticker}: {inner_e}")
 
+                    if not precio_valido:
+                        precio_valido = obtener_precio_yahoo_quote(ticker)
+                        if precio_valido is not None:
+                            add_debug_log(f"✓ Precio válido desde Yahoo Quote para {ticker}: {precio_valido}")
+
                     if precio_valido:
                         add_debug_log(f"✓ Ticker válido encontrado: {ticker}")
                         isin_cache[isin] = ticker
                         return ticker
+                    add_debug_log(f"✗ Ticker candidato {ticker} no proporciona precio válido")
                 except Exception as inner_e:
                     add_debug_log(f"✗ Error verificando ticker {ticker}: {inner_e}")
                     continue
