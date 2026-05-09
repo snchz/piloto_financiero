@@ -515,6 +515,15 @@ def handle_logs():
         return jsonify({"ok": True})
     return jsonify({"logs": state["logs"]})
 
+@app.route('/health')
+def health_check():
+    try:
+        with get_db() as conn:
+            conn.execute("SELECT 1").fetchone()
+        return jsonify({"status": "healthy"}), 200
+    except Exception as e:
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
 # --- UI Template ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
