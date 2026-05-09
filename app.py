@@ -4,6 +4,7 @@ import threading
 import time
 import uuid
 import os
+import importlib.metadata
 
 app = Flask(__name__)
 
@@ -23,21 +24,6 @@ def cargar_version():
 VERSION = cargar_version()
 DEBUG_LOG = os.getenv('DEBUG_LOG', 'false').lower() == 'true'
 
-# Mostrar información al iniciar
-print("=" * 60)
-print(f"🚀 Piloto Financiero v{VERSION} - INICIANDO")
-print(f"   Debug Mode: {'ACTIVADO' if DEBUG_LOG else 'Desactivado'}")
-print(f"   Hora: {time.strftime('%d/%m/%Y %H:%M:%S')}")
-print(f"   Python Version: {__import__('sys').version}")
-print(f"   Flask Version: {__import__('flask').__version__}")
-print(f"   YFinance Version: {__import__('yfinance').__version__}")
-print("=" * 60)
-
-# Log inicial de debug
-add_debug_log("Aplicación iniciada correctamente", "INFO")
-add_debug_log(f"Versión: {VERSION}", "INFO")
-add_debug_log(f"Debug Mode: {'ACTIVADO' if DEBUG_LOG else 'Desactivado'}", "INFO")
-
 def add_debug_log(message, level="INFO"):
     """Añade un log de debug si está habilitado"""
     if DEBUG_LOG:
@@ -52,6 +38,21 @@ def add_debug_log(message, level="INFO"):
         # Mantener solo los últimos 100 logs
         if len(debug_logs) > 100:
             debug_logs.pop()
+
+# Mostrar información al iniciar
+print("=" * 60)
+print(f"🚀 Piloto Financiero v{VERSION} - INICIANDO")
+print(f"   Debug Mode: {'ACTIVADO' if DEBUG_LOG else 'Desactivado'}")
+print(f"   Hora: {time.strftime('%d/%m/%Y %H:%M:%S')}")
+print(f"   Python Version: {__import__('sys').version}")
+print(f"   Flask Version: {importlib.metadata.version('flask')}")
+print(f"   YFinance Version: {importlib.metadata.version('yfinance')}")
+print("=" * 60)
+
+# Log inicial de debug
+add_debug_log("Aplicación iniciada correctamente", "INFO")
+add_debug_log(f"Versión: {VERSION}", "INFO")
+add_debug_log(f"Debug Mode: {'ACTIVADO' if DEBUG_LOG else 'Desactivado'}", "INFO")
 
 def monitor_background():
     while True:
