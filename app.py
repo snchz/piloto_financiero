@@ -331,11 +331,40 @@ def buscar_ticker_por_isin(isin):
                 add_debug_log(f"Encontrado ticker candidato: {ticker}")
                 try:
                     test_ticker = yf.Ticker(ticker)
-                    test_hist = test_ticker.history(period="1d")
-                    if not test_hist.empty:
+                    precio_valido = None
+
+                    try:
+                        precio_valido = test_ticker.fast_info.get('last_price')
+                        if precio_valido:
+                            add_debug_log(f"✓ Precio válido desde fast_info para {ticker}: {precio_valido}")
+                    except Exception as inner_e:
+                        add_debug_log(f"✗ Error en fast_info para {ticker}: {inner_e}")
+
+                    if not precio_valido:
+                        try:
+                            test_hist = test_ticker.history(period="1d")
+                            if not test_hist.empty:
+                                precio_valido = test_hist['Close'].iloc[-1]
+                                add_debug_log(f"✓ Precio válido desde history para {ticker}: {precio_valido}")
+                            else:
+                                add_debug_log(f"✗ Ticker sin datos históricos: {ticker}")
+                        except Exception as inner_e:
+                            add_debug_log(f"✗ Error en history para {ticker}: {inner_e}")
+
+                    if not precio_valido:
+                        try:
+                            info = test_ticker.info
+                            precio_valido = info.get('regularMarketPrice') if info else None
+                            if precio_valido:
+                                add_debug_log(f"✓ Precio válido desde info para {ticker}: {precio_valido}")
+                            else:
+                                add_debug_log(f"✗ Info no contiene regularMarketPrice para {ticker}")
+                        except Exception as inner_e:
+                            add_debug_log(f"✗ Error en info para {ticker}: {inner_e}")
+
+                    if precio_valido:
                         add_debug_log(f"✓ Ticker válido encontrado: {ticker}")
                         return ticker
-                    add_debug_log(f"✗ Ticker sin datos históricos: {ticker}")
                 except Exception as inner_e:
                     add_debug_log(f"✗ Error verificando ticker {ticker}: {inner_e}")
                     continue
