@@ -23,6 +23,13 @@ def cargar_version():
 VERSION = cargar_version()
 DEBUG_LOG = os.getenv('DEBUG_LOG', 'false').lower() == 'true'
 
+# Mostrar información al iniciar
+print("=" * 60)
+print(f"🚀 Piloto Financiero v{VERSION} - INICIANDO")
+print(f"   Debug Mode: {'ACTIVADO' if DEBUG_LOG else 'Desactivado'}")
+print(f"   Hora: {time.strftime('%d/%m/%Y %H:%M:%S')}")
+print("=" * 60)
+
 def add_debug_log(message, level="INFO"):
     """Añade un log de debug si está habilitado"""
     if DEBUG_LOG:
@@ -419,4 +426,7 @@ def delete_monitor(m_id):
     return jsonify({"ok":True})
 
 if __name__ == '__main__':
+    print("=" * 60)
+    print(f"✅ Aplicación lista para recibir requests en puerto 5000")
+    print("=" * 60)
     app.run(host='0.0.0.0', port=5000)
