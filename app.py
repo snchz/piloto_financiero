@@ -1106,4 +1106,7 @@ def index():
 
 if __name__ == '__main__':
     log_debug(f"Starting Piloto Financiero v{VERSION} on port 5000")
+    # Notificar inicio por Telegram
+    startup_msg = f"🚀 *PILOTO FINANCIERO INICIADO*\nVersión: *{VERSION}*\nFecha: *{time.strftime('%Y-%m-%d %H:%M:%S')}*\nEstado: *Listo para monitorear activos*"
+    enviar_mensaje_telegram(startup_msg)
     app.run(host='0.0.0.0', port=5000, threaded=True)
