@@ -290,6 +290,10 @@ def buscar_ticker_por_isin(isin):
         add_debug_log(f"Error buscando ticker para ISIN {isin}: {e}")
         return None
 
+def es_isin(codigo):
+    """Verifica si el código parece ser un ISIN (formato: 2 letras + 9 dígitos)"""
+    return len(codigo) == 12 and codigo[:2].isalpha() and codigo[2:].isdigit()
+
 def obtener_precio(ticker_str):
     """Intenta obtener el precio de varias formas para mayor robustez"""
     try:
