@@ -22,10 +22,6 @@ DATA_DIR = 'data'
 DATA_FILE = os.path.join(DATA_DIR, 'monitores.json')
 DB_FILE = os.path.join(DATA_DIR, 'piloto.db')
 VERSION_FILE = os.path.join(os.path.dirname(__file__), 'version.txt')
-DEBUG_LOG = os.getenv('DEBUG_LOG', 'false').lower() == 'true'
-
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 SEARCH_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -88,6 +84,21 @@ def init_db():
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS config (
+                clave TEXT PRIMARY KEY,
+                valor TEXT
+            )
+        ''')
+        if c.execute("SELECT COUNT(*) FROM config").fetchone()[0] == 0:
+            defaults = [
+                ("telegram_token", ""),
+                ("telegram_chat_id", ""),
+                ("refresh_interval", "30"),
+                ("check_market_hours", "1"),
+                ("debug_ui", "0")
+            ]
+            c.executemany("INSERT INTO config (clave, valor) VALUES (?, ?)", defaults)
         conn.commit()
 
 init_db()
@@ -96,6 +107,24 @@ def get_db():
     conn = sqlite3.connect(DB_FILE, timeout=10)
     conn.row_factory = sqlite3.Row
     return conn
+
+def get_config():
+    try:
+        with get_db() as conn:
+            rows = conn.execute("SELECT clave, valor FROM config").fetchall()
+            cfg = {r['clave']: r['valor'] for r in rows}
+            return {
+                "telegram_token": cfg.get("telegram_token", ""),
+                "telegram_chat_id": cfg.get("telegram_chat_id", ""),
+                "refresh_interval": int(cfg.get("refresh_interval", "30")),
+                "check_market_hours": cfg.get("check_market_hours", "1") == "1",
+                "debug_ui": cfg.get("debug_ui", "0") == "1"
+            }
+    except Exception as e:
+        return {
+            "telegram_token": "", "telegram_chat_id": "",
+            "refresh_interval": 30, "check_market_hours": True, "debug_ui": False
+        }
 
 def load_version():
     try:
@@ -128,8 +157,15 @@ YAHOO_CRUMB = fetch_yahoo_crumb()
 # --- Logging ---
 def log_debug(msg, level="INFO"):
     print(f"[{level}] {msg}")
-    if not DEBUG_LOG:
+    
+    try:
+        debug_enabled = get_config()['debug_ui']
+    except Exception:
+        debug_enabled = False
+        
+    if not debug_enabled:
         return
+        
     entry = {
         'id': str(uuid.uuid4()),
         'timestamp': time.strftime('%H:%M:%S'),
@@ -270,6 +306,9 @@ def fetch_price(ticker):
 
 # --- Background Worker ---
 def is_market_open(ticker_symbol):
+    if not get_config().get('check_market_hours', True):
+        return True
+        
     try:
         info = yf.Ticker(ticker_symbol).info
         tz_name = info.get('exchangeTimezoneName')
@@ -291,11 +330,16 @@ def is_market_open(ticker_symbol):
         return True
 
 def enviar_mensaje_telegram(mensaje):
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+    cfg = get_config()
+    token = cfg.get("telegram_token")
+    chat_id = cfg.get("telegram_chat_id")
+    
+    if not token or not chat_id:
         return
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
+        "chat_id": chat_id,
         "text": mensaje,
         "parse_mode": "Markdown"
     }
@@ -307,6 +351,9 @@ def enviar_mensaje_telegram(mensaje):
 
 def background_monitor():
     while True:
+        cfg = get_config()
+        interval = cfg.get("refresh_interval", 30) * 60
+        
         try:
             with get_db() as conn:
                 monitores = conn.execute("SELECT * FROM monitores WHERE triggered = 0").fetchall()
@@ -351,7 +398,7 @@ def background_monitor():
         except Exception as e:
             log_debug(f"Background monitor loop error: {e}", "ERROR")
             
-        time.sleep(1800)
+        time.sleep(interval)
 
 threading.Thread(target=background_monitor, daemon=True).start()
 
@@ -376,6 +423,25 @@ def stream():
 @app.route('/api/data')
 def get_data():
     return jsonify(get_all_data())
+
+@app.route('/api/config', methods=['GET'])
+def api_get_config():
+    return jsonify(get_config())
+
+@app.route('/api/config', methods=['POST'])
+def api_set_config():
+    data = request.json
+    try:
+        with get_db() as conn:
+            conn.execute("UPDATE config SET valor = ? WHERE clave = 'telegram_token'", (data.get('telegram_token', ''),))
+            conn.execute("UPDATE config SET valor = ? WHERE clave = 'telegram_chat_id'", (data.get('telegram_chat_id', ''),))
+            conn.execute("UPDATE config SET valor = ? WHERE clave = 'refresh_interval'", (str(data.get('refresh_interval', 30)),))
+            conn.execute("UPDATE config SET valor = ? WHERE clave = 'check_market_hours'", ("1" if data.get('check_market_hours') else "0",))
+            conn.execute("UPDATE config SET valor = ? WHERE clave = 'debug_ui'", ("1" if data.get('debug_ui') else "0",))
+            conn.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 @app.route('/api/add', methods=['POST'])
 def add_monitor():
@@ -447,7 +513,7 @@ def handle_logs():
     if request.method == 'DELETE':
         state["logs"].clear()
         return jsonify({"ok": True})
-    return jsonify({"logs": state["logs"], "enabled": DEBUG_LOG})
+    return jsonify({"logs": state["logs"]})
 
 # --- UI Template ---
 HTML_TEMPLATE = """
@@ -661,7 +727,10 @@ HTML_TEMPLATE = """
     <div class="container py-5">
         <header class="page-header">
             <div class="brand">✨ Piloto Financiero</div>
-            <div class="version-badge">v<span id="version">{{ version }}</span></div>
+            <div class="d-flex align-items-center gap-3">
+                <button class="action-btn" onclick="abrirConfig()" title="Configuración" style="font-size: 1.25rem;">⚙️</button>
+                <div class="version-badge">v<span id="version">{{ version }}</span></div>
+            </div>
         </header>
 
         <main class="row g-4">
@@ -718,6 +787,43 @@ HTML_TEMPLATE = """
         </main>
     </div>
 
+    <!-- Config Modal -->
+    <div class="modal fade" id="configModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content glass-panel" style="background: var(--bg-surface);">
+                <div class="modal-header border-bottom-0">
+                    <h5 class="modal-title">⚙️ Configuración General</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="config-form">
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small mb-1">Telegram Bot Token</label>
+                            <input type="password" id="cfg-telegram-token" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small mb-1">Telegram Chat ID</label>
+                            <input type="text" id="cfg-telegram-chat-id" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small mb-1">Intervalo de Refresco (minutos)</label>
+                            <input type="number" id="cfg-refresh-interval" class="form-control" min="1">
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="cfg-check-market-hours">
+                            <label class="form-check-label text-secondary small">Respetar horario de mercado</label>
+                        </div>
+                        <div class="form-check form-switch mb-4">
+                            <input class="form-check-input" type="checkbox" id="cfg-debug-ui">
+                            <label class="form-check-label text-secondary small">Modo Debug</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Guardar Configuración</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Debug Toggle -->
     <button class="debug-toggle" onclick="toggleDebug()" title="Ver Logs del Sistema">
         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"></path></svg>
@@ -753,7 +859,6 @@ HTML_TEMPLATE = """
 
         const UI = {
             version: '{{ version }}',
-            debugEnabled: {{ debug_enabled|tojson }},
             
             showToast(message, type = 'success') {
                 const container = document.querySelector('.toast-container');
@@ -833,6 +938,48 @@ HTML_TEMPLATE = """
                 }
             }
         };
+
+        let configModal = null;
+        document.addEventListener('DOMContentLoaded', () => {
+            configModal = new bootstrap.Modal(document.getElementById('configModal'));
+        });
+
+        window.abrirConfig = async () => {
+            try {
+                const config = await API.fetch('/api/config');
+                document.getElementById('cfg-telegram-token').value = config.telegram_token;
+                document.getElementById('cfg-telegram-chat-id').value = config.telegram_chat_id;
+                document.getElementById('cfg-refresh-interval').value = config.refresh_interval;
+                document.getElementById('cfg-check-market-hours').checked = config.check_market_hours;
+                document.getElementById('cfg-debug-ui').checked = config.debug_ui;
+                configModal.show();
+            } catch (err) {
+                UI.showToast('Error cargando configuración', 'error');
+            }
+        };
+
+        document.getElementById('config-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                telegram_token: document.getElementById('cfg-telegram-token').value,
+                telegram_chat_id: document.getElementById('cfg-telegram-chat-id').value,
+                refresh_interval: parseInt(document.getElementById('cfg-refresh-interval').value) || 30,
+                check_market_hours: document.getElementById('cfg-check-market-hours').checked,
+                debug_ui: document.getElementById('cfg-debug-ui').checked
+            };
+            
+            try {
+                await API.fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                configModal.hide();
+                UI.showToast('Configuración guardada correctamente');
+            } catch (err) {
+                UI.showToast('Error guardando configuración', 'error');
+            }
+        });
 
         // DOM Events
         document.getElementById('add-form').addEventListener('submit', async (e) => {
@@ -946,7 +1093,7 @@ HTML_TEMPLATE = """
 
 @app.route('/')
 def index():
-    return render_template_string(HTML_TEMPLATE, version=VERSION, debug_enabled=DEBUG_LOG)
+    return render_template_string(HTML_TEMPLATE, version=VERSION)
 
 if __name__ == '__main__':
     log_debug(f"Starting Piloto Financiero v{VERSION} on port 5000")
