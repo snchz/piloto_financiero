@@ -3,12 +3,16 @@ import os
 import threading
 import time
 import uuid
+import sqlite3
+import queue
 
 import requests
 import yfinance as yf
-from flask import Flask, jsonify, render_template_string, request
+from flask import Flask, jsonify, render_template_string, request, Response
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from datetime import datetime
+import pytz
 
 app = Flask(__name__)
 
@@ -16,8 +20,12 @@ app = Flask(__name__)
 
 DATA_DIR = 'data'
 DATA_FILE = os.path.join(DATA_DIR, 'monitores.json')
+DB_FILE = os.path.join(DATA_DIR, 'piloto.db')
 VERSION_FILE = os.path.join(os.path.dirname(__file__), 'version.txt')
 DEBUG_LOG = os.getenv('DEBUG_LOG', 'false').lower() == 'true'
+
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 SEARCH_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -26,15 +34,68 @@ SEARCH_HEADERS = {
 
 # --- State ---
 state = {
-    "monitores": {},
-    "alertas": [],
     "logs": [],
     "isin_cache": {}
 }
 
+# --- SSE Management ---
+class SSESubscriptions:
+    def __init__(self):
+        self.listeners = []
+        self.lock = threading.Lock()
+
+    def add_listener(self, q):
+        with self.lock:
+            self.listeners.append(q)
+
+    def remove_listener(self, q):
+        with self.lock:
+            if q in self.listeners:
+                self.listeners.remove(q)
+
+    def notify(self):
+        with self.lock:
+            for q in self.listeners:
+                q.put(True)
+
+sse_subs = SSESubscriptions()
+
 # --- Initialization ---
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
+
+def init_db():
+    with sqlite3.connect(DB_FILE) as conn:
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS monitores (
+                id TEXT PRIMARY KEY,
+                ticker TEXT,
+                symbol TEXT,
+                name TEXT,
+                currency TEXT,
+                target REAL,
+                current REAL,
+                tipo TEXT,
+                triggered INTEGER
+            )
+        ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS alertas (
+                id TEXT PRIMARY KEY,
+                msg TEXT,
+                time TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        conn.commit()
+
+init_db()
+
+def get_db():
+    conn = sqlite3.connect(DB_FILE, timeout=10)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def load_version():
     try:
@@ -80,28 +141,66 @@ def log_debug(msg, level="INFO"):
         state["logs"].pop()
 
 # --- Data Management ---
-def load_data():
+def migrate_json_to_sqlite():
     if not os.path.exists(DATA_FILE):
         return
     try:
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            state["monitores"] = data.get('monitores', {})
-            state["alertas"] = data.get('alertas', [])
+            
+        with get_db() as conn:
+            if conn.execute("SELECT COUNT(*) FROM monitores").fetchone()[0] == 0:
+                monitores = data.get('monitores', {})
+                for m_id, m in monitores.items():
+                    conn.execute('''
+                        INSERT INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (m_id, m.get('ticker'), m.get('symbol'), m.get('name'), m.get('currency'), 
+                          m.get('target'), m.get('current'), m.get('tipo'), 1 if m.get('triggered') else 0))
+                
+                alertas = data.get('alertas', [])
+                for a in reversed(alertas):
+                    conn.execute('''
+                        INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)
+                    ''', (a.get('id', str(uuid.uuid4())), a.get('msg'), a.get('time')))
+                conn.commit()
+                
+        os.rename(DATA_FILE, DATA_FILE + '.bak')
+        log_debug("Migrated data from JSON to SQLite")
     except Exception as e:
-        log_debug(f"Failed to load data: {e}", "ERROR")
+        log_debug(f"Migration failed: {e}", "ERROR")
 
-def save_data():
+migrate_json_to_sqlite()
+
+def get_all_data():
     try:
-        with open(DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump({
-                'monitores': state["monitores"],
-                'alertas': state["alertas"]
-            }, f, ensure_ascii=False, indent=4)
+        with get_db() as conn:
+            monitores_rows = conn.execute("SELECT * FROM monitores").fetchall()
+            alertas_rows = conn.execute("SELECT * FROM alertas ORDER BY timestamp DESC LIMIT 50").fetchall()
+            
+        monitores = {}
+        for r in monitores_rows:
+            monitores[r['id']] = {
+                'ticker': r['ticker'],
+                'symbol': r['symbol'],
+                'name': r['name'],
+                'currency': r['currency'],
+                'target': r['target'],
+                'current': r['current'],
+                'tipo': r['tipo'],
+                'triggered': bool(r['triggered'])
+            }
+        
+        alertas = [{'id': r['id'], 'msg': r['msg'], 'time': r['time']} for r in alertas_rows]
+        
+        return {
+            "monitores": monitores,
+            "alertas": alertas,
+            "version": VERSION
+        }
     except Exception as e:
-        log_debug(f"Failed to save data: {e}", "ERROR")
-
-load_data()
+        log_debug(f"Error fetching data from DB: {e}", "ERROR")
+        return {"monitores": {}, "alertas": [], "version": VERSION}
 
 # --- Core Logic ---
 def resolve_ticker(isin_or_ticker):
@@ -170,44 +269,113 @@ def fetch_price(ticker):
     raise ValueError(f"Unable to fetch price for {ticker}")
 
 # --- Background Worker ---
+def is_market_open(ticker_symbol):
+    try:
+        info = yf.Ticker(ticker_symbol).info
+        tz_name = info.get('exchangeTimezoneName')
+        if not tz_name:
+            return True
+            
+        tz = pytz.timezone(tz_name)
+        now = datetime.now(tz)
+        
+        if now.weekday() > 4:
+            return False
+            
+        market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
+        market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
+        
+        return market_open <= now <= market_close
+    except Exception as e:
+        log_debug(f"Error checking market hours for {ticker_symbol}: {e}", "WARNING")
+        return True
+
+def enviar_mensaje_telegram(mensaje):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": mensaje,
+        "parse_mode": "Markdown"
+    }
+    try:
+        res = requests.post(url, json=payload, timeout=10)
+        res.raise_for_status()
+    except Exception as e:
+        log_debug(f"Error enviando mensaje de Telegram: {e}", "ERROR")
+
 def background_monitor():
     while True:
-        for m_id, data in list(state["monitores"].items()):
-            if data.get('triggered'):
-                continue
+        try:
+            with get_db() as conn:
+                monitores = conn.execute("SELECT * FROM monitores WHERE triggered = 0").fetchall()
+            
+            changes_made = False
+            for m in monitores:
+                try:
+                    m_id = m['id']
+                    sym = m['symbol']
+                    
+                    if not is_market_open(sym):
+                        log_debug(f"El mercado está cerrado para {sym}, omitiendo actualización.", "INFO")
+                        continue
+                        
+                    precio = fetch_price(sym)
+                    current = round(precio, 2)
+                    
+                    is_above_target = m['tipo'] == 'superior' and precio >= m['target']
+                    is_below_target = m['tipo'] == 'inferior' and precio <= m['target']
+                    
+                    with get_db() as conn:
+                        if is_above_target or is_below_target:
+                            msg = f"🔔 {m['ticker']} alcanzó {m['target']} (Actual: {precio:.2f})"
+                            conn.execute("UPDATE monitores SET current = ?, triggered = 1 WHERE id = ?", (current, m_id))
+                            conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
+                                         (str(uuid.uuid4()), msg, time.strftime('%H:%M:%S')))
+                            conn.commit()
+                            changes_made = True
+                            
+                            telegram_msg = f"🔔 *ALERTA DE MERCADO*\nEl activo *{m['ticker']}* ha alcanzado tu objetivo de *{m['target']}*.\nPrecio actual: *{precio:.2f}*"
+                            enviar_mensaje_telegram(telegram_msg)
+                        elif m['current'] != current:
+                            conn.execute("UPDATE monitores SET current = ? WHERE id = ?", (current, m_id))
+                            conn.commit()
+                            changes_made = True
+                except Exception as e:
+                    log_debug(f"Monitor update failed for {m['ticker']}: {e}", "WARNING")
+            
+            if changes_made:
+                sse_subs.notify()
                 
-            try:
-                sym = data.get('symbol', data['ticker'])
-                precio = fetch_price(sym)
-                data['current'] = round(precio, 2)
-                
-                is_above_target = data['tipo'] == 'superior' and precio >= data['target']
-                is_below_target = data['tipo'] == 'inferior' and precio <= data['target']
-                
-                if is_above_target or is_below_target:
-                    data['triggered'] = True
-                    msg = f"🔔 {data['ticker']} alcanzó {data['target']} (Actual: {precio:.2f})"
-                    state["alertas"].insert(0, {
-                        'id': str(uuid.uuid4()), 
-                        'msg': msg, 
-                        'time': time.strftime('%H:%M:%S')
-                    })
-                    save_data()
-            except Exception as e:
-                log_debug(f"Monitor update failed for {data.get('ticker')}: {e}", "WARNING")
-                
-        time.sleep(15)
+        except Exception as e:
+            log_debug(f"Background monitor loop error: {e}", "ERROR")
+            
+        time.sleep(1800)
 
 threading.Thread(target=background_monitor, daemon=True).start()
 
 # --- API Endpoints ---
+@app.route('/api/stream')
+def stream():
+    def event_stream():
+        q = queue.Queue()
+        sse_subs.add_listener(q)
+        try:
+            yield f"data: {json.dumps(get_all_data())}\n\n"
+            while True:
+                try:
+                    q.get(timeout=30)
+                    yield f"data: {json.dumps(get_all_data())}\n\n"
+                except queue.Empty:
+                    yield ": ping\n\n"
+        except GeneratorExit:
+            sse_subs.remove_listener(q)
+    return Response(event_stream(), mimetype="text/event-stream")
+
 @app.route('/api/data')
 def get_data():
-    return jsonify({
-        "monitores": state["monitores"], 
-        "alertas": state["alertas"], 
-        "version": VERSION
-    })
+    return jsonify(get_all_data())
 
 @app.route('/api/add', methods=['POST'])
 def add_monitor():
@@ -227,19 +395,19 @@ def add_monitor():
         name, currency = fetch_asset_info(sym)
         
         m_id = str(uuid.uuid4())
-        state["monitores"][m_id] = {
-            'ticker': f"{raw_input} ({sym})" if raw_input != sym else raw_input,
-            'symbol': sym,
-            'name': name,
-            'currency': currency,
-            'target': target,
-            'current': round(price, 2),
-            'tipo': 'superior' if target > price else 'inferior',
-            'triggered': False
-        }
+        ticker_display = f"{raw_input} ({sym})" if raw_input != sym else raw_input
+        current = round(price, 2)
+        tipo = 'superior' if target > price else 'inferior'
         
-        save_data()
+        with get_db() as conn:
+            conn.execute('''
+                INSERT INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+            ''', (m_id, ticker_display, sym, name, currency, target, current, tipo))
+            conn.commit()
+            
         log_debug(f"Added monitor for {sym} at {target}")
+        sse_subs.notify()
         return jsonify({"ok": True})
         
     except Exception as e:
@@ -248,27 +416,30 @@ def add_monitor():
 
 @app.route('/api/edit/<m_id>', methods=['PUT'])
 def edit_monitor(m_id):
-    if m_id not in state["monitores"]:
-        return jsonify({"error": "No encontrado"}), 404
-        
     try:
         target = float(request.json.get('target'))
-        monitor = state["monitores"][m_id]
-        
-        monitor['target'] = target
-        if monitor.get('current'):
-            monitor['tipo'] = 'superior' if target > monitor['current'] else 'inferior'
-        monitor['triggered'] = False
-        
-        save_data()
+        with get_db() as conn:
+            m = conn.execute("SELECT current FROM monitores WHERE id = ?", (m_id,)).fetchone()
+            if not m:
+                return jsonify({"error": "No encontrado"}), 404
+                
+            tipo = 'superior' if target > (m['current'] or 0) else 'inferior'
+            conn.execute('''
+                UPDATE monitores SET target = ?, tipo = ?, triggered = 0 WHERE id = ?
+            ''', (target, tipo, m_id))
+            conn.commit()
+            
+        sse_subs.notify()
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
 @app.route('/api/delete/<m_id>', methods=['DELETE'])
 def delete_monitor(m_id):
-    if state["monitores"].pop(m_id, None):
-        save_data()
+    with get_db() as conn:
+        conn.execute("DELETE FROM monitores WHERE id = ?", (m_id,))
+        conn.commit()
+    sse_subs.notify()
     return jsonify({"ok": True})
 
 @app.route('/api/logs', methods=['GET', 'DELETE'])
@@ -529,7 +700,7 @@ HTML_TEMPLATE = """
                                 </tr>
                             </thead>
                             <tbody id="monitors-table">
-                                <tr><td colspan="6" class="text-center py-4 text-secondary"><div class="spinner-border spinner-border-sm"></div> Cargando...</td></tr>
+                                <tr><td colspan="6" class="text-center py-4 text-secondary"><div class="spinner-border spinner-border-sm"></div> Conectando con servidor...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -681,7 +852,6 @@ HTML_TEMPLATE = """
                 });
                 document.getElementById('add-form').reset();
                 UI.showToast('Alerta añadida correctamente');
-                await syncData();
             } catch (err) {
                 UI.showToast(err.message, 'error');
             } finally {
@@ -695,7 +865,6 @@ HTML_TEMPLATE = """
             try {
                 await API.fetch(`/api/delete/${id}`, { method: 'DELETE' });
                 UI.showToast('Alerta eliminada');
-                syncData();
             } catch (err) {
                 UI.showToast('No se pudo eliminar', 'error');
             }
@@ -715,23 +884,28 @@ HTML_TEMPLATE = """
                     body: JSON.stringify({ target: num })
                 });
                 UI.showToast('Objetivo actualizado con éxito');
-                syncData();
             } catch (err) {
                 UI.showToast('No se pudo actualizar el objetivo', 'error');
             }
         };
 
-        async function syncData() {
+        // --- SSE implementation ---
+        const evtSource = new EventSource('/api/stream');
+        evtSource.onmessage = function(event) {
             try {
-                const data = await API.fetch('/api/data');
+                const data = JSON.parse(event.data);
                 UI.checkVersion(data.version);
                 UI.renderTable(data.monitores);
                 UI.renderFeed(data.alertas);
-                if (UI.debugEnabled) syncLogs();
             } catch (err) {
-                console.error('Data sync failed:', err);
+                console.error("SSE parsing error:", err);
             }
-        }
+        };
+        evtSource.onerror = function(err) {
+            console.error("SSE connection error:", err);
+        };
+
+        let logInterval = null;
 
         async function syncLogs() {
             try {
@@ -750,7 +924,12 @@ HTML_TEMPLATE = """
             const panel = document.getElementById('debugPanel');
             const isHidden = panel.style.display === 'none' || panel.style.display === '';
             panel.style.display = isHidden ? 'block' : 'none';
-            if (isHidden) syncLogs();
+            if (isHidden) {
+                syncLogs();
+                logInterval = setInterval(syncLogs, 2000);
+            } else if (logInterval) {
+                clearInterval(logInterval);
+            }
         };
 
         window.clearLogs = async () => {
@@ -760,9 +939,6 @@ HTML_TEMPLATE = """
             } catch (e) {}
         };
 
-        // Initialize
-        syncData();
-        setInterval(syncData, 10000);
     </script>
 </body>
 </html>
@@ -774,4 +950,4 @@ def index():
 
 if __name__ == '__main__':
     log_debug(f"Starting Piloto Financiero v{VERSION} on port 5000")
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, threaded=True)
