@@ -461,8 +461,10 @@
         };
 
         let configModal = null;
+        let editModal = null;
         document.addEventListener('DOMContentLoaded', () => {
             configModal = new bootstrap.Modal(document.getElementById('configModal'));
+            editModal = new bootstrap.Modal(document.getElementById('editModal'));
         });
 
         window.abrirConfig = async () => {
