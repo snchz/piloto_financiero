@@ -369,61 +369,79 @@ def es_isin(codigo):
 
 def obtener_precio_yahoo_quote(ticker_str):
     """Obtiene precio desde el endpoint quote de Yahoo Finance como fallback."""
-    try:
-        url = f"https://query1.finance.yahoo.com/v7/finance/quote"
-        params = {"symbols": ticker_str}
-        add_debug_log(f"Fallback quote Yahoo para {ticker_str}: {url} {params}")
-        response = SEARCH_SESSION.get(url, params=params, headers=SEARCH_HEADERS, timeout=10)
-        add_debug_log(f"Yahoo Quote respuesta: status={response.status_code} content_type={response.headers.get('Content-Type')} text={response.text[:500]!r}")
-        response.raise_for_status()
-        data = response.json()
-        result = data.get('quoteResponse', {}).get('result', [])
-        if not result:
-            add_debug_log(f"✗ Quote Yahoo sin result para {ticker_str}")
-            return None
-        quote = result[0]
-        precio = quote.get('regularMarketPrice')
-        if precio is not None:
-            add_debug_log(f"✓ Precio obtenido via Yahoo Quote para {ticker_str}: {precio}")
-            return precio
-        add_debug_log(f"✗ Quote Yahoo no contiene regularMarketPrice para {ticker_str}: {quote}")
-        return None
-    except Exception as e:
-        add_debug_log(f"✗ Error en Yahoo Quote para {ticker_str}: {e}")
-        return None
+    search_endpoints = [
+        "https://query1.finance.yahoo.com/v7/finance/quote",
+        "https://query2.finance.yahoo.com/v7/finance/quote",
+    ]
+    params = {"symbols": ticker_str}
+
+    for url in search_endpoints:
+        try:
+            add_debug_log(f"Fallback quote Yahoo para {ticker_str}: {url} {params}")
+            response = SEARCH_SESSION.get(url, params=params, headers=SEARCH_HEADERS, timeout=10)
+            add_debug_log(f"Yahoo Quote respuesta: status={response.status_code} content_type={response.headers.get('Content-Type')} text={response.text[:500]!r}")
+            if response.status_code == 401:
+                add_debug_log(f"✗ Quote Yahoo 401 para {ticker_str} en {url}")
+                continue
+            response.raise_for_status()
+            data = response.json()
+            result = data.get('quoteResponse', {}).get('result', [])
+            if not result:
+                add_debug_log(f"✗ Quote Yahoo sin result para {ticker_str} en {url}")
+                continue
+            quote = result[0]
+            precio = quote.get('regularMarketPrice')
+            if precio is not None:
+                add_debug_log(f"✓ Precio obtenido via Yahoo Quote para {ticker_str}: {precio}")
+                return precio
+            add_debug_log(f"✗ Quote Yahoo no contiene regularMarketPrice para {ticker_str}: {quote}")
+        except ValueError as e:
+            add_debug_log(f"✗ Error parseando JSON en Yahoo Quote para {ticker_str}: {e}")
+        except Exception as e:
+            add_debug_log(f"✗ Error en Yahoo Quote para {ticker_str}: {e}")
+    return None
+
 
 def obtener_precio_yahoo_chart(ticker_str):
     """Obtiene precio desde el endpoint chart de Yahoo Finance como fallback."""
-    try:
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker_str}"
-        params = {"interval": "1d", "range": "1mo"}
-        add_debug_log(f"Fallback chart Yahoo para {ticker_str}: {url} {params}")
-        response = SEARCH_SESSION.get(url, params=params, headers=SEARCH_HEADERS, timeout=10)
-        add_debug_log(f"Yahoo Chart respuesta: status={response.status_code} content_type={response.headers.get('Content-Type')} text={response.text[:500]!r}")
-        response.raise_for_status()
-        data = response.json()
-        result = data.get('chart', {}).get('result')
-        if not result:
-            add_debug_log(f"✗ Chart Yahoo sin result para {ticker_str}")
-            return None
-        indicators = result[0].get('indicators', {}).get('quote', [])
-        if not indicators:
-            add_debug_log(f"✗ Chart Yahoo sin indicadores para {ticker_str}")
-            return None
-        close_prices = indicators[0].get('close', [])
-        if not close_prices:
-            add_debug_log(f"✗ Chart Yahoo sin precios de cierre para {ticker_str}")
-            return None
-        # Buscar el último precio válido
-        for precio in reversed(close_prices):
-            if precio is not None:
-                add_debug_log(f"✓ Precio obtenido via Yahoo Chart para {ticker_str}: {precio}")
-                return precio
-        add_debug_log(f"✗ Chart Yahoo no devolvió precio válido para {ticker_str}")
-        return None
-    except Exception as e:
-        add_debug_log(f"✗ Error en Yahoo Chart para {ticker_str}: {e}")
-        return None
+    chart_endpoints = [
+        f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker_str}",
+        f"https://query2.finance.yahoo.com/v8/finance/chart/{ticker_str}",
+    ]
+    params = {"interval": "1d", "range": "1mo"}
+
+    for url in chart_endpoints:
+        try:
+            add_debug_log(f"Fallback chart Yahoo para {ticker_str}: {url} {params}")
+            response = SEARCH_SESSION.get(url, params=params, headers=SEARCH_HEADERS, timeout=10)
+            add_debug_log(f"Yahoo Chart respuesta: status={response.status_code} content_type={response.headers.get('Content-Type')} text={response.text[:500]!r}")
+            if response.status_code == 404:
+                add_debug_log(f"✗ Chart Yahoo 404 para {ticker_str} en {url}")
+                continue
+            response.raise_for_status()
+            data = response.json()
+            result = data.get('chart', {}).get('result')
+            if not result:
+                add_debug_log(f"✗ Chart Yahoo sin result para {ticker_str} en {url}")
+                continue
+            indicators = result[0].get('indicators', {}).get('quote', [])
+            if not indicators:
+                add_debug_log(f"✗ Chart Yahoo sin indicadores para {ticker_str} en {url}")
+                continue
+            close_prices = indicators[0].get('close', [])
+            if not close_prices:
+                add_debug_log(f"✗ Chart Yahoo sin precios de cierre para {ticker_str} en {url}")
+                continue
+            for precio in reversed(close_prices):
+                if precio is not None:
+                    add_debug_log(f"✓ Precio obtenido via Yahoo Chart para {ticker_str}: {precio}")
+                    return precio
+            add_debug_log(f"✗ Chart Yahoo no devolvió precio válido para {ticker_str} en {url}")
+        except ValueError as e:
+            add_debug_log(f"✗ Error parseando JSON en Yahoo Chart para {ticker_str}: {e}")
+        except Exception as e:
+            add_debug_log(f"✗ Error en Yahoo Chart para {ticker_str}: {e}")
+    return None
 
 def obtener_precio(ticker_str):
     """Intenta obtener el precio de varias formas para mayor robustez"""
