@@ -6,8 +6,23 @@ import uuid
 import os
 import importlib.metadata
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 app = Flask(__name__)
+
+SEARCH_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+}
+SEARCH_SESSION = requests.Session()
+RETRY_STRATEGY = Retry(
+    total=2,
+    backoff_factor=1,
+    status_forcelist=[429, 500, 502, 503, 504],
+    allowed_methods=["HEAD", "GET", "OPTIONS"],
+)
+SEARCH_SESSION.mount("https://", HTTPAdapter(max_retries=RETRY_STRATEGY))
 
 monitores = {}
 historial_alertas = []
@@ -60,7 +75,8 @@ def monitor_background():
         for m_id, data in list(monitores.items()):
             if data['triggered']: continue
             try:
-                ticker = yf.Ticker(data['ticker'])
+                ticker_str = data.get('symbol', data['ticker'])
+                ticker = yf.Ticker(ticker_str)
                 # Usamos basic_info o history como alternativa más estable si fast_info falla
                 precio_actual = ticker.fast_info['last_price']
                 if precio_actual is None: continue
@@ -283,39 +299,55 @@ def clear_logs():
 
 def buscar_ticker_por_isin(isin):
     """Intenta encontrar el ticker correspondiente a un ISIN usando la API de búsqueda de Yahoo Finance."""
-    try:
-        add_debug_log(f"Buscando ticker para ISIN: {isin}")
-        url = f"https://query1.finance.yahoo.com/v1/finance/search?q={isin}"
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
+    search_endpoints = [
+        "https://query1.finance.yahoo.com/v1/finance/search",
+        "https://query2.finance.yahoo.com/v1/finance/search"
+    ]
+    params = {"q": isin, "quotesCount": 5}
 
-        quotes = data.get('quotes', []) or []
-        if not quotes:
-            add_debug_log(f"No se encontraron resultados de búsqueda para ISIN: {isin}")
-            return None
-
-        for quote in quotes:
-            ticker = quote.get('symbol')
-            if not ticker:
+    for url in search_endpoints:
+        try:
+            add_debug_log(f"Buscando ticker para ISIN: {isin} via {url}")
+            response = SEARCH_SESSION.get(url, params=params, headers=SEARCH_HEADERS, timeout=10)
+            if response.status_code == 429:
+                add_debug_log("✗ 429 rate limit de Yahoo Search, esperando 2 segundos")
+                time.sleep(2)
                 continue
-            add_debug_log(f"Encontrado ticker candidato: {ticker}")
-            try:
-                test_ticker = yf.Ticker(ticker)
-                test_hist = test_ticker.history(period="1d")
-                if not test_hist.empty:
-                    add_debug_log(f"✓ Ticker válido encontrado: {ticker}")
-                    return ticker
-                add_debug_log(f"✗ Ticker sin datos históricos: {ticker}")
-            except Exception as inner_e:
-                add_debug_log(f"✗ Error verificando ticker {ticker}: {inner_e}")
+            response.raise_for_status()
+            if not response.text.strip():
+                add_debug_log("✗ Respuesta vacía de búsqueda Yahoo")
                 continue
 
-        add_debug_log(f"No se encontró ticker válido para ISIN: {isin}")
-        return None
-    except Exception as e:
-        add_debug_log(f"Error buscando ticker para ISIN {isin}: {e}")
-        return None
+            data = response.json()
+            quotes = data.get('quotes', []) or []
+            if not quotes:
+                add_debug_log(f"No se encontraron resultados de búsqueda para ISIN: {isin}")
+                continue
+
+            for quote in quotes:
+                ticker = quote.get('symbol')
+                if not ticker:
+                    continue
+                add_debug_log(f"Encontrado ticker candidato: {ticker}")
+                try:
+                    test_ticker = yf.Ticker(ticker)
+                    test_hist = test_ticker.history(period="1d")
+                    if not test_hist.empty:
+                        add_debug_log(f"✓ Ticker válido encontrado: {ticker}")
+                        return ticker
+                    add_debug_log(f"✗ Ticker sin datos históricos: {ticker}")
+                except Exception as inner_e:
+                    add_debug_log(f"✗ Error verificando ticker {ticker}: {inner_e}")
+                    continue
+        except requests.exceptions.RequestException as e:
+            add_debug_log(f"✗ Error buscando ticker para ISIN {isin}: {e}")
+            continue
+        except ValueError as e:
+            add_debug_log(f"✗ Error parseando JSON para ISIN {isin}: {e}")
+            continue
+
+    add_debug_log(f"No se encontró ticker válido para ISIN: {isin}")
+    return None
 
 def es_isin(codigo):
     """Verifica si el código parece ser un ISIN (formato: 2 letras + 9 dígitos)"""
@@ -362,24 +394,6 @@ def obtener_precio(ticker_str):
         except Exception as e:
             add_debug_log(f"✗ Error en info: {e}")
         
-        # Intento 4: buscar ticker alternativo si es ISIN
-        if es_isin(ticker_str):
-            add_debug_log(f"Intentando buscar ticker alternativo para ISIN: {ticker_str}")
-            alt_ticker = buscar_ticker_por_isin(ticker_str)
-            if alt_ticker:
-                try:
-                    alt_t = yf.Ticker(alt_ticker)
-                    alt_hist = alt_t.history(period="1d")
-                    if not alt_hist.empty:
-                        precio = alt_hist['Close'].iloc[-1]
-                        add_debug_log(f"✓ Precio obtenido via ticker alternativo {alt_ticker}: {precio}")
-                        return precio
-                    add_debug_log(f"✗ Ticker alternativo {alt_ticker} no devolvió datos históricos")
-                except Exception as e:
-                    add_debug_log(f"✗ Error verificando ticker alternativo {alt_ticker}: {e}")
-            else:
-                add_debug_log(f"✗ No se pudo encontrar ticker alternativo para ISIN: {ticker_str}")
-        
         add_debug_log(f"✗ No se pudo obtener precio para {ticker_str}")
         raise ValueError(f"No data available for {ticker_str}")
     except Exception as e:
@@ -397,6 +411,7 @@ def add_monitor():
         
         target = float(data['target'])
         ticker_name = ticker_input
+        actual_ticker = ticker_input
         add_debug_log(f"Añadiendo monitor para {ticker_input} con objetivo {target}")
         
         # Intentar obtener precio con la función robusta
@@ -412,6 +427,7 @@ def add_monitor():
                     try:
                         precio = obtener_precio(ticker_alternativo)
                         ticker_name = f"{ticker_input} ({ticker_alternativo})"  # Mostrar ISIN + ticker
+                        actual_ticker = ticker_alternativo
                         add_debug_log(f"✓ Éxito con ticker alternativo: {ticker_alternativo}")
                     except Exception as e2:
                         add_debug_log(f"✗ Ticker alternativo también falló: {e2}")
@@ -423,10 +439,11 @@ def add_monitor():
 
         m_id = str(uuid.uuid4())
         monitores[m_id] = {
-            'ticker': ticker_name, 
-            'target': target, 
-            'current': round(precio, 2), 
-            'tipo': 'superior' if target > precio else 'inferior', 
+            'ticker': ticker_name,
+            'symbol': actual_ticker,
+            'target': target,
+            'current': round(precio, 2),
+            'tipo': 'superior' if target > precio else 'inferior',
             'triggered': False
         }
         add_debug_log(f"✓ Monitor añadido exitosamente: {ticker_name} (ID: {m_id})")
