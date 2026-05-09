@@ -7,7 +7,6 @@ RUN apt-get update && \
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py db.py finance_api.py monitor_worker.py notifications.py version.txt ./
 COPY templates templates
-COPY static static
 RUN mkdir -p data
 # ARG para invalidar caché con cada cambio
 ARG BUILD_VERSION=1.0.8
