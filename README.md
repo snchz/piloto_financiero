@@ -229,28 +229,15 @@ La aplicación soporta las siguientes variables de entorno en `compose.yaml`:
 
 ```yaml
 environment:
-  - DEBUG_LOG=false  # Habilitar/deshabilitar logs de debug (true/false)
-```
-
-### Habilitar Debug Logs
-
-Para activar el panel de debug, modifica tu `compose.yaml`:
-
-```yaml
-environment:
-  - DEBUG_LOG=true  # Cambiar a true para habilitar
-```
-
-Luego reconstruye:
-```bash
-docker compose up -d --build --force-recreate
+  - PYTHONUNBUFFERED=1  # No buffear salida de Python para ver logs en tiempo real
+  - TZ=Europe/Madrid  # Zona horaria (ajustar si es diferente)
 ```
 
 **Nota**: Los logs están deshabilitados por defecto para no afectar el rendimiento en producción.
 
 ### Panel de Debug
 
-Cuando `DEBUG_LOG=true`, aparece un botón 🐛 en la esquina inferior derecha. Al hacer clic:
+Cuando el modo debug está habilitado en la configuración (⚙️ → "Modo Debug"), aparece un botón 🐛 en la esquina inferior derecha. Al hacer clic:
 
 - **Muestra logs en tiempo real** de todas las operaciones de búsqueda
 - **Colores por nivel**: INFO (azul), WARNING (amarillo), ERROR (rojo)

@@ -10,7 +10,6 @@ services:
       - "5000:5000"
     environment:
       - PYTHONUNBUFFERED=1  # No buffear salida de Python para ver logs en tiempo real
-      - DEBUG_LOG=true  # Habilitar/deshabilitar logs de debug (true/false)
       - TZ=Europe/Madrid  # Zona horaria (ajustar si es diferente)
     volumes:
       - /home/leif/docker/configs/piloto_financiero:/app/data
