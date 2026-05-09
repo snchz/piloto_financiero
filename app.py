@@ -28,7 +28,15 @@ print("=" * 60)
 print(f"🚀 Piloto Financiero v{VERSION} - INICIANDO")
 print(f"   Debug Mode: {'ACTIVADO' if DEBUG_LOG else 'Desactivado'}")
 print(f"   Hora: {time.strftime('%d/%m/%Y %H:%M:%S')}")
+print(f"   Python Version: {__import__('sys').version}")
+print(f"   Flask Version: {__import__('flask').__version__}")
+print(f"   YFinance Version: {__import__('yfinance').__version__}")
 print("=" * 60)
+
+# Log inicial de debug
+add_debug_log("Aplicación iniciada correctamente", "INFO")
+add_debug_log(f"Versión: {VERSION}", "INFO")
+add_debug_log(f"Debug Mode: {'ACTIVADO' if DEBUG_LOG else 'Desactivado'}", "INFO")
 
 def add_debug_log(message, level="INFO"):
     """Añade un log de debug si está habilitado"""
@@ -429,4 +437,5 @@ if __name__ == '__main__':
     print("=" * 60)
     print(f"✅ Aplicación lista para recibir requests en puerto 5000")
     print("=" * 60)
+    add_debug_log("Iniciando servidor Flask en puerto 5000", "INFO")
     app.run(host='0.0.0.0', port=5000)

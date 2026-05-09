@@ -1,10 +1,10 @@
-# Version: 1.0.6
+# Version: 1.0.7
 services:
   piloto-financiero:
     build:
       context: .
       args:
-        - BUILD_VERSION=1.0.6
+        - BUILD_VERSION=1.0.7
     container_name: piloto-financiero
     ports:
       - "5000:5000"
@@ -12,4 +12,10 @@ services:
       - PYTHONUNBUFFERED=1  # No buffear salida de Python para ver logs en tiempo real
       - DEBUG_LOG=true  # Habilitar/deshabilitar logs de debug (true/false)
       - TZ=Europe/Madrid  # Zona horaria (ajustar si es diferente)
-    restart: unless-stopped
+    restart: no  # Cambiar a 'no' para diagnosticar problemas de reinicio
+    deploy:
+      resources:
+        limits:
+          memory: 512M  # Limitar memoria para evitar OOM kills
+        reservations:
+          memory: 256M  # Reservar memoria
