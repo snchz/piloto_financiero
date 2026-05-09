@@ -5,6 +5,7 @@ import time
 import uuid
 import os
 import importlib.metadata
+import requests
 
 app = Flask(__name__)
 
@@ -281,25 +282,35 @@ def clear_logs():
     return jsonify({"ok": True})
 
 def buscar_ticker_por_isin(isin):
-    """Intenta encontrar el ticker correspondiente a un ISIN"""
+    """Intenta encontrar el ticker correspondiente a un ISIN usando la API de búsqueda de Yahoo Finance."""
     try:
         add_debug_log(f"Buscando ticker para ISIN: {isin}")
-        # Usar la función de búsqueda de yfinance
-        search = yf.Search(isin, max_results=5)
-        if search and hasattr(search, 'quotes') and search.quotes:
-            for quote in search.quotes:
-                if hasattr(quote, 'symbol') and quote.symbol:
-                    ticker = quote.symbol
-                    add_debug_log(f"Encontrado ticker candidato: {ticker}")
-                    # Verificar que este ticker tenga datos
-                    try:
-                        test_ticker = yf.Ticker(ticker)
-                        test_hist = test_ticker.history(period="1d")
-                        if not test_hist.empty:
-                            add_debug_log(f"✓ Ticker válido encontrado: {ticker}")
-                            return ticker
-                    except:
-                        continue
+        url = f"https://query1.finance.yahoo.com/v1/finance/search?q={isin}"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        quotes = data.get('quotes', []) or []
+        if not quotes:
+            add_debug_log(f"No se encontraron resultados de búsqueda para ISIN: {isin}")
+            return None
+
+        for quote in quotes:
+            ticker = quote.get('symbol')
+            if not ticker:
+                continue
+            add_debug_log(f"Encontrado ticker candidato: {ticker}")
+            try:
+                test_ticker = yf.Ticker(ticker)
+                test_hist = test_ticker.history(period="1d")
+                if not test_hist.empty:
+                    add_debug_log(f"✓ Ticker válido encontrado: {ticker}")
+                    return ticker
+                add_debug_log(f"✗ Ticker sin datos históricos: {ticker}")
+            except Exception as inner_e:
+                add_debug_log(f"✗ Error verificando ticker {ticker}: {inner_e}")
+                continue
+
         add_debug_log(f"No se encontró ticker válido para ISIN: {isin}")
         return None
     except Exception as e:
@@ -354,25 +365,20 @@ def obtener_precio(ticker_str):
         # Intento 4: buscar ticker alternativo si es ISIN
         if es_isin(ticker_str):
             add_debug_log(f"Intentando buscar ticker alternativo para ISIN: {ticker_str}")
-            try:
-                # Algunos ISIN pueden tener un ticker asociado
-                search_results = yf.Search(ticker_str)
-                if search_results and hasattr(search_results, 'quotes') and search_results.quotes:
-                    for quote in search_results.quotes[:3]:  # Probar los primeros 3 resultados
-                        if hasattr(quote, 'symbol'):
-                            alt_ticker = quote.symbol
-                            add_debug_log(f"Probando ticker alternativo: {alt_ticker}")
-                            try:
-                                alt_t = yf.Ticker(alt_ticker)
-                                alt_hist = alt_t.history(period="1d")
-                                if not alt_hist.empty:
-                                    precio = alt_hist['Close'].iloc[-1]
-                                    add_debug_log(f"✓ Precio obtenido via ticker alternativo {alt_ticker}: {precio}")
-                                    return precio
-                            except:
-                                continue
-            except Exception as e:
-                add_debug_log(f"✗ Error buscando ticker alternativo: {e}")
+            alt_ticker = buscar_ticker_por_isin(ticker_str)
+            if alt_ticker:
+                try:
+                    alt_t = yf.Ticker(alt_ticker)
+                    alt_hist = alt_t.history(period="1d")
+                    if not alt_hist.empty:
+                        precio = alt_hist['Close'].iloc[-1]
+                        add_debug_log(f"✓ Precio obtenido via ticker alternativo {alt_ticker}: {precio}")
+                        return precio
+                    add_debug_log(f"✗ Ticker alternativo {alt_ticker} no devolvió datos históricos")
+                except Exception as e:
+                    add_debug_log(f"✗ Error verificando ticker alternativo {alt_ticker}: {e}")
+            else:
+                add_debug_log(f"✗ No se pudo encontrar ticker alternativo para ISIN: {ticker_str}")
         
         add_debug_log(f"✗ No se pudo obtener precio para {ticker_str}")
         raise ValueError(f"No data available for {ticker_str}")
