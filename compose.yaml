@@ -12,10 +12,4 @@ services:
       - PYTHONUNBUFFERED=1  # No buffear salida de Python para ver logs en tiempo real
       - DEBUG_LOG=true  # Habilitar/deshabilitar logs de debug (true/false)
       - TZ=Europe/Madrid  # Zona horaria (ajustar si es diferente)
-    restart: no  # Cambiar a 'no' para diagnosticar problemas de reinicio
-    deploy:
-      resources:
-        limits:
-          memory: 512M  # Limitar memoria para evitar OOM kills
-        reservations:
-          memory: 256M  # Reservar memoria
+    restart: unless-stopped
