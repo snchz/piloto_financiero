@@ -1,14 +1,15 @@
-# Version: 1.0.4
+# Version: 1.0.5
 services:
   piloto-financiero:
     build:
       context: .
       args:
-        - BUILD_VERSION=1.0.4
+        - BUILD_VERSION=1.0.5
     container_name: piloto-financiero
     ports:
       - "5000:5000"
     environment:
+      - PYTHONUNBUFFERED=1  # No buffear salida de Python para ver logs en tiempo real
       - DEBUG_LOG=false  # Habilitar/deshabilitar logs de debug (true/false)
       - TZ=Europe/Madrid  # Zona horaria (ajustar si es diferente)
     restart: unless-stopped

@@ -8,4 +8,4 @@ COPY version.txt .
 ARG BUILD_VERSION=1.0.0
 LABEL version=${BUILD_VERSION}
 EXPOSE 5000
-CMD ["python", "app.py"]
+CMD ["python", "-u", "app.py"]
