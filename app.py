@@ -16,6 +16,35 @@ SEARCH_HEADERS = {
     "Accept": "application/json, text/javascript, */*; q=0.01",
 }
 SEARCH_SESSION = requests.Session()
+def obtener_yahoo_cookie_y_crumb(session, headers):
+    """Obtiene una cookie válida y su crumb asociado para saltarse el error 401."""
+    crumb = None
+    try:
+        # 1. Visitar un endpoint base para que Yahoo nos asigne una Cookie
+        # fc.yahoo.com es un dominio de consentimiento/redirección que suele asignar la cookie rápidamente
+        session.get('https://fc.yahoo.com', headers=headers, timeout=10)
+        time.sleep(0.5)  # Breve pausa para asentar la cookie
+        
+        # 2. Solicitar el crumb a la API dedicada de Yahoo usando la sesión que ya tiene la cookie
+        respuesta_crumb = session.get(
+            "https://query1.finance.yahoo.com/v1/test/getcrumb", 
+            headers=headers, 
+            timeout=10
+        )
+        
+        if respuesta_crumb.status_code == 200:
+            crumb = respuesta_crumb.text.strip()
+            # print(f"Crumb obtenido: {crumb}") # O usa tu add_debug_log si ya está definida
+        else:
+            pass # Manejo silencioso, el crumb quedará como None
+            
+    except Exception as e:
+        pass # Si falla, continuaremos sin crumb (los fallbacks lo intentarán sin él)
+        
+    return crumb
+
+# Inicializamos la variable global con el crumb al arrancar la app
+YAHOO_CRUMB = obtener_yahoo_cookie_y_crumb(SEARCH_SESSION, SEARCH_HEADERS)
 RETRY_STRATEGY = Retry(
     total=2,
     backoff_factor=1,
@@ -373,11 +402,17 @@ def obtener_precio_yahoo_quote(ticker_str):
         "https://query1.finance.yahoo.com/v7/finance/quote",
         "https://query2.finance.yahoo.com/v7/finance/quote",
     ]
+    
+    # Añadimos el crumb a los parámetros si logramos obtenerlo al inicio
     params = {"symbols": ticker_str}
+    if YAHOO_CRUMB:
+        params["crumb"] = YAHOO_CRUMB
 
     for url in search_endpoints:
         try:
             add_debug_log(f"Fallback quote Yahoo para {ticker_str}: {url} {params}")
+            
+            # Al usar SEARCH_SESSION, las cookies obtenidas en el paso 1 se envían automáticamente
             response = SEARCH_SESSION.get(url, params=params, headers=SEARCH_HEADERS, timeout=10)
             add_debug_log(f"Yahoo Quote respuesta: status={response.status_code} content_type={response.headers.get('Content-Type')} text={response.text[:500]!r}")
             if response.status_code == 401:
