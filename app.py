@@ -234,6 +234,22 @@ HTML_TEMPLATE = """
             }
         }
         async function eliminar(id) { await fetch('/api/delete/'+id, {method:'DELETE'}); actualizar(); }
+        async function editar(id, targetActual) {
+            const nuevoObj = prompt("Nuevo precio objetivo para esta alerta:", targetActual);
+            if (nuevoObj !== null && nuevoObj !== "") {
+                const num = parseFloat(nuevoObj);
+                if (!isNaN(num)) {
+                    await fetch('/api/edit/'+id, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({target: num})
+                    });
+                    actualizar();
+                } else {
+                    alert("Precio inválido");
+                }
+            }
+        }
         async function actualizar() {
             try {
                 const r = await fetch('/api/data'); 
@@ -256,7 +272,10 @@ HTML_TEMPLATE = """
                 document.getElementById('tabla').innerHTML = Object.entries(d.monitores).map(([id, v]) => `
                     <tr><td><strong>${v.ticker}</strong></td><td>${v.current || '...'}</td><td>${v.target}</td>
                     <td><span class="badge ${v.triggered?'bg-danger':'bg-success'}">${v.triggered?'ALERTA':'Vigilando'}</span></td>
-                    <td><button onclick="eliminar('${id}')" class="btn btn-sm btn-outline-danger">x</button></td></tr>`).join('');
+                    <td>
+                        <button onclick="editar('${id}', ${v.target})" class="btn btn-sm btn-outline-secondary" title="Editar objetivo">✏️</button>
+                        <button onclick="eliminar('${id}')" class="btn btn-sm btn-outline-danger" title="Eliminar">x</button>
+                    </td></tr>`).join('');
                 document.getElementById('alertas').innerHTML = d.alertas.map(a => `<div class="alert alert-warning p-2">${a.time}: ${a.msg}</div>`).join('');
                 
                 // Actualizar logs de debug si están habilitados
@@ -602,6 +621,24 @@ def add_monitor():
 def delete_monitor(m_id):
     if m_id in monitores: del monitores[m_id]
     return jsonify({"ok":True})
+
+@app.route('/api/edit/<m_id>', methods=['PUT'])
+def edit_monitor(m_id):
+    if m_id in monitores:
+        try:
+            data = request.json
+            new_target = float(data['target'])
+            precio = monitores[m_id].get('current')
+            monitores[m_id]['target'] = new_target
+            if precio is not None:
+                monitores[m_id]['tipo'] = 'superior' if new_target > precio else 'inferior'
+            monitores[m_id]['triggered'] = False
+            add_debug_log(f"Monitor {m_id} actualizado a nuevo objetivo: {new_target}")
+            return jsonify({"ok": True})
+        except Exception as e:
+            add_debug_log(f"Error editando monitor {m_id}: {e}")
+            return jsonify({"ok": False}), 400
+    return jsonify({"ok": False}), 404
 
 if __name__ == '__main__':
     print("=" * 60)
