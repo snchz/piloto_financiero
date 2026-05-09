@@ -76,6 +76,20 @@ def init_db():
                 triggered INTEGER
             )
         ''')
+        # Añadir nuevas columnas si no existen
+        try:
+            c.execute("ALTER TABLE monitores ADD COLUMN target_pct REAL DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # Columna ya existe
+        try:
+            c.execute("ALTER TABLE monitores ADD COLUMN pct_triggered_date TEXT DEFAULT NULL")
+        except sqlite3.OperationalError:
+            pass  # Columna ya existe
+        try:
+            c.execute("ALTER TABLE monitores ADD COLUMN previous_close REAL DEFAULT NULL")
+        except sqlite3.OperationalError:
+            pass  # Columna ya existe
+        
         c.execute('''
             CREATE TABLE IF NOT EXISTS alertas (
                 id TEXT PRIMARY KEY,
@@ -224,7 +238,10 @@ def get_all_data():
                 'target': r['target'],
                 'current': r['current'],
                 'tipo': r['tipo'],
-                'triggered': bool(r['triggered'])
+                'triggered': bool(r['triggered']),
+                'target_pct': r['target_pct'] or 0,
+                'pct_triggered_date': r['pct_triggered_date'],
+                'previous_close': r['previous_close']
             }
         
         alertas = [{'id': r['id'], 'msg': r['msg'], 'time': r['time']} for r in alertas_rows]
@@ -277,32 +294,53 @@ def fetch_asset_info(ticker):
 
 def fetch_price(ticker):
     t = yf.Ticker(ticker)
+    current_price = None
+    previous_close = None
     
     try:
-        if p := t.fast_info.get('last_price'): return p
-    except Exception: pass
-        
-    try:
-        hist = t.history(period="1d")
-        if not hist.empty: return float(hist['Close'].iloc[-1])
-    except Exception: pass
-        
-    try:
         info = t.info
-        if p := info.get('regularMarketPrice'): return p
-    except Exception: pass
+        current_price = info.get('regularMarketPrice')
+        previous_close = info.get('regularMarketPreviousClose') or info.get('previousClose')
+    except Exception:
+        pass
+    
+    if not current_price:
+        try:
+            if p := t.fast_info.get('last_price'): current_price = p
+        except Exception: pass
+            
+    if not current_price:
+        try:
+            hist = t.history(period="1d")
+            if not hist.empty: current_price = float(hist['Close'].iloc[-1])
+        except Exception: pass
+            
+    if not current_price:
+        params = {"symbols": ticker}
+        if YAHOO_CRUMB: params["crumb"] = YAHOO_CRUMB
+            
+        try:
+            res = session.get("https://query1.finance.yahoo.com/v7/finance/quote", params=params, headers=SEARCH_HEADERS, timeout=10)
+            res.raise_for_status()
+            quote = res.json().get('quoteResponse', {}).get('result', [])[0]
+            current_price = quote.get('regularMarketPrice')
+            if not previous_close:
+                previous_close = quote.get('regularMarketPreviousClose')
+        except Exception: pass
         
-    params = {"symbols": ticker}
-    if YAHOO_CRUMB: params["crumb"] = YAHOO_CRUMB
-        
-    try:
-        res = session.get("https://query1.finance.yahoo.com/v7/finance/quote", params=params, headers=SEARCH_HEADERS, timeout=10)
-        res.raise_for_status()
-        quote = res.json().get('quoteResponse', {}).get('result', [])[0]
-        if p := quote.get('regularMarketPrice'): return p
-    except Exception: pass
-        
-    raise ValueError(f"Unable to fetch price for {ticker}")
+    if not current_price:
+        raise ValueError(f"Unable to fetch price for {ticker}")
+    
+    # Si no tenemos previous_close, intentar obtenerlo de historial
+    if not previous_close:
+        try:
+            hist = t.history(period="2d")
+            if len(hist) >= 2:
+                previous_close = float(hist['Close'].iloc[-2])
+        except Exception:
+            pass
+    
+    return current_price, previous_close
 
 # --- Background Worker ---
 def is_market_open(ticker_symbol):
@@ -356,9 +394,11 @@ def background_monitor():
         
         try:
             with get_db() as conn:
-                monitores = conn.execute("SELECT * FROM monitores WHERE triggered = 0").fetchall()
+                monitores = conn.execute("SELECT * FROM monitores").fetchall()  # Cambiado para incluir todos los monitores
             
             changes_made = False
+            today_date = time.strftime('%Y-%m-%d')
+            
             for m in monitores:
                 try:
                     m_id = m['id']
@@ -368,25 +408,47 @@ def background_monitor():
                         log_debug(f"El mercado está cerrado para {sym}, omitiendo actualización.", "INFO")
                         continue
                         
-                    precio = fetch_price(sym)
-                    current = round(precio, 2)
+                    current_price, previous_close = fetch_price(sym)
+                    current = round(current_price, 2)
                     
-                    is_above_target = m['tipo'] == 'superior' and precio >= m['target']
-                    is_below_target = m['tipo'] == 'inferior' and precio <= m['target']
+                    # Lógica de alertas de precio objetivo (existente)
+                    is_above_target = m['tipo'] == 'superior' and current_price >= m['target']
+                    is_below_target = m['tipo'] == 'inferior' and current_price <= m['target']
+                    
+                    # Lógica de alertas porcentuales (nueva)
+                    pct_alert_triggered = False
+                    if m['target_pct'] and m['target_pct'] > 0 and previous_close:
+                        variacion_pct = ((current_price - previous_close) / previous_close) * 100
+                        if abs(variacion_pct) >= m['target_pct']:
+                            if m['pct_triggered_date'] != today_date:
+                                pct_alert_triggered = True
                     
                     with get_db() as conn:
                         if is_above_target or is_below_target:
-                            msg = f"🔔 {m['ticker']} alcanzó {m['target']} (Actual: {precio:.2f})"
+                            msg = f"🔔 {m['ticker']} alcanzó {m['target']} (Actual: {current_price:.2f})"
                             conn.execute("UPDATE monitores SET current = ?, triggered = 1 WHERE id = ?", (current, m_id))
                             conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
                                          (str(uuid.uuid4()), msg, time.strftime('%H:%M:%S')))
                             conn.commit()
                             changes_made = True
                             
-                            telegram_msg = f"🔔 *ALERTA DE MERCADO*\nEl activo *{m['ticker']}* ha alcanzado tu objetivo de *{m['target']}*.\nPrecio actual: *{precio:.2f}*"
+                            telegram_msg = f"🔔 *ALERTA DE MERCADO*\nEl activo *{m['ticker']}* ha alcanzado tu objetivo de *{m['target']}*.\nPrecio actual: *{current_price:.2f}*"
                             enviar_mensaje_telegram(telegram_msg)
+                        
+                        elif pct_alert_triggered and previous_close:
+                            variacion_pct = ((current_price - previous_close) / previous_close) * 100
+                            msg = f"📈 Volatilidad: {m['ticker']} se ha movido un {variacion_pct:.1f}% hoy"
+                            conn.execute("UPDATE monitores SET pct_triggered_date = ? WHERE id = ?", (today_date, m_id))
+                            conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
+                                         (str(uuid.uuid4()), msg, time.strftime('%H:%M:%S')))
+                            conn.commit()
+                            changes_made = True
+                            
+                            telegram_msg = f"📈 *ALERTA DE VOLATILIDAD*\nEl activo *{m['ticker']}* se ha movido un *{variacion_pct:.1f}%* hoy.\nPrecio anterior: *{previous_close:.2f}*\nPrecio actual: *{current_price:.2f}*"
+                            enviar_mensaje_telegram(telegram_msg)
+                        
                         elif m['current'] != current:
-                            conn.execute("UPDATE monitores SET current = ? WHERE id = ?", (current, m_id))
+                            conn.execute("UPDATE monitores SET current = ?, previous_close = ? WHERE id = ?", (current, m['current'], m_id))
                             conn.commit()
                             changes_made = True
                 except Exception as e:
@@ -448,6 +510,7 @@ def add_monitor():
     data = request.json
     raw_input = data.get('ticker', '').upper().strip()
     target = float(data.get('target', 0))
+    target_pct = float(data.get('target_pct', 0) or 0)
     
     if not raw_input or target <= 0:
         return jsonify({"error": "Parámetros inválidos"}), 400
@@ -457,22 +520,22 @@ def add_monitor():
         if not sym:
             raise ValueError(f"No se encontró el activo para {raw_input}")
             
-        price = fetch_price(sym)
+        current_price, _ = fetch_price(sym)
         name, currency = fetch_asset_info(sym)
         
         m_id = str(uuid.uuid4())
         ticker_display = f"{raw_input} ({sym})" if raw_input != sym else raw_input
-        current = round(price, 2)
-        tipo = 'superior' if target > price else 'inferior'
+        current = round(current_price, 2)
+        tipo = 'superior' if target > current_price else 'inferior'
         
         with get_db() as conn:
             conn.execute('''
-                INSERT INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
-            ''', (m_id, ticker_display, sym, name, currency, target, current, tipo))
+                INSERT INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered, target_pct, previous_close)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+            ''', (m_id, ticker_display, sym, name, currency, target, current, tipo, target_pct, current_price if not previous_close else previous_close))
             conn.commit()
             
-        log_debug(f"Added monitor for {sym} at {target}")
+        log_debug(f"Added monitor for {sym} at {target} with pct alert {target_pct}%")
         sse_subs.notify()
         return jsonify({"ok": True})
         
@@ -484,6 +547,7 @@ def add_monitor():
 def edit_monitor(m_id):
     try:
         target = float(request.json.get('target'))
+        target_pct = float(request.json.get('target_pct', 0) or 0)
         with get_db() as conn:
             m = conn.execute("SELECT current FROM monitores WHERE id = ?", (m_id,)).fetchone()
             if not m:
@@ -491,8 +555,8 @@ def edit_monitor(m_id):
                 
             tipo = 'superior' if target > (m['current'] or 0) else 'inferior'
             conn.execute('''
-                UPDATE monitores SET target = ?, tipo = ?, triggered = 0 WHERE id = ?
-            ''', (target, tipo, m_id))
+                UPDATE monitores SET target = ?, tipo = ?, triggered = 0, target_pct = ? WHERE id = ?
+            ''', (target, tipo, target_pct, m_id))
             conn.commit()
             
         sse_subs.notify()
@@ -747,15 +811,19 @@ HTML_TEMPLATE = """
                 <!-- Add Form -->
                 <div class="glass-panel p-4 mb-4">
                     <form id="add-form" class="row g-3 align-items-end">
-                        <div class="col-md-5">
+                        <div class="col-md-4">
                             <label class="form-label text-secondary small mb-1">Activo (Ticker o ISIN)</label>
                             <input type="text" id="ticker" class="form-control" placeholder="Ej. AAPL, ES0105065009" required>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label text-secondary small mb-1">Precio Objetivo</label>
                             <input type="number" step="0.01" id="target" class="form-control" placeholder="0.00" required>
                         </div>
                         <div class="col-md-3">
+                            <label class="form-label text-secondary small mb-1">Alerta Variación Diaria (%)</label>
+                            <input type="number" step="0.1" id="target_pct" class="form-control" placeholder="5.0" min="0">
+                        </div>
+                        <div class="col-md-2">
                             <button type="submit" class="btn btn-primary w-100" id="submit-btn">
                                 Añadir Alerta
                             </button>
@@ -772,13 +840,14 @@ HTML_TEMPLATE = """
                                     <th class="ps-4">Activo</th>
                                     <th>Moneda</th>
                                     <th class="text-end">Actual</th>
+                                    <th class="text-end">Variación</th>
                                     <th class="text-end">Objetivo</th>
                                     <th class="text-center">Estado</th>
                                     <th class="pe-4 text-end">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="monitors-table">
-                                <tr><td colspan="6" class="text-center py-4 text-secondary"><div class="spinner-border spinner-border-sm"></div> Conectando con servidor...</td></tr>
+                                <tr><td colspan="7" class="text-center py-4 text-secondary"><div class="spinner-border spinner-border-sm"></div> Conectando con servidor...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -895,18 +964,28 @@ HTML_TEMPLATE = """
             renderTable(monitores) {
                 const entries = Object.entries(monitores);
                 if (entries.length === 0) {
-                    document.getElementById('monitors-table').innerHTML = '<tr><td colspan="6" class="text-center py-4 text-secondary">No hay alertas configuradas</td></tr>';
+                    document.getElementById('monitors-table').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-secondary">No hay alertas configuradas</td></tr>';
                     return;
                 }
 
-                const html = entries.map(([id, m]) => `
+                const html = entries.map(([id, m]) => {
+                    // Calcular variación porcentual
+                    const variacion = m.current && m.previous_close ? ((m.current - m.previous_close) / m.previous_close * 100) : 0;
+                    const variacionClass = variacion >= 0 ? 'text-success' : 'text-danger';
+                    const variacionSign = variacion >= 0 ? '+' : '';
+                    
+                    return `
                     <tr>
                         <td class="ps-4">
-                            <div class="fw-semibold text-white">${m.ticker}</div>
+                            <div class="fw-semibold text-white">
+                                ${m.ticker}
+                                ${m.target_pct > 0 ? '<span class="ms-1" title="Alerta de volatilidad configurada">📈</span>' : ''}
+                            </div>
                             <div class="text-secondary" style="font-size: 0.75rem">${m.name || 'Desconocido'}</div>
                         </td>
                         <td><span class="badge bg-dark border border-secondary border-opacity-25">${m.currency || '-'}</span></td>
                         <td class="text-end font-monospace fs-6">${m.current ? m.current.toFixed(2) : '...'}</td>
+                        <td class="text-end font-monospace fs-6 ${variacionClass}">${variacion ? `${variacionSign}${variacion.toFixed(1)}%` : '-'}</td>
                         <td class="text-end font-monospace fs-6 text-white">${m.target.toFixed(2)}</td>
                         <td class="text-center">
                             <span class="badge-status ${m.triggered ? 'badge-alert' : 'badge-active'}">
@@ -914,7 +993,7 @@ HTML_TEMPLATE = """
                             </span>
                         </td>
                         <td class="pe-4 text-end">
-                            <button onclick="handleEdit('${id}', ${m.target})" class="action-btn me-1" title="Editar objetivo">
+                            <button onclick="handleEdit('${id}', ${m.target}, ${m.target_pct || 0})" class="action-btn me-1" title="Editar objetivo">
                                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                             </button>
                             <button onclick="handleDelete('${id}')" class="action-btn delete" title="Eliminar">
@@ -922,7 +1001,7 @@ HTML_TEMPLATE = """
                             </button>
                         </td>
                     </tr>
-                `).join('');
+                `}).join('');
                 document.getElementById('monitors-table').innerHTML = html;
             },
 
@@ -996,6 +1075,7 @@ HTML_TEMPLATE = """
             const btn = document.getElementById('submit-btn');
             const ticker = document.getElementById('ticker').value;
             const target = document.getElementById('target').value;
+            const target_pct = document.getElementById('target_pct').value;
             
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
@@ -1004,7 +1084,7 @@ HTML_TEMPLATE = """
                 await API.fetch('/api/add', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ ticker, target })
+                    body: JSON.stringify({ ticker, target, target_pct: target_pct ? parseFloat(target_pct) : 0 })
                 });
                 document.getElementById('add-form').reset();
                 UI.showToast('Alerta añadida correctamente');
@@ -1026,18 +1106,22 @@ HTML_TEMPLATE = """
             }
         };
 
-        window.handleEdit = async (id, currentTarget) => {
+        window.handleEdit = async (id, currentTarget, currentPct) => {
             const newTarget = prompt("Introduce el nuevo precio objetivo:", currentTarget);
             if (newTarget === null || newTarget.trim() === "") return;
             
             const num = parseFloat(newTarget.replace(',', '.'));
             if (isNaN(num)) return UI.showToast('Formato de precio inválido', 'error');
             
+            const newPct = prompt("Introduce el porcentaje de variación diaria (opcional):", currentPct || "");
+            const pctNum = newPct && newPct.trim() ? parseFloat(newPct.replace(',', '.')) : 0;
+            if (isNaN(pctNum) || pctNum < 0) return UI.showToast('Formato de porcentaje inválido', 'error');
+            
             try {
                 await API.fetch(`/api/edit/${id}`, {
                     method: 'PUT',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ target: num })
+                    body: JSON.stringify({ target: num, target_pct: pctNum })
                 });
                 UI.showToast('Objetivo actualizado con éxito');
             } catch (err) {
