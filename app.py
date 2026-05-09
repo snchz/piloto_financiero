@@ -174,9 +174,12 @@ HTML_TEMPLATE = """
     <!-- Panel de Debug -->
     <button class="debug-toggle" onclick="toggleDebug()" title="Toggle Debug Logs">🐛</button>
     <div class="debug-panel" id="debugPanel">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
             <strong>Debug Logs</strong>
-            <button onclick="clearLogs()" style="background:none;border:none;color:#fff;cursor:pointer;">🗑️</button>
+            <div>
+                <button onclick="copyLogs()" style="background:none;border:none;color:#fff;cursor:pointer;" title="Copiar logs al portapapeles">📋</button>
+                <button onclick="clearLogs()" style="background:none;border:none;color:#fff;cursor:pointer;" title="Limpiar logs">🗑️</button>
+            </div>
         </div>
         <div class="debug-logs" id="debugLogs"></div>
     </div>
@@ -267,6 +270,17 @@ HTML_TEMPLATE = """
         function clearLogs() {
             fetch('/api/logs', {method: 'DELETE'});
             document.getElementById('debugLogs').innerHTML = '';
+        }
+
+        function copyLogs() {
+            const logs = document.getElementById('debugLogs').innerText;
+            if (!logs) {
+                alert('No hay logs para copiar.');
+                return;
+            }
+            navigator.clipboard.writeText(logs)
+                .then(() => alert('Logs copiados al portapapeles.'))
+                .catch(() => alert('No se pudo copiar los logs. Intenta de nuevo.'));
         }
         
         setInterval(actualizar, 5000);
@@ -391,6 +405,39 @@ def es_isin(codigo):
     """Verifica si el código parece ser un ISIN (formato: 2 letras + 9 dígitos)"""
     return len(codigo) == 12 and codigo[:2].isalpha() and codigo[2:].isdigit()
 
+def obtener_precio_yahoo_chart(ticker_str):
+    """Obtiene precio desde el endpoint chart de Yahoo Finance como fallback."""
+    try:
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker_str}"
+        params = {"interval": "1d", "range": "1mo"}
+        add_debug_log(f"Fallback chart Yahoo para {ticker_str}: {url} {params}")
+        response = SEARCH_SESSION.get(url, params=params, headers=SEARCH_HEADERS, timeout=10)
+        add_debug_log(f"Yahoo Chart respuesta: status={response.status_code} content_type={response.headers.get('Content-Type')} text={response.text[:500]!r}")
+        response.raise_for_status()
+        data = response.json()
+        result = data.get('chart', {}).get('result')
+        if not result:
+            add_debug_log(f"✗ Chart Yahoo sin result para {ticker_str}")
+            return None
+        indicators = result[0].get('indicators', {}).get('quote', [])
+        if not indicators:
+            add_debug_log(f"✗ Chart Yahoo sin indicadores para {ticker_str}")
+            return None
+        close_prices = indicators[0].get('close', [])
+        if not close_prices:
+            add_debug_log(f"✗ Chart Yahoo sin precios de cierre para {ticker_str}")
+            return None
+        # Buscar el último precio válido
+        for precio in reversed(close_prices):
+            if precio is not None:
+                add_debug_log(f"✓ Precio obtenido via Yahoo Chart para {ticker_str}: {precio}")
+                return precio
+        add_debug_log(f"✗ Chart Yahoo no devolvió precio válido para {ticker_str}")
+        return None
+    except Exception as e:
+        add_debug_log(f"✗ Error en Yahoo Chart para {ticker_str}: {e}")
+        return None
+
 def obtener_precio(ticker_str):
     """Intenta obtener el precio de varias formas para mayor robustez"""
     try:
@@ -440,7 +487,12 @@ def obtener_precio(ticker_str):
                 add_debug_log(f"✗ Info no contiene regularMarketPrice válido: {info.get('regularMarketPrice') if info else 'None'}")
         except Exception as e:
             add_debug_log(f"✗ Error en info: {e}")
-        
+
+        # Intento 4: fallback directo a Yahoo Chart
+        precio_chart = obtener_precio_yahoo_chart(ticker_str)
+        if precio_chart is not None:
+            return precio_chart
+
         add_debug_log(f"✗ No se pudo obtener precio para {ticker_str}")
         raise ValueError(f"No data available for {ticker_str}")
     except Exception as e:
