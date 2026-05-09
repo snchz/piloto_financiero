@@ -1,695 +1,777 @@
-from flask import Flask, render_template_string, request, jsonify
-import yfinance as yf
+import json
+import os
 import threading
 import time
 import uuid
-import os
-import json
-import importlib.metadata
+
 import requests
+import yfinance as yf
+from flask import Flask, jsonify, render_template_string, request
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 app = Flask(__name__)
 
+# --- Configuration & Setup ---
+
+DATA_DIR = 'data'
+DATA_FILE = os.path.join(DATA_DIR, 'monitores.json')
+VERSION_FILE = os.path.join(os.path.dirname(__file__), 'version.txt')
+DEBUG_LOG = os.getenv('DEBUG_LOG', 'false').lower() == 'true'
+
 SEARCH_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
     "Accept": "application/json, text/javascript, */*; q=0.01",
 }
-SEARCH_SESSION = requests.Session()
-def obtener_yahoo_cookie_y_crumb(session, headers):
-    """Obtiene una cookie válida y su crumb asociado para saltarse el error 401."""
-    crumb = None
-    try:
-        # 1. Visitar un endpoint base para que Yahoo nos asigne una Cookie
-        # fc.yahoo.com es un dominio de consentimiento/redirección que suele asignar la cookie rápidamente
-        session.get('https://fc.yahoo.com', headers=headers, timeout=10)
-        time.sleep(0.5)  # Breve pausa para asentar la cookie
-        
-        # 2. Solicitar el crumb a la API dedicada de Yahoo usando la sesión que ya tiene la cookie
-        respuesta_crumb = session.get(
-            "https://query1.finance.yahoo.com/v1/test/getcrumb", 
-            headers=headers, 
-            timeout=10
-        )
-        
-        if respuesta_crumb.status_code == 200:
-            crumb = respuesta_crumb.text.strip()
-            # print(f"Crumb obtenido: {crumb}") # O usa tu add_debug_log si ya está definida
-        else:
-            pass # Manejo silencioso, el crumb quedará como None
-            
-    except Exception as e:
-        pass # Si falla, continuaremos sin crumb (los fallbacks lo intentarán sin él)
-        
-    return crumb
 
-# Inicializamos la variable global con el crumb al arrancar la app
-YAHOO_CRUMB = obtener_yahoo_cookie_y_crumb(SEARCH_SESSION, SEARCH_HEADERS)
-RETRY_STRATEGY = Retry(
-    total=2,
-    backoff_factor=1,
-    status_forcelist=[429, 500, 502, 503, 504],
-    allowed_methods=["HEAD", "GET", "OPTIONS"],
-)
-SEARCH_SESSION.mount("https://", HTTPAdapter(max_retries=RETRY_STRATEGY))
+# --- State ---
+state = {
+    "monitores": {},
+    "alertas": [],
+    "logs": [],
+    "isin_cache": {}
+}
 
-DATA_DIR = 'data'
-DATA_FILE = os.path.join(DATA_DIR, 'monitores.json')
-
-monitores = {}
-historial_alertas = []
-debug_logs = []  # Lista para almacenar logs de debug
-isin_cache = {}
-
+# --- Initialization ---
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
 
-def cargar_monitores():
-    global monitores, historial_alertas
-    if os.path.exists(DATA_FILE):
-        try:
-            with open(DATA_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                monitores = data.get('monitores', {})
-                historial_alertas = data.get('alertas', [])
-        except Exception:
-            pass
-
-def guardar_monitores():
+def load_version():
     try:
-        with open(DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump({'monitores': monitores, 'alertas': historial_alertas}, f, ensure_ascii=False, indent=4)
-    except Exception:
-        pass
-
-cargar_monitores()
-
-# Cargar versión desde archivo
-def cargar_version():
-    try:
-        version_file = os.path.join(os.path.dirname(__file__), 'version.txt')
-        with open(version_file, 'r') as f:
+        with open(VERSION_FILE, 'r') as f:
             return f.read().strip()
-    except:
+    except FileNotFoundError:
         return "1.0.0"
 
-VERSION = cargar_version()
-DEBUG_LOG = os.getenv('DEBUG_LOG', 'false').lower() == 'true'
+VERSION = load_version()
 
-def add_debug_log(message, level="INFO"):
-    """Añade un log de debug si está habilitado"""
-    if DEBUG_LOG:
-        timestamp = time.strftime('%H:%M:%S')
-        log_entry = {
-            'id': str(uuid.uuid4()),
-            'timestamp': timestamp,
-            'level': level,
-            'message': message
-        }
-        debug_logs.insert(0, log_entry)  # Insertar al principio
-        # Mantener solo los últimos 100 logs
-        if len(debug_logs) > 100:
-            debug_logs.pop()
+def setup_session():
+    s = requests.Session()
+    retries = Retry(total=2, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504], allowed_methods=["HEAD", "GET", "OPTIONS"])
+    s.mount("https://", HTTPAdapter(max_retries=retries))
+    return s
 
-# Mostrar información al iniciar
-print("=" * 60)
-print(f"🚀 Piloto Financiero v{VERSION} - INICIANDO")
-print(f"   Debug Mode: {'ACTIVADO' if DEBUG_LOG else 'Desactivado'}")
-print(f"   Hora: {time.strftime('%d/%m/%Y %H:%M:%S')}")
-print(f"   Python Version: {__import__('sys').version}")
-print(f"   Flask Version: {importlib.metadata.version('flask')}")
-print(f"   YFinance Version: {importlib.metadata.version('yfinance')}")
-print("=" * 60)
+session = setup_session()
 
-# Log inicial de debug
-add_debug_log("Aplicación iniciada correctamente", "INFO")
-add_debug_log(f"Versión: {VERSION}", "INFO")
-add_debug_log(f"Debug Mode: {'ACTIVADO' if DEBUG_LOG else 'Desactivado'}", "INFO")
+def fetch_yahoo_crumb():
+    try:
+        session.get('https://fc.yahoo.com', headers=SEARCH_HEADERS, timeout=10)
+        time.sleep(0.5)
+        res = session.get("https://query1.finance.yahoo.com/v1/test/getcrumb", headers=SEARCH_HEADERS, timeout=10)
+        return res.text.strip() if res.status_code == 200 else None
+    except Exception:
+        return None
 
-def monitor_background():
-    while True:
-        for m_id, data in list(monitores.items()):
-            if data['triggered']: continue
-            try:
-                ticker_str = data.get('symbol', data['ticker'])
-                ticker = yf.Ticker(ticker_str)
-                # Usamos basic_info o history como alternativa más estable si fast_info falla
-                precio_actual = ticker.fast_info['last_price']
-                if precio_actual is None: continue
-                
-                data['current'] = round(precio_actual, 2)
-                if (data['tipo'] == 'superior' and precio_actual >= data['target']) or \
-                   (data['tipo'] == 'inferior' and precio_actual <= data['target']):
-                    data['triggered'] = True
-                    mensaje = f"🔔 {data['ticker']} alcanzó {data['target']} (Actual: {precio_actual:.2f})"
-                    historial_alertas.insert(0, {'id': str(uuid.uuid4()), 'msg': mensaje, 'time': time.strftime('%H:%M:%S')})
-                    guardar_monitores()
-            except: pass
-        time.sleep(15) # Aumentamos un poco el margen para evitar bloqueos
+YAHOO_CRUMB = fetch_yahoo_crumb()
 
-threading.Thread(target=monitor_background, daemon=True).start()
-
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Monitor Bolsa</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .debug-panel {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            width: 400px;
-            max-height: 300px;
-            background: rgba(0,0,0,0.9);
-            color: #fff;
-            border-radius: 8px;
-            padding: 10px;
-            font-family: monospace;
-            font-size: 12px;
-            z-index: 1000;
-            display: none;
-        }
-        .debug-toggle {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            cursor: pointer;
-            z-index: 1001;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
-        .debug-toggle:hover {
-            background: #0056b3;
-        }
-        .debug-logs {
-            max-height: 250px;
-            overflow-y: auto;
-        }
-        .log-entry {
-            margin: 2px 0;
-            padding: 2px 4px;
-            border-radius: 3px;
-        }
-        .log-INFO { background: rgba(0,123,255,0.1); }
-        .log-ERROR { background: rgba(220,53,69,0.1); color: #ff6b6b; }
-        .log-WARNING { background: rgba(255,193,7,0.1); color: #ffc107; }
-    </style>
-</head>
-<body class="bg-light" onload="actualizar()">
-    <div class="container mt-5">
-        <div style="position:absolute;top:10px;right:15px;font-size:12px;color:#666;padding:8px;border:1px solid #ddd;border-radius:4px;background:#f9f9f9;">
-            📦 v<span id="version">{{ version }}</span>
-        </div>
-        <h3>📈 Piloto Financiero</h3>
-        <div class="card p-3 mb-4">
-            <form onsubmit="event.preventDefault(); añadir();" class="row g-3">
-                <div class="col-md-4"><input type="text" id="t" class="form-control" placeholder="Ticker o ISIN (AAPL, ES0105065009)" required></div>
-                <div class="col-md-4"><input type="number" step="0.01" id="obj" class="form-control" placeholder="Precio Objetivo" required></div>
-                <div class="col-md-4"><button class="btn btn-primary w-100">Añadir Alerta</button></div>
-            </form>
-            <div id="error-msg" class="text-danger mt-2" style="display:none;">⚠️ Ticker no válido o error de conexión.</div>
-        </div>
-        <div class="row">
-            <div class="col-md-8">
-                <table class="table bg-white shadow-sm rounded">
-                    <thead><tr><th>Ticker</th><th>Nombre</th><th>Moneda</th><th>Actual</th><th>Objetivo</th><th>Estado</th><th>-</th></tr></thead>
-                    <tbody id="tabla"></tbody>
-                </table>
-            </div>
-            <div class="col-md-4" id="alertas"></div>
-        </div>
-    </div>
-    
-    <!-- Panel de Debug -->
-    <button class="debug-toggle" onclick="toggleDebug()" title="Toggle Debug Logs">🐛</button>
-    <div class="debug-panel" id="debugPanel">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
-            <strong>Debug Logs</strong>
-            <div>
-                <button onclick="copyLogs()" style="background:none;border:none;color:#fff;cursor:pointer;" title="Copiar logs al portapapeles">📋</button>
-                <button onclick="clearLogs()" style="background:none;border:none;color:#fff;cursor:pointer;" title="Limpiar logs">🗑️</button>
-            </div>
-        </div>
-        <div class="debug-logs" id="debugLogs"></div>
-    </div>
-    
-    <script>
-        let versionActual = '{{ version }}';
-        let debugEnabled = {{ debug_enabled|tojson }};
-        
-        async function añadir() {
-            const err = document.getElementById('error-msg');
-            err.style.display = 'none';
-            const res = await fetch('/api/add', {
-                method:'POST', 
-                headers:{'Content-Type':'application/json'}, 
-                body: JSON.stringify({ticker: document.getElementById('t').value, target: document.getElementById('obj').value})
-            });
-            if (res.ok) {
-                document.getElementById('t').value = '';
-                document.getElementById('obj').value = '';
-                actualizar();
-            } else {
-                err.style.display = 'block';
-            }
-        }
-        async function eliminar(id) { await fetch('/api/delete/'+id, {method:'DELETE'}); actualizar(); }
-        async function editar(id, targetActual) {
-            const nuevoObj = prompt("Nuevo precio objetivo para esta alerta:", targetActual);
-            if (nuevoObj !== null && nuevoObj !== "") {
-                const num = parseFloat(nuevoObj);
-                if (!isNaN(num)) {
-                    await fetch('/api/edit/'+id, {
-                        method: 'PUT',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({target: num})
-                    });
-                    actualizar();
-                } else {
-                    alert("Precio inválido");
-                }
-            }
-        }
-        async function actualizar() {
-            try {
-                const r = await fetch('/api/data'); 
-                const d = await r.json();
-                
-                // Verificar si la versión ha cambiado
-                if (d.version && d.version !== versionActual) {
-                    console.log('Nueva versión detectada:', d.version);
-                    versionActual = d.version;
-                    document.getElementById('version').textContent = d.version;
-                    // Mostrar notificación de actualización
-                    const alert = document.createElement('div');
-                    alert.className = 'alert alert-info position-fixed top-0 start-50 translate-middle-x mt-3';
-                    alert.textContent = '🔄 Aplicación actualizada a v' + d.version;
-                    alert.style.zIndex = '9999';
-                    document.body.appendChild(alert);
-                    setTimeout(() => alert.remove(), 3000);
-                }
-                
-                document.getElementById('tabla').innerHTML = Object.entries(d.monitores).map(([id, v]) => `
-                    <tr><td><strong>${v.ticker}</strong></td><td>${v.name || ''}</td><td>${v.currency || ''}</td><td>${v.current || '...'}</td><td>${v.target}</td>
-                    <td><span class="badge ${v.triggered?'bg-danger':'bg-success'}">${v.triggered?'ALERTA':'Vigilando'}</span></td>
-                    <td>
-                        <button onclick="editar('${id}', ${v.target})" class="btn btn-sm btn-outline-secondary" title="Editar objetivo">✏️</button>
-                        <button onclick="eliminar('${id}')" class="btn btn-sm btn-outline-danger" title="Eliminar">🗑️</button>
-                    </td></tr>`).join('');
-                document.getElementById('alertas').innerHTML = d.alertas.map(a => `<div class="alert alert-warning p-2">${a.time}: ${a.msg}</div>`).join('');
-                
-                // Actualizar logs de debug si están habilitados
-                if (debugEnabled) {
-                    actualizarLogs();
-                }
-            } catch(e) {
-                console.error('Error actualizando:', e);
-            }
-        }
-        
-        async function actualizarLogs() {
-            try {
-                const r = await fetch('/api/logs');
-                const d = await r.json();
-                if (d.enabled) {
-                    document.getElementById('debugLogs').innerHTML = d.logs.map(log => 
-                        `<div class="log-entry log-${log.level}">[${log.timestamp}] ${log.level}: ${log.message}</div>`
-                    ).join('');
-                }
-            } catch(e) {
-                console.error('Error obteniendo logs:', e);
-            }
-        }
-        
-        function toggleDebug() {
-            const panel = document.getElementById('debugPanel');
-            const toggle = document.querySelector('.debug-toggle');
-            
-            if (panel.style.display === 'none' || panel.style.display === '') {
-                panel.style.display = 'block';
-                toggle.style.display = 'none';
-                if (debugEnabled) actualizarLogs();
-            } else {
-                panel.style.display = 'none';
-                toggle.style.display = 'block';
-            }
-        }
-        
-        function clearLogs() {
-            fetch('/api/logs', {method: 'DELETE'});
-            document.getElementById('debugLogs').innerHTML = '';
-        }
-
-        function copyLogs() {
-            const logs = document.getElementById('debugLogs').innerText;
-            if (!logs) {
-                alert('No hay logs para copiar.');
-                return;
-            }
-            navigator.clipboard.writeText(logs)
-                .then(() => alert('Logs copiados al portapapeles.'))
-                .catch(() => alert('No se pudo copiar los logs. Intenta de nuevo.'));
-        }
-        
-        setInterval(actualizar, 5000);
-    </script>
-</body>
-</html>
-"""
-
-@app.route('/')
-def index(): 
-    return render_template_string(HTML_TEMPLATE, version=cargar_version(), debug_enabled=DEBUG_LOG)
-
-@app.route('/api/data')
-def get_data(): 
-    return jsonify({"monitores": monitores, "alertas": historial_alertas, "version": cargar_version()})
-
-@app.route('/api/logs')
-def get_logs():
-    """Endpoint para obtener logs de debug (solo si está habilitado)"""
+# --- Logging ---
+def log_debug(msg, level="INFO"):
+    print(f"[{level}] {msg}")
     if not DEBUG_LOG:
-        return jsonify({"logs": [], "enabled": False})
-    return jsonify({"logs": debug_logs, "enabled": True})
+        return
+    entry = {
+        'id': str(uuid.uuid4()),
+        'timestamp': time.strftime('%H:%M:%S'),
+        'level': level,
+        'message': msg
+    }
+    state["logs"].insert(0, entry)
+    if len(state["logs"]) > 100:
+        state["logs"].pop()
 
-@app.route('/api/logs', methods=['DELETE'])
-def clear_logs():
-    """Endpoint para limpiar logs de debug"""
-    if DEBUG_LOG:
-        debug_logs.clear()
-        add_debug_log("Logs limpiados manualmente")
-    return jsonify({"ok": True})
-
-def buscar_ticker_por_isin(isin):
-    """Intenta encontrar el ticker correspondiente a un ISIN usando la API de búsqueda de Yahoo Finance."""
-    search_endpoints = [
-        "https://query1.finance.yahoo.com/v1/finance/search",
-        "https://query2.finance.yahoo.com/v1/finance/search"
-    ]
-    params = {"q": isin, "quotesCount": 5}
-
-    if isin in isin_cache:
-        add_debug_log(f"Usando cache de ISIN para {isin}: {isin_cache[isin]}")
-        return isin_cache[isin]
-
-    for url in search_endpoints:
-        try:
-            add_debug_log(f"Buscando ticker para ISIN: {isin} via {url}")
-            response = SEARCH_SESSION.get(url, params=params, headers=SEARCH_HEADERS, timeout=10)
-            add_debug_log(f"Yahoo Search respuesta: status={response.status_code} content_type={response.headers.get('Content-Type')} text={response.text[:300]!r}")
-            if response.status_code == 429:
-                add_debug_log("✗ 429 rate limit de Yahoo Search, esperando 2 segundos")
-                time.sleep(2)
-                continue
-            response.raise_for_status()
-            if not response.text.strip():
-                add_debug_log("✗ Respuesta vacía de búsqueda Yahoo")
-                continue
-
-            data = response.json()
-            quotes = data.get('quotes', []) or []
-            if not quotes:
-                add_debug_log(f"No se encontraron resultados de búsqueda para ISIN: {isin}")
-                continue
-
-            for quote in quotes:
-                ticker = quote.get('symbol')
-                if not ticker:
-                    continue
-                add_debug_log(f"Encontrado ticker candidato: {ticker}")
-                add_debug_log(f"Asumiendo ticker alternativo válido para ISIN {isin}: {ticker}")
-                isin_cache[isin] = ticker
-                return ticker
-        except requests.exceptions.RequestException as e:
-            add_debug_log(f"✗ Error buscando ticker para ISIN {isin}: {e}")
-            continue
-        except ValueError as e:
-            add_debug_log(f"✗ Error parseando JSON para ISIN {isin}: {e}")
-            continue
-
-    add_debug_log(f"No se encontró ticker válido para ISIN: {isin}")
-    isin_cache[isin] = None
-    return None
-
-def es_isin(codigo):
-    """Verifica si el código parece ser un ISIN (formato: 2 letras + 9 dígitos)"""
-    return len(codigo) == 12 and codigo[:2].isalpha() and codigo[2:].isdigit()
-
-def obtener_precio_yahoo_quote(ticker_str):
-    """Obtiene precio desde el endpoint quote de Yahoo Finance como fallback."""
-    search_endpoints = [
-        "https://query1.finance.yahoo.com/v7/finance/quote",
-        "https://query2.finance.yahoo.com/v7/finance/quote",
-    ]
-    
-    # Añadimos el crumb a los parámetros si logramos obtenerlo al inicio
-    params = {"symbols": ticker_str}
-    if YAHOO_CRUMB:
-        params["crumb"] = YAHOO_CRUMB
-
-    for url in search_endpoints:
-        try:
-            add_debug_log(f"Fallback quote Yahoo para {ticker_str}: {url} {params}")
-            
-            # Al usar SEARCH_SESSION, las cookies obtenidas en el paso 1 se envían automáticamente
-            response = SEARCH_SESSION.get(url, params=params, headers=SEARCH_HEADERS, timeout=10)
-            add_debug_log(f"Yahoo Quote respuesta: status={response.status_code} content_type={response.headers.get('Content-Type')} text={response.text[:500]!r}")
-            if response.status_code == 401:
-                add_debug_log(f"✗ Quote Yahoo 401 para {ticker_str} en {url}")
-                continue
-            response.raise_for_status()
-            data = response.json()
-            result = data.get('quoteResponse', {}).get('result', [])
-            if not result:
-                add_debug_log(f"✗ Quote Yahoo sin result para {ticker_str} en {url}")
-                continue
-            quote = result[0]
-            precio = quote.get('regularMarketPrice')
-            if precio is not None:
-                add_debug_log(f"✓ Precio obtenido via Yahoo Quote para {ticker_str}: {precio}")
-                return precio
-            add_debug_log(f"✗ Quote Yahoo no contiene regularMarketPrice para {ticker_str}: {quote}")
-        except ValueError as e:
-            add_debug_log(f"✗ Error parseando JSON en Yahoo Quote para {ticker_str}: {e}")
-        except Exception as e:
-            add_debug_log(f"✗ Error en Yahoo Quote para {ticker_str}: {e}")
-    return None
-
-
-def obtener_precio_yahoo_chart(ticker_str):
-    """Obtiene precio desde el endpoint chart de Yahoo Finance como fallback."""
-    chart_endpoints = [
-        f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker_str}",
-        f"https://query2.finance.yahoo.com/v8/finance/chart/{ticker_str}",
-    ]
-    params = {"interval": "1d", "range": "1mo"}
-
-    for url in chart_endpoints:
-        try:
-            add_debug_log(f"Fallback chart Yahoo para {ticker_str}: {url} {params}")
-            response = SEARCH_SESSION.get(url, params=params, headers=SEARCH_HEADERS, timeout=10)
-            add_debug_log(f"Yahoo Chart respuesta: status={response.status_code} content_type={response.headers.get('Content-Type')} text={response.text[:500]!r}")
-            if response.status_code == 404:
-                add_debug_log(f"✗ Chart Yahoo 404 para {ticker_str} en {url}")
-                continue
-            response.raise_for_status()
-            data = response.json()
-            result = data.get('chart', {}).get('result')
-            if not result:
-                add_debug_log(f"✗ Chart Yahoo sin result para {ticker_str} en {url}")
-                continue
-            indicators = result[0].get('indicators', {}).get('quote', [])
-            if not indicators:
-                add_debug_log(f"✗ Chart Yahoo sin indicadores para {ticker_str} en {url}")
-                continue
-            close_prices = indicators[0].get('close', [])
-            if not close_prices:
-                add_debug_log(f"✗ Chart Yahoo sin precios de cierre para {ticker_str} en {url}")
-                continue
-            for precio in reversed(close_prices):
-                if precio is not None:
-                    add_debug_log(f"✓ Precio obtenido via Yahoo Chart para {ticker_str}: {precio}")
-                    return precio
-            add_debug_log(f"✗ Chart Yahoo no devolvió precio válido para {ticker_str} en {url}")
-        except ValueError as e:
-            add_debug_log(f"✗ Error parseando JSON en Yahoo Chart para {ticker_str}: {e}")
-        except Exception as e:
-            add_debug_log(f"✗ Error en Yahoo Chart para {ticker_str}: {e}")
-    return None
-
-def obtener_precio(ticker_str):
-    """Intenta obtener el precio de varias formas para mayor robustez"""
+# --- Data Management ---
+def load_data():
+    if not os.path.exists(DATA_FILE):
+        return
     try:
-        add_debug_log(f"Intentando obtener precio para: {ticker_str}")
-        t = yf.Ticker(ticker_str)
-        
-        # Intento 1: fast_info (más rápido pero menos confiable)
-        try:
-            precio = t.fast_info.get('last_price')
-            if precio and precio > 0:
-                add_debug_log(f"✓ Precio obtenido via fast_info: {precio}")
-                return precio
-            else:
-                add_debug_log(f"✗ fast_info devolvió precio inválido: {precio}")
-        except Exception as e:
-            add_debug_log(f"✗ Error en fast_info: {e}")
-        
-        # Intento 2: history (más confiable)
-        try:
-            hist = t.history(period="1d")
-            if not hist.empty:
-                precio = hist['Close'].iloc[-1]
-                add_debug_log(f"✓ Precio obtenido via history 1d: {precio}")
-                return precio
-            add_debug_log("✗ History 1d devolvió datos vacíos, intento 5d")
-        except Exception as e:
-            add_debug_log(f"✗ Error en history 1d: {e}")
-
-        try:
-            hist = t.history(period="5d")
-            if not hist.empty:
-                precio = hist['Close'].iloc[-1]
-                add_debug_log(f"✓ Precio obtenido via history 5d: {precio}")
-                return precio
-            add_debug_log("✗ History 5d devolvió datos vacíos")
-        except Exception as e:
-            add_debug_log(f"✗ Error en history 5d: {e}")
-        
-        # Intento 3: info (último recurso)
-        try:
-            info = t.info
-            if info and 'regularMarketPrice' in info and info['regularMarketPrice']:
-                precio = info['regularMarketPrice']
-                add_debug_log(f"✓ Precio obtenido via info: {precio}")
-                return precio
-            else:
-                add_debug_log(f"✗ Info no contiene regularMarketPrice válido: {info.get('regularMarketPrice') if info else 'None'}")
-        except Exception as e:
-            add_debug_log(f"✗ Error en info: {e}")
-
-        # Intento 4: fallback directo a Yahoo Quote
-        add_debug_log(f"Intentando fallback Yahoo Quote para {ticker_str}")
-        precio_quote = obtener_precio_yahoo_quote(ticker_str)
-        if precio_quote is not None:
-            return precio_quote
-
-        # Intento 5: fallback directo a Yahoo Chart
-        add_debug_log(f"Intentando fallback Yahoo Chart para {ticker_str}")
-        precio_chart = obtener_precio_yahoo_chart(ticker_str)
-        if precio_chart is not None:
-            return precio_chart
-
-        add_debug_log(f"✗ No se pudo obtener precio para {ticker_str}")
-        raise ValueError(f"No data available for {ticker_str}")
+        with open(DATA_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            state["monitores"] = data.get('monitores', {})
+            state["alertas"] = data.get('alertas', [])
     except Exception as e:
-        add_debug_log(f"✗ Error general obteniendo precio para {ticker_str}: {e}")
-        raise Exception(f"No se pudo obtener precio: {e}")
+        log_debug(f"Failed to load data: {e}", "ERROR")
 
-def obtener_info_extra(ticker_str):
-    """Intenta obtener el nombre corto o largo y la moneda del ticker."""
+def save_data():
     try:
-        t = yf.Ticker(ticker_str)
-        info = t.info
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump({
+                'monitores': state["monitores"],
+                'alertas': state["alertas"]
+            }, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        log_debug(f"Failed to save data: {e}", "ERROR")
+
+load_data()
+
+# --- Core Logic ---
+def resolve_ticker(isin_or_ticker):
+    if len(isin_or_ticker) == 12 and isin_or_ticker[:2].isalpha() and isin_or_ticker[2:].isdigit():
+        if isin_or_ticker in state["isin_cache"]:
+            return state["isin_cache"][isin_or_ticker]
+            
+        endpoints = [
+            "https://query1.finance.yahoo.com/v1/finance/search",
+            "https://query2.finance.yahoo.com/v1/finance/search"
+        ]
+        
+        for url in endpoints:
+            try:
+                res = session.get(url, params={"q": isin_or_ticker, "quotesCount": 5}, headers=SEARCH_HEADERS, timeout=10)
+                if res.status_code == 429:
+                    time.sleep(2)
+                    continue
+                res.raise_for_status()
+                quotes = res.json().get('quotes', [])
+                for q in quotes:
+                    if sym := q.get('symbol'):
+                        state["isin_cache"][isin_or_ticker] = sym
+                        return sym
+            except Exception:
+                continue
+        return None
+    return isin_or_ticker
+
+def fetch_asset_info(ticker):
+    try:
+        info = yf.Ticker(ticker).info
         name = info.get('shortName') or info.get('longName') or ""
         currency = info.get('currency') or ""
         return name, currency
     except Exception:
         return "", ""
 
+def fetch_price(ticker):
+    t = yf.Ticker(ticker)
+    
+    try:
+        if p := t.fast_info.get('last_price'): return p
+    except Exception: pass
+        
+    try:
+        hist = t.history(period="1d")
+        if not hist.empty: return float(hist['Close'].iloc[-1])
+    except Exception: pass
+        
+    try:
+        info = t.info
+        if p := info.get('regularMarketPrice'): return p
+    except Exception: pass
+        
+    params = {"symbols": ticker}
+    if YAHOO_CRUMB: params["crumb"] = YAHOO_CRUMB
+        
+    try:
+        res = session.get("https://query1.finance.yahoo.com/v7/finance/quote", params=params, headers=SEARCH_HEADERS, timeout=10)
+        res.raise_for_status()
+        quote = res.json().get('quoteResponse', {}).get('result', [])[0]
+        if p := quote.get('regularMarketPrice'): return p
+    except Exception: pass
+        
+    raise ValueError(f"Unable to fetch price for {ticker}")
+
+# --- Background Worker ---
+def background_monitor():
+    while True:
+        for m_id, data in list(state["monitores"].items()):
+            if data.get('triggered'):
+                continue
+                
+            try:
+                sym = data.get('symbol', data['ticker'])
+                precio = fetch_price(sym)
+                data['current'] = round(precio, 2)
+                
+                is_above_target = data['tipo'] == 'superior' and precio >= data['target']
+                is_below_target = data['tipo'] == 'inferior' and precio <= data['target']
+                
+                if is_above_target or is_below_target:
+                    data['triggered'] = True
+                    msg = f"🔔 {data['ticker']} alcanzó {data['target']} (Actual: {precio:.2f})"
+                    state["alertas"].insert(0, {
+                        'id': str(uuid.uuid4()), 
+                        'msg': msg, 
+                        'time': time.strftime('%H:%M:%S')
+                    })
+                    save_data()
+            except Exception as e:
+                log_debug(f"Monitor update failed for {data.get('ticker')}: {e}", "WARNING")
+                
+        time.sleep(15)
+
+threading.Thread(target=background_monitor, daemon=True).start()
+
+# --- API Endpoints ---
+@app.route('/api/data')
+def get_data():
+    return jsonify({
+        "monitores": state["monitores"], 
+        "alertas": state["alertas"], 
+        "version": VERSION
+    })
+
 @app.route('/api/add', methods=['POST'])
 def add_monitor():
+    data = request.json
+    raw_input = data.get('ticker', '').upper().strip()
+    target = float(data.get('target', 0))
+    
+    if not raw_input or target <= 0:
+        return jsonify({"error": "Parámetros inválidos"}), 400
+        
     try:
-        data = request.json
-        ticker_input = data.get('ticker', '').upper().strip()
-        if not ticker_input: 
-            add_debug_log("Intento de añadir monitor sin ticker")
-            return jsonify({"ok":False}), 400
+        sym = resolve_ticker(raw_input)
+        if not sym:
+            raise ValueError(f"No se encontró el activo para {raw_input}")
+            
+        price = fetch_price(sym)
+        name, currency = fetch_asset_info(sym)
         
-        target = float(data['target'])
-        ticker_name = ticker_input
-        actual_ticker = ticker_input
-        add_debug_log(f"Añadiendo monitor para {ticker_input} con objetivo {target}")
-        
-        # Intentar obtener precio con la función robusta
-        try:
-            precio = obtener_precio(ticker_input)
-        except Exception as e:
-            # Si es ISIN y falló, intentar buscar el ticker correspondiente
-            if es_isin(ticker_input):
-                add_debug_log(f"ISIN {ticker_input} falló, buscando ticker alternativo...")
-                ticker_alternativo = buscar_ticker_por_isin(ticker_input)
-                if ticker_alternativo:
-                    add_debug_log(f"Intentando con ticker alternativo: {ticker_alternativo}")
-                    try:
-                        precio = obtener_precio(ticker_alternativo)
-                        ticker_name = f"{ticker_input} ({ticker_alternativo})"  # Mostrar ISIN + ticker
-                        actual_ticker = ticker_alternativo
-                        add_debug_log(f"✓ Éxito con ticker alternativo: {ticker_alternativo}")
-                    except Exception as e2:
-                        add_debug_log(f"✗ Ticker alternativo también falló: {e2}")
-                        raise Exception(f"ISIN no encontrado ni como ISIN ni como ticker alternativo")
-                else:
-                    raise Exception(f"ISIN no encontrado y no se pudo encontrar ticker alternativo")
-            else:
-                raise e
-
-        asset_name, currency = obtener_info_extra(actual_ticker)
-
         m_id = str(uuid.uuid4())
-        monitores[m_id] = {
-            'ticker': ticker_name,
-            'symbol': actual_ticker,
-            'name': asset_name,
+        state["monitores"][m_id] = {
+            'ticker': f"{raw_input} ({sym})" if raw_input != sym else raw_input,
+            'symbol': sym,
+            'name': name,
             'currency': currency,
             'target': target,
-            'current': round(precio, 2),
-            'tipo': 'superior' if target > precio else 'inferior',
+            'current': round(price, 2),
+            'tipo': 'superior' if target > price else 'inferior',
             'triggered': False
         }
-        guardar_monitores()
-        add_debug_log(f"✓ Monitor añadido exitosamente: {ticker_name} (ID: {m_id})")
-        return jsonify({"ok":True})
+        
+        save_data()
+        log_debug(f"Added monitor for {sym} at {target}")
+        return jsonify({"ok": True})
+        
     except Exception as e:
-        add_debug_log(f"✗ Error añadiendo monitor para {ticker_input}: {e}")
-        return jsonify({"ok":False}), 400
-
-@app.route('/api/delete/<m_id>', methods=['DELETE'])
-def delete_monitor(m_id):
-    if m_id in monitores: 
-        del monitores[m_id]
-        guardar_monitores()
-    return jsonify({"ok":True})
+        log_debug(f"Add monitor failed: {e}", "ERROR")
+        return jsonify({"error": str(e)}), 400
 
 @app.route('/api/edit/<m_id>', methods=['PUT'])
 def edit_monitor(m_id):
-    if m_id in monitores:
-        try:
-            data = request.json
-            new_target = float(data['target'])
-            precio = monitores[m_id].get('current')
-            monitores[m_id]['target'] = new_target
-            if precio is not None:
-                monitores[m_id]['tipo'] = 'superior' if new_target > precio else 'inferior'
-            monitores[m_id]['triggered'] = False
-            guardar_monitores()
-            add_debug_log(f"Monitor {m_id} actualizado a nuevo objetivo: {new_target}")
-            return jsonify({"ok": True})
-        except Exception as e:
-            add_debug_log(f"Error editando monitor {m_id}: {e}")
-            return jsonify({"ok": False}), 400
-    return jsonify({"ok": False}), 404
+    if m_id not in state["monitores"]:
+        return jsonify({"error": "No encontrado"}), 404
+        
+    try:
+        target = float(request.json.get('target'))
+        monitor = state["monitores"][m_id]
+        
+        monitor['target'] = target
+        if monitor.get('current'):
+            monitor['tipo'] = 'superior' if target > monitor['current'] else 'inferior'
+        monitor['triggered'] = False
+        
+        save_data()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/api/delete/<m_id>', methods=['DELETE'])
+def delete_monitor(m_id):
+    if state["monitores"].pop(m_id, None):
+        save_data()
+    return jsonify({"ok": True})
+
+@app.route('/api/logs', methods=['GET', 'DELETE'])
+def handle_logs():
+    if request.method == 'DELETE':
+        state["logs"].clear()
+        return jsonify({"ok": True})
+    return jsonify({"logs": state["logs"], "enabled": DEBUG_LOG})
+
+# --- UI Template ---
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piloto Financiero</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0f1115;
+            --bg-surface: #181a20;
+            --bg-surface-hover: #22252d;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --border-color: rgba(255, 255, 255, 0.05);
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+        }
+        .glass-panel {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .table {
+            --bs-table-bg: transparent;
+            --bs-table-color: var(--text-primary);
+            margin-bottom: 0;
+        }
+        .table th {
+            border-bottom-color: var(--border-color);
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .table td {
+            border-bottom-color: var(--border-color);
+            vertical-align: middle;
+        }
+        .table tbody tr {
+            transition: background-color 0.2s;
+        }
+        .table tbody tr:hover {
+            background-color: var(--bg-surface-hover);
+        }
+        .form-control {
+            background-color: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .form-control:focus {
+            background-color: rgba(255,255,255,0.05);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+            color: var(--text-primary);
+        }
+        .btn-primary {
+            background-color: var(--accent);
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+        .badge-status {
+            font-weight: 500;
+            padding: 0.35em 0.65em;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+        .badge-active {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: #34d399;
+        }
+        .badge-alert {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .action-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            transition: color 0.2s;
+            padding: 4px;
+        }
+        .action-btn:hover {
+            color: var(--text-primary);
+        }
+        .action-btn.delete:hover {
+            color: #f87171;
+        }
+        /* Layout adjustments */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .version-badge {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            background: rgba(255,255,255,0.05);
+            padding: 4px 8px;
+            border-radius: 99px;
+        }
+        .alerts-feed {
+            max-height: 400px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+        }
+        .alerts-feed::-webkit-scrollbar {
+            width: 4px;
+        }
+        .alerts-feed::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 4px;
+        }
+        .alert-item {
+            background: rgba(245, 158, 11, 0.05);
+            border-left: 3px solid #f59e0b;
+            color: #fbbf24;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-size: 0.875rem;
+        }
+        
+        /* Debug panel */
+        .debug-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--bg-surface);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            cursor: pointer;
+            z-index: 1001;
+            transition: all 0.2s;
+        }
+        .debug-toggle:hover {
+            color: var(--text-primary);
+            background: var(--bg-surface-hover);
+        }
+        .debug-panel {
+            position: fixed;
+            bottom: 70px;
+            right: 20px;
+            width: 450px;
+            max-height: 400px;
+            background: rgba(15, 17, 21, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        }
+        .debug-logs {
+            max-height: 320px;
+            overflow-y: auto;
+        }
+        .log-entry { margin: 4px 0; }
+        .log-timestamp { color: #6b7280; margin-right: 8px; }
+        .log-level-ERROR { color: #ef4444; }
+        .log-level-WARNING { color: #f59e0b; }
+        .log-level-INFO { color: #60a5fa; }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <header class="page-header">
+            <div class="brand">✨ Piloto Financiero</div>
+            <div class="version-badge">v<span id="version">{{ version }}</span></div>
+        </header>
+
+        <main class="row g-4">
+            <div class="col-xl-8">
+                <!-- Add Form -->
+                <div class="glass-panel p-4 mb-4">
+                    <form id="add-form" class="row g-3 align-items-end">
+                        <div class="col-md-5">
+                            <label class="form-label text-secondary small mb-1">Activo (Ticker o ISIN)</label>
+                            <input type="text" id="ticker" class="form-control" placeholder="Ej. AAPL, ES0105065009" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-secondary small mb-1">Precio Objetivo</label>
+                            <input type="number" step="0.01" id="target" class="form-control" placeholder="0.00" required>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary w-100" id="submit-btn">
+                                Añadir Alerta
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Table -->
+                <div class="glass-panel overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="table table-borderless align-middle">
+                            <thead class="bg-dark bg-opacity-25">
+                                <tr>
+                                    <th class="ps-4">Activo</th>
+                                    <th>Moneda</th>
+                                    <th class="text-end">Actual</th>
+                                    <th class="text-end">Objetivo</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="pe-4 text-end">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="monitors-table">
+                                <tr><td colspan="6" class="text-center py-4 text-secondary"><div class="spinner-border spinner-border-sm"></div> Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-4">
+                <div class="glass-panel p-4 h-100">
+                    <h5 class="mb-4 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Actividad Reciente</h5>
+                    <div id="alerts-feed" class="alerts-feed">
+                        <div class="text-secondary small">Sin actividad reciente</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Debug Toggle -->
+    <button class="debug-toggle" onclick="toggleDebug()" title="Ver Logs del Sistema">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"></path></svg>
+    </button>
+
+    <div class="debug-panel" id="debugPanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-secondary small text-uppercase fw-bold">System Logs</span>
+            <div>
+                <button class="action-btn" onclick="clearLogs()" title="Limpiar">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
+            </div>
+        </div>
+        <div class="debug-logs" id="debugLogs"></div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API = {
+            async fetch(url, options = {}) {
+                const res = await fetch(url, options);
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || 'Error de comunicación con el servidor');
+                }
+                return res.json();
+            }
+        };
+
+        const UI = {
+            version: '{{ version }}',
+            debugEnabled: {{ debug_enabled|tojson }},
+            
+            showToast(message, type = 'success') {
+                const container = document.querySelector('.toast-container');
+                const id = 'toast-' + Date.now();
+                const icon = type === 'success' ? '✓' : '⚠️';
+                const bg = type === 'success' ? 'text-bg-success' : 'text-bg-danger';
+                
+                const toastHtml = `
+                    <div id="${id}" class="toast align-items-center ${bg} border-0 mb-2 shadow" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                <strong>${icon}</strong> ${message}
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', toastHtml);
+                const toastEl = document.getElementById(id);
+                const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+                toast.show();
+                toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+            },
+
+            renderTable(monitores) {
+                const entries = Object.entries(monitores);
+                if (entries.length === 0) {
+                    document.getElementById('monitors-table').innerHTML = '<tr><td colspan="6" class="text-center py-4 text-secondary">No hay alertas configuradas</td></tr>';
+                    return;
+                }
+
+                const html = entries.map(([id, m]) => `
+                    <tr>
+                        <td class="ps-4">
+                            <div class="fw-semibold text-white">${m.ticker}</div>
+                            <div class="text-secondary" style="font-size: 0.75rem">${m.name || 'Desconocido'}</div>
+                        </td>
+                        <td><span class="badge bg-dark border border-secondary border-opacity-25">${m.currency || '-'}</span></td>
+                        <td class="text-end font-monospace fs-6">${m.current ? m.current.toFixed(2) : '...'}</td>
+                        <td class="text-end font-monospace fs-6 text-white">${m.target.toFixed(2)}</td>
+                        <td class="text-center">
+                            <span class="badge-status ${m.triggered ? 'badge-alert' : 'badge-active'}">
+                                ${m.triggered ? 'ALERTA' : 'Vigilando'}
+                            </span>
+                        </td>
+                        <td class="pe-4 text-end">
+                            <button onclick="handleEdit('${id}', ${m.target})" class="action-btn me-1" title="Editar objetivo">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                            </button>
+                            <button onclick="handleDelete('${id}')" class="action-btn delete" title="Eliminar">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+                document.getElementById('monitors-table').innerHTML = html;
+            },
+
+            renderFeed(alertas) {
+                if (alertas.length === 0) return;
+                const html = alertas.map(a => `
+                    <div class="alert-item d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="opacity-75 font-monospace" style="font-size:0.75rem">${a.time}</span>
+                        </div>
+                        <div>${a.msg}</div>
+                    </div>
+                `).join('');
+                document.getElementById('alerts-feed').innerHTML = html;
+            },
+
+            checkVersion(newVersion) {
+                if (this.version !== newVersion) {
+                    this.version = newVersion;
+                    document.getElementById('version').textContent = newVersion;
+                    this.showToast(`Actualizado a v${newVersion}`, 'success');
+                }
+            }
+        };
+
+        // DOM Events
+        document.getElementById('add-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            const ticker = document.getElementById('ticker').value;
+            const target = document.getElementById('target').value;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            
+            try {
+                await API.fetch('/api/add', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ ticker, target })
+                });
+                document.getElementById('add-form').reset();
+                UI.showToast('Alerta añadida correctamente');
+                await syncData();
+            } catch (err) {
+                UI.showToast(err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Añadir Alerta';
+            }
+        });
+
+        window.handleDelete = async (id) => {
+            if (!confirm('¿Seguro que deseas eliminar esta alerta?')) return;
+            try {
+                await API.fetch(`/api/delete/${id}`, { method: 'DELETE' });
+                UI.showToast('Alerta eliminada');
+                syncData();
+            } catch (err) {
+                UI.showToast('No se pudo eliminar', 'error');
+            }
+        };
+
+        window.handleEdit = async (id, currentTarget) => {
+            const newTarget = prompt("Introduce el nuevo precio objetivo:", currentTarget);
+            if (newTarget === null || newTarget.trim() === "") return;
+            
+            const num = parseFloat(newTarget.replace(',', '.'));
+            if (isNaN(num)) return UI.showToast('Formato de precio inválido', 'error');
+            
+            try {
+                await API.fetch(`/api/edit/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ target: num })
+                });
+                UI.showToast('Objetivo actualizado con éxito');
+                syncData();
+            } catch (err) {
+                UI.showToast('No se pudo actualizar el objetivo', 'error');
+            }
+        };
+
+        async function syncData() {
+            try {
+                const data = await API.fetch('/api/data');
+                UI.checkVersion(data.version);
+                UI.renderTable(data.monitores);
+                UI.renderFeed(data.alertas);
+                if (UI.debugEnabled) syncLogs();
+            } catch (err) {
+                console.error('Data sync failed:', err);
+            }
+        }
+
+        async function syncLogs() {
+            try {
+                const data = await API.fetch('/api/logs');
+                document.getElementById('debugLogs').innerHTML = data.logs.map(l => 
+                    `<div class="log-entry font-monospace">
+                        <span class="log-timestamp">${l.timestamp}</span>
+                        <span class="log-level-${l.level}">[${l.level}]</span> 
+                        <span class="text-light">${l.message}</span>
+                    </div>`
+                ).join('');
+            } catch (err) {}
+        }
+
+        window.toggleDebug = () => {
+            const panel = document.getElementById('debugPanel');
+            const isHidden = panel.style.display === 'none' || panel.style.display === '';
+            panel.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) syncLogs();
+        };
+
+        window.clearLogs = async () => {
+            try {
+                await API.fetch('/api/logs', { method: 'DELETE' });
+                document.getElementById('debugLogs').innerHTML = '';
+            } catch (e) {}
+        };
+
+        // Initialize
+        syncData();
+        setInterval(syncData, 10000);
+    </script>
+</body>
+</html>
+"""
+
+@app.route('/')
+def index():
+    return render_template_string(HTML_TEMPLATE, version=VERSION, debug_enabled=DEBUG_LOG)
 
 if __name__ == '__main__':
-    print("=" * 60)
-    print(f"✅ Aplicación lista para recibir requests en puerto 5000")
-    print("=" * 60)
-    add_debug_log("Iniciando servidor Flask en puerto 5000", "INFO")
+    log_debug(f"Starting Piloto Financiero v{VERSION} on port 5000")
     app.run(host='0.0.0.0', port=5000)
