@@ -220,7 +220,7 @@ HTML_TEMPLATE = """
         <div class="row">
             <div class="col-md-8">
                 <table class="table bg-white shadow-sm rounded">
-                    <thead><tr><th>Ticker</th><th>Nombre</th><th>Actual</th><th>Objetivo</th><th>Estado</th><th>-</th></tr></thead>
+                    <thead><tr><th>Ticker</th><th>Nombre</th><th>Moneda</th><th>Actual</th><th>Objetivo</th><th>Estado</th><th>-</th></tr></thead>
                     <tbody id="tabla"></tbody>
                 </table>
             </div>
@@ -298,11 +298,11 @@ HTML_TEMPLATE = """
                 }
                 
                 document.getElementById('tabla').innerHTML = Object.entries(d.monitores).map(([id, v]) => `
-                    <tr><td><strong>${v.ticker}</strong></td><td>${v.name || ''}</td><td>${v.current || '...'}</td><td>${v.target}</td>
+                    <tr><td><strong>${v.ticker}</strong></td><td>${v.name || ''}</td><td>${v.currency || ''}</td><td>${v.current || '...'}</td><td>${v.target}</td>
                     <td><span class="badge ${v.triggered?'bg-danger':'bg-success'}">${v.triggered?'ALERTA':'Vigilando'}</span></td>
                     <td>
                         <button onclick="editar('${id}', ${v.target})" class="btn btn-sm btn-outline-secondary" title="Editar objetivo">✏️</button>
-                        <button onclick="eliminar('${id}')" class="btn btn-sm btn-outline-danger" title="Eliminar">x</button>
+                        <button onclick="eliminar('${id}')" class="btn btn-sm btn-outline-danger" title="Eliminar">🗑️</button>
                     </td></tr>`).join('');
                 document.getElementById('alertas').innerHTML = d.alertas.map(a => `<div class="alert alert-warning p-2">${a.time}: ${a.msg}</div>`).join('');
                 
@@ -593,14 +593,16 @@ def obtener_precio(ticker_str):
         add_debug_log(f"✗ Error general obteniendo precio para {ticker_str}: {e}")
         raise Exception(f"No se pudo obtener precio: {e}")
 
-def obtener_nombre(ticker_str):
-    """Intenta obtener el nombre corto o largo del ticker."""
+def obtener_info_extra(ticker_str):
+    """Intenta obtener el nombre corto o largo y la moneda del ticker."""
     try:
         t = yf.Ticker(ticker_str)
         info = t.info
-        return info.get('shortName') or info.get('longName') or ""
+        name = info.get('shortName') or info.get('longName') or ""
+        currency = info.get('currency') or ""
+        return name, currency
     except Exception:
-        return ""
+        return "", ""
 
 @app.route('/api/add', methods=['POST'])
 def add_monitor():
@@ -639,13 +641,14 @@ def add_monitor():
             else:
                 raise e
 
-        asset_name = obtener_nombre(actual_ticker)
+        asset_name, currency = obtener_info_extra(actual_ticker)
 
         m_id = str(uuid.uuid4())
         monitores[m_id] = {
             'ticker': ticker_name,
             'symbol': actual_ticker,
             'name': asset_name,
+            'currency': currency,
             'target': target,
             'current': round(precio, 2),
             'tipo': 'superior' if target > precio else 'inferior',
