@@ -62,7 +62,7 @@ def background_monitor():
                     m_id = m['id']
                     sym = m['symbol']
                     
-                    if not finance_api.is_market_open(sym):
+                    if cfg.get("check_market_hours", True) and not finance_api.is_market_open(sym):
                         log_debug(f"El mercado está cerrado para {sym}, omitiendo actualización.", "INFO")
                         if not m['current_price_time']:
                             current_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
@@ -119,11 +119,16 @@ def background_monitor():
                             conn.execute("UPDATE monitores SET current = ?, previous_close = ?, current_price_time = ? WHERE id = ?", (current, m['current'], current_time, m_id))
                             conn.commit()
                             changes_made = True
+                        else:
+                            # El precio no ha cambiado, pero actualizamos la hora de última revisión
+                            conn.execute("UPDATE monitores SET current_price_time = ? WHERE id = ?", (current_time, m_id))
+                            conn.commit()
+                            changes_made = True
                 except Exception as e:
                     log_debug(f"Monitor update failed for {m['ticker']}: {e}", "WARNING")
             
-            if changes_made:
-                sse_subs.notify()
+            # Notificar siempre para actualizar "Última actualización" en la UI
+            sse_subs.notify()
                 
         except Exception as e:
             log_debug(f"Background monitor loop error: {e}", "ERROR")
