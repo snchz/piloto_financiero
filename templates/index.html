@@ -481,6 +481,7 @@
 
             renderTable(monitores) {
                 const entries = Object.entries(monitores);
+                console.log(`📋 Renderizando tabla con ${entries.length} monitores`);
                 if (entries.length === 0) {
                     document.getElementById('monitors-table').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-secondary">No hay alertas configuradas</td></tr>';
                     return;
@@ -491,6 +492,8 @@
                     const variacion = m.current && m.previous_close ? ((m.current - m.previous_close) / m.previous_close * 100) : 0;
                     const variacionClass = variacion >= 0 ? 'text-success' : 'text-danger';
                     const variacionSign = variacion >= 0 ? '+' : '';
+                    
+                    console.log(`  ⏰ ${m.ticker}: current_price_time = "${m.current_price_time}"`);
                     
                     return `
                     <tr>
@@ -669,6 +672,12 @@
         evtSource.onmessage = function(event) {
             try {
                 const data = JSON.parse(event.data);
+                console.log("🔔 SSE recibido - Datos:", data);
+                if (data.monitores && Object.keys(data.monitores).length > 0) {
+                    const firstId = Object.keys(data.monitores)[0];
+                    const firstMonitor = data.monitores[firstId];
+                    console.log(`📊 Primer monitor: ${firstMonitor.ticker}, timestamp: ${firstMonitor.current_price_time}`);
+                }
                 UI.checkVersion(data.version);
                 UI.updateLastRefreshTime();
                 UI.renderTable(data.monitores);

@@ -68,6 +68,8 @@ def background_monitor():
                         
                     current_price, previous_close = finance_api.fetch_price(sym)
                     current = round(current_price, 2)
+                    current_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+                    log_debug(f"Precio obtenido para {m['ticker']}: {current} @ {current_time}", "INFO")
                     
                     # Lógica de alertas de precio objetivo (existente)
                     is_above_target = m['tipo'] == 'superior' and current_price >= m['target']
@@ -80,11 +82,10 @@ def background_monitor():
                         if abs(variacion_pct) >= m['target_pct']:
                             if m['pct_triggered_date'] != today_date:
                                 pct_alert_triggered = True
-                    
-                    current_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
                     with db.get_db() as conn:
                         if is_above_target or is_below_target:
                             msg = f"🔔 {m['ticker']} alcanzó {m['target']} (Actual: {current_price:.2f})"
+                            log_debug(f"Actualizando alerta objetivo para {m['ticker']} - timestamp: {current_time}", "INFO")
                             conn.execute("UPDATE monitores SET current = ?, triggered = 1, current_price_time = ? WHERE id = ?", (current, current_time, m_id))
                             conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
                                          (str(uuid.uuid4()), msg, time.strftime('%H:%M:%S')))
@@ -97,6 +98,7 @@ def background_monitor():
                         elif pct_alert_triggered and previous_close:
                             variacion_pct = ((current_price - previous_close) / previous_close) * 100
                             msg = f"📈 Volatilidad: {m['ticker']} se ha movido un {variacion_pct:.1f}% hoy"
+                            log_debug(f"Actualizando alerta volatilidad para {m['ticker']} - timestamp: {current_time}", "INFO")
                             conn.execute("UPDATE monitores SET pct_triggered_date = ?, current = ?, current_price_time = ? WHERE id = ?", (today_date, current, current_time, m_id))
                             conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
                                          (str(uuid.uuid4()), msg, time.strftime('%H:%M:%S')))
@@ -107,6 +109,7 @@ def background_monitor():
                             notifications.enviar_mensaje_telegram(telegram_msg)
                         
                         elif m['current'] != current:
+                            log_debug(f"Actualizando precio para {m['ticker']}: {m['current']} -> {current}, timestamp: {current_time}", "INFO")
                             conn.execute("UPDATE monitores SET current = ?, previous_close = ?, current_price_time = ? WHERE id = ?", (current, m['current'], current_time, m_id))
                             conn.commit()
                             changes_made = True
@@ -147,6 +150,9 @@ def get_all_data():
             
         monitores = {}
         for r in monitores_rows:
+            price_time = r['current_price_time'] or 'N/A'
+            if price_time == 'N/A':
+                log_debug(f"Monitor {r['ticker']} (ID: {r['id']}) sin timestamp - valor NULL en BD", "WARNING")
             monitores[r['id']] = {
                 'ticker': r['ticker'],
                 'symbol': r['symbol'],
@@ -159,16 +165,23 @@ def get_all_data():
                 'target_pct': r['target_pct'] or 0,
                 'pct_triggered_date': r['pct_triggered_date'],
                 'previous_close': r['previous_close'],
-                'current_price_time': r['current_price_time']
+                'current_price_time': price_time
             }
         
         alertas = [{'id': r['id'], 'msg': r['msg'], 'time': r['time']} for r in alertas_rows]
         
-        return {
+        data = {
             "monitores": monitores,
             "alertas": alertas,
             "version": VERSION
         }
+        log_debug(f"Enviando datos SSE con {len(monitores)} monitores", "INFO")
+        if monitores:
+            first_ticker = list(monitores.values())[0]['ticker']
+            first_time = list(monitores.values())[0]['current_price_time']
+            log_debug(f"Primer monitor: {first_ticker} con timestamp: {first_time}", "INFO")
+        
+        return data
     except Exception as e:
         log_debug(f"Error fetching data from DB: {e}", "ERROR")
         return {"monitores": {}, "alertas": [], "version": VERSION}
