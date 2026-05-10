@@ -64,6 +64,12 @@ def background_monitor():
                     
                     if not finance_api.is_market_open(sym):
                         log_debug(f"El mercado está cerrado para {sym}, omitiendo actualización.", "INFO")
+                        if not m['current_price_time']:
+                            current_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+                            with db.get_db() as conn:
+                                conn.execute("UPDATE monitores SET current_price_time = ? WHERE id = ?", (current_time, m_id))
+                                conn.commit()
+                            changes_made = True
                         continue
                         
                     current_price, previous_close = finance_api.fetch_price(sym)
@@ -108,7 +114,7 @@ def background_monitor():
                             telegram_msg = f"📈 *ALERTA DE VOLATILIDAD*\nEl activo *{m['ticker']}* se ha movido un *{variacion_pct:.1f}%* hoy.\nPrecio anterior: *{previous_close:.2f}*\nPrecio actual: *{current_price:.2f}*"
                             notifications.enviar_mensaje_telegram(telegram_msg)
                         
-                        elif m['current'] != current:
+                        elif m['current'] != current or not m['current_price_time']:
                             log_debug(f"Actualizando precio para {m['ticker']}: {m['current']} -> {current}, timestamp: {current_time}", "INFO")
                             conn.execute("UPDATE monitores SET current = ?, previous_close = ?, current_price_time = ? WHERE id = ?", (current, m['current'], current_time, m_id))
                             conn.commit()

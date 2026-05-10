@@ -124,9 +124,9 @@ def add_monitor():
         
         with db.get_db() as conn:
             conn.execute('''
-                INSERT INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered, target_pct, previous_close)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
-            ''', (m_id, ticker_display, sym, name, currency, target, current, tipo, target_pct, current_price if not previous_close else previous_close))
+                INSERT INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered, target_pct, previous_close, current_price_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+            ''', (m_id, ticker_display, sym, name, currency, target, current, tipo, target_pct, current_price if not previous_close else previous_close, time.strftime('%d/%m/%Y %H:%M:%S')))
             conn.commit()
             
         log_debug(f"Added monitor for {sym} at {target} with pct alert {target_pct}%")
