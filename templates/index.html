@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Piloto Financiero</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>ref="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-base: #0f1115;
@@ -270,10 +268,8 @@
     <div class="container py-5">
         <header class="page-header">
             <div>
-                <span class="brand">✨ Piloto Financiero</span>
-                <span class="last-update">Última actualización: <span id="last-update-time">--:--:--</span></span>
-            </div>
-            <div class="d-flex align-items-center gap-3">
+                n: <span id="last-update-time">--:--:--</span></span>
+            </di
                 <button class="action-btn" onclick="abrirConfig()" title="Configuración" style="font-size: 1.25rem;">⚙️</button>
                 <div class="version-badge">v<span id="version">{{ version }}</span></div>
             </div>
@@ -348,6 +344,10 @@
                 </div>
                 <div class="modal-body">
                     <form id="config-form">
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small mb-1">Título de la Aplicación</label>
+                            <input type="text" id="cfg-app-title" class="form-control" placeholder="Piloto Financiero">
+                        </div>
                         <div class="mb-3">
                             <label class="form-label text-secondary small mb-1">Telegram Bot Token</label>
                             <input type="password" id="cfg-telegram-token" class="form-control">
@@ -575,6 +575,7 @@
         window.abrirConfig = async () => {
             try {
                 const config = await API.fetch('/api/config');
+                document.getElementById('cfg-app-title').value = config.app_title || 'Piloto Financiero';
                 document.getElementById('cfg-telegram-token').value = config.telegram_token;
                 document.getElementById('cfg-telegram-chat-id').value = config.telegram_chat_id;
                 document.getElementById('cfg-refresh-interval').value = config.refresh_interval;
@@ -589,6 +590,7 @@
         document.getElementById('config-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const payload = {
+                app_title: document.getElementById('cfg-app-title').value || 'Piloto Financiero',
                 telegram_token: document.getElementById('cfg-telegram-token').value,
                 telegram_chat_id: document.getElementById('cfg-telegram-chat-id').value,
                 refresh_interval: parseInt(document.getElementById('cfg-refresh-interval').value) || 30,
@@ -602,6 +604,8 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
                 });
+                document.title = payload.app_title;
+                document.getElementById('brand-text').textContent = payload.app_title;
                 configModal.hide();
                 UI.showToast('Configuración guardada correctamente');
             } catch (err) {

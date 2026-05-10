@@ -94,6 +94,7 @@ def api_set_config():
             conn.execute("UPDATE config SET valor = ? WHERE clave = 'refresh_interval'", (str(data.get('refresh_interval', 30)),))
             conn.execute("UPDATE config SET valor = ? WHERE clave = 'check_market_hours'", ("1" if data.get('check_market_hours') else "0",))
             conn.execute("UPDATE config SET valor = ? WHERE clave = 'debug_ui'", ("1" if data.get('debug_ui') else "0",))
+            conn.execute("UPDATE config SET valor = ? WHERE clave = 'app_title'", (data.get('app_title', 'Piloto Financiero'),))
             conn.commit()
         return jsonify({"ok": True})
     except Exception as e:
@@ -186,11 +187,15 @@ def health_check():
 
 @app.route('/')
 def index():
-    return render_template('index.html', version=VERSION)
+    cfg = db.get_config()
+    app_title = cfg.get("app_title", "Piloto Financiero")
+    return render_template('index.html', version=VERSION, app_title=app_title)
 
 if __name__ == '__main__':
     log_debug(f"Starting Piloto Financiero v{VERSION} on port 5000")
     # Notificar inicio por Telegram
-    startup_msg = f"🚀 *PILOTO FINANCIERO INICIADO*\nVersión: *{VERSION}*\nFecha: *{time.strftime('%Y-%m-%d %H:%M:%S')}*\nEstado: *Listo para monitorear activos*"
+    cfg = db.get_config()
+    app_title = cfg.get("app_title", "Piloto Financiero").upper()
+    startup_msg = f"🚀 *{app_title} INICIADO*\nVersión: *{VERSION}*\nFecha: *{time.strftime('%Y-%m-%d %H:%M:%S')}*\nEstado: *Listo para monitorear activos*"
     notifications.enviar_mensaje_telegram(startup_msg)
     app.run(host='0.0.0.0', port=5000, threaded=True)

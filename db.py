@@ -65,9 +65,12 @@ def init_db():
                 ("telegram_chat_id", ""),
                 ("refresh_interval", "30"),
                 ("check_market_hours", "1"),
-                ("debug_ui", "0")
+                ("debug_ui", "0"),
+                ("app_title", "Piloto Financiero")
             ]
             c.executemany("INSERT INTO config (clave, valor) VALUES (?, ?)", defaults)
+        else:
+            c.execute("INSERT OR IGNORE INTO config (clave, valor) VALUES ('app_title', 'Piloto Financiero')")
         conn.commit()
 
 def get_config():
@@ -80,10 +83,11 @@ def get_config():
                 "telegram_chat_id": cfg.get("telegram_chat_id", ""),
                 "refresh_interval": int(cfg.get("refresh_interval", "30")),
                 "check_market_hours": cfg.get("check_market_hours", "1") == "1",
-                "debug_ui": cfg.get("debug_ui", "0") == "1"
+                "debug_ui": cfg.get("debug_ui", "0") == "1",
+                "app_title": cfg.get("app_title", "Piloto Financiero")
             }
     except Exception as e:
         return {
             "telegram_token": "", "telegram_chat_id": "",
-            "refresh_interval": 30, "check_market_hours": True, "debug_ui": False
+            "refresh_interval": 30, "check_market_hours": True, "debug_ui": False, "app_title": "Piloto Financiero"
         }

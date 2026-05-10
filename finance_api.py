@@ -117,8 +117,15 @@ def fetch_price(ticker):
     return current_price, previous_close
 
 def is_market_open(ticker_symbol):
+    # Las criptomonedas y pares de divisas (ej. BTC-USD) cotizan 24/7
+    if '-' in ticker_symbol:
+        return True
+
     try:
         info = yf.Ticker(ticker_symbol).info
+        if info.get('quoteType') == 'CRYPTOCURRENCY':
+            return True
+            
         tz_name = info.get('exchangeTimezoneName')
         if not tz_name:
             return True
