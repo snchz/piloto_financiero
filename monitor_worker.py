@@ -5,6 +5,7 @@ import time
 import uuid
 import queue
 from flask import Response
+from datetime import datetime
 
 import db
 import finance_api
@@ -80,10 +81,11 @@ def background_monitor():
                             if m['pct_triggered_date'] != today_date:
                                 pct_alert_triggered = True
                     
+                    current_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
                     with db.get_db() as conn:
                         if is_above_target or is_below_target:
                             msg = f"🔔 {m['ticker']} alcanzó {m['target']} (Actual: {current_price:.2f})"
-                            conn.execute("UPDATE monitores SET current = ?, triggered = 1 WHERE id = ?", (current, m_id))
+                            conn.execute("UPDATE monitores SET current = ?, triggered = 1, current_price_time = ? WHERE id = ?", (current, current_time, m_id))
                             conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
                                          (str(uuid.uuid4()), msg, time.strftime('%H:%M:%S')))
                             conn.commit()
@@ -95,7 +97,7 @@ def background_monitor():
                         elif pct_alert_triggered and previous_close:
                             variacion_pct = ((current_price - previous_close) / previous_close) * 100
                             msg = f"📈 Volatilidad: {m['ticker']} se ha movido un {variacion_pct:.1f}% hoy"
-                            conn.execute("UPDATE monitores SET pct_triggered_date = ? WHERE id = ?", (today_date, m_id))
+                            conn.execute("UPDATE monitores SET pct_triggered_date = ?, current = ?, current_price_time = ? WHERE id = ?", (today_date, current, current_time, m_id))
                             conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
                                          (str(uuid.uuid4()), msg, time.strftime('%H:%M:%S')))
                             conn.commit()
@@ -105,7 +107,7 @@ def background_monitor():
                             notifications.enviar_mensaje_telegram(telegram_msg)
                         
                         elif m['current'] != current:
-                            conn.execute("UPDATE monitores SET current = ?, previous_close = ? WHERE id = ?", (current, m['current'], m_id))
+                            conn.execute("UPDATE monitores SET current = ?, previous_close = ?, current_price_time = ? WHERE id = ?", (current, m['current'], current_time, m_id))
                             conn.commit()
                             changes_made = True
                 except Exception as e:
@@ -156,7 +158,8 @@ def get_all_data():
                 'triggered': bool(r['triggered']),
                 'target_pct': r['target_pct'] or 0,
                 'pct_triggered_date': r['pct_triggered_date'],
-                'previous_close': r['previous_close']
+                'previous_close': r['previous_close'],
+                'current_price_time': r['current_price_time']
             }
         
         alertas = [{'id': r['id'], 'msg': r['msg'], 'time': r['time']} for r in alertas_rows]

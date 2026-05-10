@@ -502,7 +502,9 @@
                             <div class="text-secondary" style="font-size: 0.75rem">${m.name || 'Desconocido'}</div>
                         </td>
                         <td><span class="badge bg-dark border border-secondary border-opacity-25">${m.currency || '-'}</span></td>
-                        <td class="text-end font-monospace fs-6">${m.current ? m.current.toFixed(2) : '...'}</td>
+                        <td class="text-end font-monospace fs-6" title="Actualizado: ${m.current_price_time || 'N/A'}" style="cursor: help;">
+                            ${m.current ? m.current.toFixed(2) : '...'}
+                        </td>
                         <td class="text-end font-monospace fs-6 ${variacionClass}">${variacion ? `${variacionSign}${variacion.toFixed(1)}%` : '-'}</td>
                         <td class="text-end font-monospace fs-6 text-white">${m.target.toFixed(2)}</td>
                         <td class="text-center">
