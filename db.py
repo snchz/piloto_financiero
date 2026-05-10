@@ -59,6 +59,21 @@ def init_db():
                 valor TEXT
             )
         ''')
+        
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS operaciones (
+                id TEXT PRIMARY KEY,
+                fecha TEXT,
+                ticker TEXT,
+                tipo TEXT,
+                cantidad REAL,
+                precio REAL,
+                comisiones REAL,
+                impuestos REAL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
         if c.execute("SELECT COUNT(*) FROM config").fetchone()[0] == 0:
             defaults = [
                 ("telegram_token", ""),

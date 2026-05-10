@@ -2,6 +2,7 @@ import json
 import os
 import time
 import uuid
+from datetime import datetime
 
 from flask import Flask, jsonify, render_template, request
 
@@ -9,6 +10,7 @@ import db
 import finance_api
 import notifications
 import monitor_worker
+import portfolio_math
 
 app = Flask(__name__)
 
@@ -182,6 +184,115 @@ def health_check():
         return jsonify({"status": "healthy"}), 200
     except Exception as e:
         return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
+# --- Operaciones API ---
+@app.route('/api/operaciones', methods=['GET'])
+def get_operaciones():
+    try:
+        with db.get_db() as conn:
+            rows = conn.execute("SELECT * FROM operaciones ORDER BY fecha ASC").fetchall()
+            operaciones = [dict(row) for row in rows]
+            
+        # Agrupar por ticker
+        activos = {}
+        for op in operaciones:
+            t = op['ticker']
+            if t not in activos:
+                activos[t] = []
+            activos[t].append(op)
+            
+        # Calcular FIFO y métricas por activo
+        cartera = {}
+        flujos_caja = [] # Para TIR
+        
+        for ticker, ops in activos.items():
+            resultado = portfolio_math.calcular_fifo(ops)
+            if resultado['cantidad_actual'] > 0 or resultado['beneficio_realizado'] != 0:
+                # Intentar obtener precio actual
+                sym = finance_api.resolve_ticker(ticker)
+                precio_actual = 0.0
+                if sym:
+                    try:
+                        precio_actual, _ = finance_api.fetch_price(sym)
+                    except Exception as e:
+                        log_debug(f"Error fetching price for {sym}: {e}", "WARNING")
+                
+                valor_actual = resultado['cantidad_actual'] * precio_actual
+                inversion_actual = resultado['cantidad_actual'] * resultado['coste_medio']
+                pnl_latente = valor_actual - inversion_actual
+                
+                cartera[ticker] = {
+                    'cantidad': resultado['cantidad_actual'],
+                    'coste_medio': resultado['coste_medio'],
+                    'precio_actual': precio_actual,
+                    'valor_actual': valor_actual,
+                    'pnl_latente': pnl_latente,
+                    'pnl_realizado': resultado['beneficio_realizado']
+                }
+                
+                # Añadir al flujo de caja el valor actual (como si lo vendiéramos hoy)
+                if valor_actual > 0:
+                    flujos_caja.append((datetime.now(), valor_actual))
+                    
+            for op in ops:
+                dt = datetime.strptime(op['fecha'], '%Y-%m-%d')
+                cash_flow = 0.0
+                if op['tipo'] in ('COMPRA', 'APORTACION'):
+                    cash_flow = -(op['cantidad'] * op['precio'] + op.get('comisiones',0) + op.get('impuestos',0))
+                elif op['tipo'] == 'VENTA':
+                    cash_flow = (op['cantidad'] * op['precio']) - op.get('comisiones',0) - op.get('impuestos',0)
+                if cash_flow != 0:
+                    flujos_caja.append((dt, cash_flow))
+        
+        tir = portfolio_math.xirr(flujos_caja) if flujos_caja else None
+        
+        return jsonify({
+            "operaciones": operaciones,
+            "cartera": cartera,
+            "tir_anualizada": tir
+        })
+    except Exception as e:
+        log_debug(f"Error en /api/operaciones: {e}", "ERROR")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/operaciones/add', methods=['POST'])
+def add_operacion():
+    data = request.json
+    try:
+        op_id = str(uuid.uuid4())
+        fecha = data.get('fecha', datetime.now().strftime('%Y-%m-%d'))
+        ticker = data.get('ticker', '').upper().strip()
+        tipo = data.get('tipo', 'COMPRA').upper()
+        cantidad = float(data.get('cantidad', 0))
+        precio = float(data.get('precio', 0))
+        comisiones = float(data.get('comisiones', 0))
+        impuestos = float(data.get('impuestos', 0))
+        
+        if not ticker or cantidad <= 0 or precio < 0:
+            return jsonify({"error": "Datos inválidos"}), 400
+            
+        with db.get_db() as conn:
+            conn.execute('''
+                INSERT INTO operaciones (id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (op_id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos))
+            conn.commit()
+            
+        log_debug(f"Añadida operación {tipo} de {ticker}")
+        return jsonify({"ok": True})
+    except Exception as e:
+        log_debug(f"Error añadiendo operación: {e}", "ERROR")
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/api/operaciones/<op_id>', methods=['DELETE'])
+def delete_operacion(op_id):
+    try:
+        with db.get_db() as conn:
+            conn.execute("DELETE FROM operaciones WHERE id = ?", (op_id,))
+            conn.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # --- UI Template ---
 
