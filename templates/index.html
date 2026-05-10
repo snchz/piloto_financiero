@@ -17,11 +17,20 @@
             --text-secondary: #9ca3af;
             --border-color: rgba(255, 255, 255, 0.05);
         }
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--bg-base);
             color: var(--text-primary);
             -webkit-font-smoothing: antialiased;
+            display: flex;
+            flex-direction: column;
         }
         .glass-panel {
             background: var(--bg-surface);
@@ -115,8 +124,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem 0;
             border-bottom: 1px solid var(--border-color);
         }
         .brand {
@@ -202,12 +211,68 @@
         .log-level-ERROR { color: #ef4444; }
         .log-level-WARNING { color: #f59e0b; }
         .log-level-INFO { color: #60a5fa; }
+        
+        /* Fullscreen layout */
+        .container {
+            flex: 1;
+            overflow: auto;
+            padding: 1.5rem;
+            max-width: 100%;
+        }
+        
+        .last-update {
+            display: inline-block;
+            padding: 0.35em 0.65em;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            background: rgba(100, 165, 250, 0.1);
+            color: #64a5fa;
+            margin-left: 1rem;
+        }
+        
+        main {
+            height: 100%;
+        }
+        
+        .row.g-4 {
+            height: 100%;
+        }
+        
+        .col-xl-8, .col-xl-4 {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .col-xl-8 > .glass-panel:last-child {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .table-responsive {
+            flex: 1;
+            overflow: auto;
+        }
+        
+        .col-xl-4 > .glass-panel {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .col-xl-4 > .glass-panel > div {
+            flex: 1;
+        }
     </style>
 </head>
 <body>
     <div class="container py-5">
         <header class="page-header">
-            <div class="brand">✨ Piloto Financiero</div>
+            <div>
+                <span class="brand">✨ Piloto Financiero</span>
+                <span class="last-update">Última actualización: <span id="last-update-time">--:--:--</span></span>
+            </div>
             <div class="d-flex align-items-center gap-3">
                 <button class="action-btn" onclick="abrirConfig()" title="Configuración" style="font-size: 1.25rem;">⚙️</button>
                 <div class="version-badge">v<span id="version">{{ version }}</span></div>
@@ -371,6 +436,26 @@
         const UI = {
             version: '{{ version }}',
             
+            updateLastRefreshTime() {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('es-ES');
+                const dateStr = now.toLocaleDateString('es-ES');
+                const timestamp = `${dateStr} ${timeStr}`;
+                document.getElementById('last-update-time').textContent = timeStr;
+                localStorage.setItem('last_price_update', timestamp);
+            },
+            
+            loadLastRefreshTime() {
+                const timestamp = localStorage.getItem('last_price_update');
+                if (timestamp) {
+                    const parts = timestamp.split(' ');
+                    const timeStr = parts.slice(1).join(' ');
+                    document.getElementById('last-update-time').textContent = timeStr;
+                } else {
+                    document.getElementById('last-update-time').textContent = '--:--:--';
+                }
+            },
+            
             showToast(message, type = 'success') {
                 const container = document.querySelector('.toast-container');
                 const id = 'toast-' + Date.now();
@@ -465,6 +550,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             configModal = new bootstrap.Modal(document.getElementById('configModal'));
             editModal = new bootstrap.Modal(document.getElementById('editModal'));
+            UI.loadLastRefreshTime();
         });
 
         window.abrirConfig = async () => {
@@ -582,6 +668,7 @@
             try {
                 const data = JSON.parse(event.data);
                 UI.checkVersion(data.version);
+                UI.updateLastRefreshTime();
                 UI.renderTable(data.monitores);
                 UI.renderFeed(data.alertas);
             } catch (err) {
