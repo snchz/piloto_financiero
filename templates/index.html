@@ -315,12 +315,13 @@
                                     <th class="text-end">Actual</th>
                                     <th class="text-end">Variación</th>
                                     <th class="text-end">Objetivo</th>
+                                    <th class="text-center">Última Act.</th>
                                     <th class="text-center">Estado</th>
                                     <th class="pe-4 text-end">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="monitors-table">
-                                <tr><td colspan="7" class="text-center py-4 text-secondary"><div class="spinner-border spinner-border-sm"></div> Conectando con servidor...</td></tr>
+                                <tr><td colspan="8" class="text-center py-4 text-secondary"><div class="spinner-border spinner-border-sm"></div> Conectando con servidor...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -486,9 +487,19 @@
                 const entries = Object.entries(monitores);
                 console.log(`📋 Renderizando tabla con ${entries.length} monitores`);
                 if (entries.length === 0) {
-                    document.getElementById('monitors-table').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-secondary">No hay alertas configuradas</td></tr>';
+                    document.getElementById('monitors-table').innerHTML = '<tr><td colspan="8" class="text-center py-4 text-secondary">No hay alertas configuradas</td></tr>';
                     return;
                 }
+
+                const formatCurrency = (val, currency) => {
+                    if (val == null) return '...';
+                    try {
+                        const curr = (currency && currency !== '-') ? currency.toUpperCase() : 'USD';
+                        return new Intl.NumberFormat('es-ES', { style: 'currency', currency: curr }).format(val);
+                    } catch (e) {
+                        return val.toFixed(2) + ' ' + (currency || '');
+                    }
+                };
 
                 const html = entries.map(([id, m]) => {
                     // Calcular variación porcentual
@@ -508,11 +519,14 @@
                             <div class="text-secondary" style="font-size: 0.75rem">${m.name || 'Desconocido'}</div>
                         </td>
                         <td><span class="badge bg-dark border border-secondary border-opacity-25">${m.currency || '-'}</span></td>
-                        <td class="text-end font-monospace fs-6" title="Actualizado: ${m.current_price_time || 'N/A'}" style="cursor: help;">
-                            ${m.current ? m.current.toFixed(2) : '...'}
+                        <td class="text-end font-monospace fs-6">
+                            ${formatCurrency(m.current, m.currency)}
                         </td>
                         <td class="text-end font-monospace fs-6 ${variacionClass}">${variacion ? `${variacionSign}${variacion.toFixed(1)}%` : '-'}</td>
-                        <td class="text-end font-monospace fs-6 text-white">${m.target.toFixed(2)}</td>
+                        <td class="text-end font-monospace fs-6 text-white">${formatCurrency(m.target, m.currency)}</td>
+                        <td class="text-center font-monospace text-secondary" style="font-size: 0.85rem;">
+                            ${m.current_price_time || 'N/A'}
+                        </td>
                         <td class="text-center">
                             <span class="badge-status ${m.triggered ? 'badge-alert' : 'badge-active'}">
                                 ${m.triggered ? 'ALERTA' : 'Vigilando'}
