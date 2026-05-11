@@ -3,8 +3,10 @@ import os
 import time
 import uuid
 from datetime import datetime
+import io
+import pandas as pd
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_file
 
 import db
 import finance_api
@@ -293,6 +295,132 @@ def delete_operacion(op_id):
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/export/monitores', methods=['GET'])
+def export_monitores():
+    try:
+        with db.get_db() as conn:
+            rows = conn.execute("SELECT * FROM monitores").fetchall()
+            df = pd.DataFrame([dict(row) for row in rows])
+        
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Monitores')
+        output.seek(0)
+        
+        return send_file(output, download_name="monitores.xlsx", as_attachment=True)
+    except Exception as e:
+        log_debug(f"Error exporting monitores: {e}", "ERROR")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/import/monitores', methods=['POST'])
+def import_monitores():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    file = request.files['file']
+    try:
+        df = pd.read_excel(file)
+        # Requerimos ciertas columnas básicas
+        required_cols = ['ticker', 'target']
+        if not all(col in df.columns for col in required_cols):
+            return jsonify({"error": "Excel format invalid. Required columns: ticker, target"}), 400
+        
+        with db.get_db() as conn:
+            for _, row in df.iterrows():
+                ticker = str(row['ticker']).strip()
+                target = float(row['target'])
+                target_pct = float(row.get('target_pct', 0)) if pd.notna(row.get('target_pct')) else 0.0
+                if not ticker or target <= 0:
+                    continue
+                
+                sym = finance_api.resolve_ticker(ticker)
+                if not sym:
+                    continue
+                
+                current_price, previous_close = finance_api.fetch_price(sym)
+                name, currency = finance_api.fetch_asset_info(sym)
+                tipo = 'superior' if target > current_price else 'inferior'
+                
+                m_id = str(row.get('id', uuid.uuid4()))
+                if pd.isna(m_id) or m_id == 'nan':
+                    m_id = str(uuid.uuid4())
+                
+                conn.execute('''
+                    INSERT OR REPLACE INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered, target_pct, previous_close, current_price_time)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+                ''', (str(m_id), ticker, sym, name, currency, target, current_price, tipo, target_pct, current_price if not previous_close else previous_close, time.strftime('%d/%m/%Y %H:%M:%S')))
+            conn.commit()
+        monitor_worker.sse_subs.notify()
+        return jsonify({"ok": True})
+    except Exception as e:
+        log_debug(f"Error importing monitores: {e}", "ERROR")
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/api/export/operaciones', methods=['GET'])
+def export_operaciones():
+    try:
+        with db.get_db() as conn:
+            rows = conn.execute("SELECT * FROM operaciones ORDER BY fecha ASC").fetchall()
+            df = pd.DataFrame([dict(row) for row in rows])
+        
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Operaciones')
+        output.seek(0)
+        
+        return send_file(output, download_name="operaciones.xlsx", as_attachment=True)
+    except Exception as e:
+        log_debug(f"Error exporting operaciones: {e}", "ERROR")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/import/operaciones', methods=['POST'])
+def import_operaciones():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    file = request.files['file']
+    try:
+        df = pd.read_excel(file)
+        required_cols = ['fecha', 'ticker', 'tipo', 'cantidad', 'precio']
+        if not all(col in df.columns for col in required_cols):
+            return jsonify({"error": "Excel format invalid. Required columns: fecha, ticker, tipo, cantidad, precio"}), 400
+            
+        with db.get_db() as conn:
+            for _, row in df.iterrows():
+                try:
+                    op_id = str(row.get('id', uuid.uuid4()))
+                    if pd.isna(row.get('id')):
+                        op_id = str(uuid.uuid4())
+                    
+                    # Formatear fecha
+                    if pd.notna(row['fecha']):
+                        if isinstance(row['fecha'], datetime):
+                            fecha = row['fecha'].strftime('%Y-%m-%d')
+                        else:
+                            fecha = str(row['fecha']).split(' ')[0] # Intentar extraer YYYY-MM-DD
+                    else:
+                        fecha = datetime.now().strftime('%Y-%m-%d')
+
+                    ticker = str(row['ticker']).strip().upper()
+                    tipo = str(row['tipo']).strip().upper()
+                    cantidad = float(row['cantidad'])
+                    precio = float(row['precio'])
+                    comisiones = float(row.get('comisiones', 0)) if pd.notna(row.get('comisiones')) else 0.0
+                    impuestos = float(row.get('impuestos', 0)) if pd.notna(row.get('impuestos')) else 0.0
+                    
+                    if not ticker or cantidad <= 0 or precio < 0 or tipo not in ['COMPRA', 'VENTA', 'APORTACION']:
+                        continue
+                        
+                    conn.execute('''
+                        INSERT OR REPLACE INTO operaciones (id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (op_id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos))
+                except Exception as row_e:
+                    log_debug(f"Row import error: {row_e}", "WARNING")
+            conn.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        log_debug(f"Error importing operaciones: {e}", "ERROR")
+        return jsonify({"error": str(e)}), 400
 
 # --- UI Template ---
 
