@@ -3,6 +3,7 @@ import os
 import time
 import uuid
 from datetime import datetime
+import traceback
 import io
 import pandas as pd
 
@@ -286,7 +287,8 @@ def get_operaciones():
             "tir_anualizada": tir
         })
     except Exception as e:
-        log_debug(f"Error en /api/operaciones: {e}", "ERROR")
+        tb = traceback.format_exc()
+        log_debug(f"Error en /api/operaciones: {e}\nTraceback:\n{tb}", "ERROR")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/operaciones/add', methods=['POST'])
