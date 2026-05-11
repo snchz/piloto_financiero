@@ -42,6 +42,25 @@ VERSION = load_version()
 def log_debug(msg, level="INFO"):
     monitor_worker.log_debug(msg, level)
 
+# --- Cache ---
+ASSET_INFO_CACHE = {}
+
+def get_asset_info_cached(ticker):
+    if ticker in ASSET_INFO_CACHE:
+        return ASSET_INFO_CACHE[ticker]
+    try:
+        sym = finance_api.resolve_ticker(ticker)
+        if sym:
+            name, currency = finance_api.fetch_asset_info(sym)
+            if not currency:
+                currency = 'USD'
+            ASSET_INFO_CACHE[ticker] = {'sym': sym, 'name': name, 'currency': currency}
+            return ASSET_INFO_CACHE[ticker]
+    except Exception as e:
+        log_debug(f"Error fetching info for {ticker}: {e}", "WARNING")
+    
+    return {'sym': ticker, 'name': ticker, 'currency': 'USD'}
+
 # --- Data Management ---
 def migrate_json_to_sqlite():
     if not os.path.exists(DATA_FILE):
@@ -207,23 +226,29 @@ def get_operaciones():
         cartera = {}
         flujos_caja = [] # Para TIR
         
+        activos_info = {}
+        
         for ticker, ops in activos.items():
+            info = get_asset_info_cached(ticker)
+            activos_info[ticker] = info
+            
             resultado = portfolio_math.calcular_fifo(ops)
             if resultado['cantidad_actual'] > 0 or resultado['beneficio_realizado'] != 0:
                 # Intentar obtener precio actual
-                sym = finance_api.resolve_ticker(ticker)
                 precio_actual = 0.0
-                if sym:
+                if info['sym']:
                     try:
-                        precio_actual, _ = finance_api.fetch_price(sym)
+                        precio_actual, _ = finance_api.fetch_price(info['sym'])
                     except Exception as e:
-                        log_debug(f"Error fetching price for {sym}: {e}", "WARNING")
+                        log_debug(f"Error fetching price for {info['sym']}: {e}", "WARNING")
                 
                 valor_actual = resultado['cantidad_actual'] * precio_actual
                 inversion_actual = resultado['cantidad_actual'] * resultado['coste_medio']
                 pnl_latente = valor_actual - inversion_actual
                 
                 cartera[ticker] = {
+                    'name': info['name'],
+                    'currency': info['currency'],
                     'cantidad': resultado['cantidad_actual'],
                     'coste_medio': resultado['coste_medio'],
                     'precio_actual': precio_actual,
@@ -251,6 +276,7 @@ def get_operaciones():
         return jsonify({
             "operaciones": operaciones,
             "cartera": cartera,
+            "activos_info": activos_info,
             "tir_anualizada": tir
         })
     except Exception as e:

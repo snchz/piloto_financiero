@@ -926,14 +926,18 @@
                 const carteraHtml = Object.entries(data.cartera).map(([ticker, metrics]) => {
                     const latenteClass = metrics.pnl_latente >= 0 ? 'text-success' : 'text-danger';
                     const latenteSign = metrics.pnl_latente >= 0 ? '+' : '';
+                    const currency = metrics.currency || 'USD';
                     return `
                     <tr>
-                        <td class="ps-4 fw-semibold text-white">${ticker}</td>
+                        <td class="ps-4">
+                            <div class="fw-semibold text-white">${ticker}</div>
+                            <div class="text-secondary" style="font-size: 0.75rem">${metrics.name || ''}</div>
+                        </td>
                         <td class="text-end font-monospace">${metrics.cantidad.toFixed(4)}</td>
-                        <td class="text-end font-monospace">${formatCurrency(metrics.coste_medio)}</td>
-                        <td class="text-end font-monospace">${formatCurrency(metrics.precio_actual)}</td>
-                        <td class="text-end font-monospace text-white">${formatCurrency(metrics.valor_actual)}</td>
-                        <td class="text-end font-monospace ${latenteClass} pe-4">${latenteSign}${formatCurrency(metrics.pnl_latente)}</td>
+                        <td class="text-end font-monospace">${formatCurrency(metrics.coste_medio, currency)}</td>
+                        <td class="text-end font-monospace">${formatCurrency(metrics.precio_actual, currency)}</td>
+                        <td class="text-end font-monospace text-white">${formatCurrency(metrics.valor_actual, currency)}</td>
+                        <td class="text-end font-monospace ${latenteClass} pe-4">${latenteSign}${formatCurrency(metrics.pnl_latente, currency)}</td>
                     </tr>
                 `}).join('');
                 document.getElementById('cartera-table').innerHTML = carteraHtml || '<tr><td colspan="6" class="text-center py-4 text-secondary">No hay activos en cartera</td></tr>';
@@ -942,13 +946,19 @@
                 const opsHtml = data.operaciones.map(op => {
                     const isCompra = op.tipo === 'COMPRA' || op.tipo === 'APORTACION';
                     const tipoColor = isCompra ? 'text-success' : 'text-danger';
+                    const info = data.activos_info[op.ticker] || {};
+                    const currency = info.currency || 'USD';
+                    const name = info.name || '';
                     return `
                     <tr>
                         <td class="ps-4 font-monospace text-secondary" style="font-size: 0.85rem">${op.fecha}</td>
-                        <td class="fw-semibold text-white">${op.ticker}</td>
+                        <td>
+                            <div class="fw-semibold text-white">${op.ticker}</div>
+                            <div class="text-secondary" style="font-size: 0.75rem">${name}</div>
+                        </td>
                         <td><span class="${tipoColor}">${op.tipo}</span></td>
                         <td class="text-end font-monospace">${op.cantidad}</td>
-                        <td class="text-end font-monospace">${formatCurrency(op.precio)}</td>
+                        <td class="text-end font-monospace">${formatCurrency(op.precio, currency)}</td>
                         <td class="text-end pe-4">
                             <button onclick="borrarOperacion('${op.id}')" class="action-btn delete" title="Eliminar">
                                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
