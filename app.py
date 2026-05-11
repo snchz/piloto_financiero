@@ -330,12 +330,10 @@ def export_monitores():
             rows = conn.execute("SELECT * FROM monitores").fetchall()
             df = pd.DataFrame([dict(row) for row in rows])
         
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Monitores')
-        output.seek(0)
+        csv_data = df.to_csv(index=False)
+        output = io.BytesIO(csv_data.encode('utf-8'))
         
-        return send_file(output, download_name="monitores.xlsx", as_attachment=True)
+        return send_file(output, mimetype='text/csv', download_name="monitores.csv", as_attachment=True)
     except Exception as e:
         log_debug(f"Error exporting monitores: {e}", "ERROR")
         return jsonify({"error": str(e)}), 500
@@ -346,11 +344,11 @@ def import_monitores():
         return jsonify({"error": "No file provided"}), 400
     file = request.files['file']
     try:
-        df = pd.read_excel(file)
+        df = pd.read_csv(file)
         # Requerimos ciertas columnas básicas
         required_cols = ['ticker', 'target']
         if not all(col in df.columns for col in required_cols):
-            return jsonify({"error": "Excel format invalid. Required columns: ticker, target"}), 400
+            return jsonify({"error": "CSV format invalid. Required columns: ticker, target"}), 400
         
         with db.get_db() as conn:
             for _, row in df.iterrows():
@@ -390,12 +388,10 @@ def export_operaciones():
             rows = conn.execute("SELECT * FROM operaciones ORDER BY fecha ASC").fetchall()
             df = pd.DataFrame([dict(row) for row in rows])
         
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Operaciones')
-        output.seek(0)
+        csv_data = df.to_csv(index=False)
+        output = io.BytesIO(csv_data.encode('utf-8'))
         
-        return send_file(output, download_name="operaciones.xlsx", as_attachment=True)
+        return send_file(output, mimetype='text/csv', download_name="operaciones.csv", as_attachment=True)
     except Exception as e:
         log_debug(f"Error exporting operaciones: {e}", "ERROR")
         return jsonify({"error": str(e)}), 500
@@ -406,10 +402,10 @@ def import_operaciones():
         return jsonify({"error": "No file provided"}), 400
     file = request.files['file']
     try:
-        df = pd.read_excel(file)
+        df = pd.read_csv(file)
         required_cols = ['fecha', 'ticker', 'tipo', 'cantidad', 'precio']
         if not all(col in df.columns for col in required_cols):
-            return jsonify({"error": "Excel format invalid. Required columns: fecha, ticker, tipo, cantidad, precio"}), 400
+            return jsonify({"error": "CSV format invalid. Required columns: fecha, ticker, tipo, cantidad, precio"}), 400
             
         with db.get_db() as conn:
             for _, row in df.iterrows():
