@@ -5,7 +5,7 @@ RUN apt-get update && \
     apt-get install --no-install-recommends -y curl && \
     rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir -r requirements.txt
-COPY app.py db.py finance_api.py monitor_worker.py notifications.py version.txt ./
+COPY app.py db.py finance_api.py monitor_worker.py notifications.py portfolio_math.py version.txt ./
 COPY templates templates
 RUN mkdir -p data
 # ARG para invalidar caché con cada cambio
