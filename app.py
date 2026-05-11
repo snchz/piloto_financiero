@@ -2,7 +2,7 @@ import json
 import os
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 import traceback
 import io
 import pandas as pd
@@ -215,9 +215,18 @@ def get_operaciones():
             rows = conn.execute("SELECT * FROM operaciones ORDER BY fecha ASC").fetchall()
             operaciones = [dict(row) for row in rows]
             
-        # Sanear todas las fechas extraídas de la base de datos (elimina horas o espacios)
+        # Sanear todas las fechas extraídas de la base de datos
         for op in operaciones:
-            op['fecha'] = str(op['fecha']).strip().split(' ')[0]
+            fecha_val = str(op['fecha']).strip()
+            if fecha_val.isdigit():
+                try:
+                    # Intentar convertir desde número de serie de Excel (común en importaciones)
+                    excel_serial_date = int(fecha_val)
+                    op['fecha'] = (datetime(1899, 12, 30) + timedelta(days=excel_serial_date)).strftime('%Y-%m-%d')
+                except (ValueError, TypeError):
+                    op['fecha'] = fecha_val.split(' ')[0] # Si falla, volver al comportamiento anterior
+            else:
+                op['fecha'] = fecha_val.split(' ')[0]
             
         # Agrupar por ticker
         activos = {}
