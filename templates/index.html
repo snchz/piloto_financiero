@@ -472,11 +472,12 @@
                                         <th>Tipo</th>
                                         <th class="text-end">Cant.</th>
                                         <th class="text-end">Precio</th>
+                                        <th class="text-end">Rentabilidad</th>
                                         <th class="text-end pe-4">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="operaciones-table">
-                                    <tr><td colspan="6" class="text-center py-4 text-secondary">Cargando...</td></tr>
+                                    <tr><td colspan="7" class="text-center py-4 text-secondary">Cargando...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -949,6 +950,24 @@
                     const info = data.activos_info[op.ticker] || {};
                     const currency = info.currency || 'USD';
                     const name = info.name || '';
+                    
+                    let rentabilidadHtml = '-';
+                    if (op.tipo === 'VENTA' && op.rentabilidad_pct !== undefined) {
+                        const rentColor = op.rentabilidad_pct >= 0 ? 'text-success' : 'text-danger';
+                        const rentSign = op.rentabilidad_pct >= 0 ? '+' : '';
+                        const rentPct = (op.rentabilidad_pct * 100).toFixed(2) + '%';
+                        
+                        let anualHtml = '';
+                        if (op.rentabilidad_anualizada_pct !== null && op.rentabilidad_anualizada_pct !== undefined) {
+                            const anualColor = op.rentabilidad_anualizada_pct >= 0 ? 'text-success' : 'text-danger';
+                            const anualSign = op.rentabilidad_anualizada_pct >= 0 ? '+' : '';
+                            const anualPct = (op.rentabilidad_anualizada_pct * 100).toFixed(2) + '%';
+                            anualHtml = `<div class="${anualColor}" style="font-size: 0.70rem;">(${anualSign}${anualPct} anual)</div>`;
+                        }
+                        
+                        rentabilidadHtml = `<div class="${rentColor} fw-semibold">${rentSign}${rentPct}</div>${anualHtml}`;
+                    }
+
                     return `
                     <tr>
                         <td class="ps-4 font-monospace text-secondary" style="font-size: 0.85rem">${op.fecha}</td>
@@ -959,6 +978,7 @@
                         <td><span class="${tipoColor}">${op.tipo}</span></td>
                         <td class="text-end font-monospace">${op.cantidad}</td>
                         <td class="text-end font-monospace">${formatCurrency(op.precio, currency)}</td>
+                        <td class="text-end font-monospace">${rentabilidadHtml}</td>
                         <td class="text-end pe-4">
                             <button onclick="borrarOperacion('${op.id}')" class="action-btn delete" title="Eliminar">
                                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -966,7 +986,7 @@
                         </td>
                     </tr>
                 `}).join('');
-                document.getElementById('operaciones-table').innerHTML = opsHtml || '<tr><td colspan="6" class="text-center py-4 text-secondary">No hay operaciones registradas</td></tr>';
+                document.getElementById('operaciones-table').innerHTML = opsHtml || '<tr><td colspan="7" class="text-center py-4 text-secondary">No hay operaciones registradas</td></tr>';
 
                 // Renderizar Resumen Global
                 let totalLatente = 0;
@@ -979,10 +999,10 @@
                 document.getElementById('resumen-tir').textContent = data.tir_anualizada ? (data.tir_anualizada * 100).toFixed(2) + '%' : 'N/A';
                 document.getElementById('resumen-tir').className = 'fs-3 fw-bold ' + (data.tir_anualizada >= 0 ? 'text-success' : 'text-danger');
                 
-                document.getElementById('resumen-latente').textContent = formatCurrency(totalLatente);
+                document.getElementById('resumen-latente').textContent = formatCurrency(totalLatente, 'EUR');
                 document.getElementById('resumen-latente').className = 'fs-4 fw-bold ' + (totalLatente >= 0 ? 'text-success' : 'text-danger');
                 
-                document.getElementById('resumen-realizado').textContent = formatCurrency(totalRealizado);
+                document.getElementById('resumen-realizado').textContent = formatCurrency(totalRealizado, 'EUR');
                 document.getElementById('resumen-realizado').className = 'fs-4 fw-bold ' + (totalRealizado >= 0 ? 'text-success' : 'text-danger');
                 
             } catch (err) {
