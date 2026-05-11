@@ -215,6 +215,10 @@ def get_operaciones():
             rows = conn.execute("SELECT * FROM operaciones ORDER BY fecha ASC").fetchall()
             operaciones = [dict(row) for row in rows]
             
+        # Sanear todas las fechas extraídas de la base de datos (elimina horas o espacios)
+        for op in operaciones:
+            op['fecha'] = str(op['fecha']).strip().split(' ')[0]
+            
         # Agrupar por ticker
         activos = {}
         for op in operaciones:
