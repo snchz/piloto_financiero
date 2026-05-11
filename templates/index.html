@@ -364,7 +364,8 @@
             <main class="row g-4 h-100">
                 <div class="col-xl-4 d-flex flex-column">
                     <!-- Formulario de Operaciones -->
-                    <div class="glass-b-3 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Registrar Operación</h5>
+                    <div class="glass-panel p-4 mb-4">
+                        <h5 class="mb-3 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Registrar Operación</h5>
                         <form id="op-form" class="row g-3">
                             <div class="col-12">
                                 <label class="form-label text-secondary small mb-1">Fecha</label>
@@ -408,7 +409,8 @@
                     <div class="glass-panel p-4 flex-grow-1">
                         <h5 class="mb-3 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Resumen Global</h5>
                         <div class="mb-3">
-                            <span class= s -bold" id="resumen-tir">--</span>
+                            <span class="text-secondary small d-block">TIR Anualizada (XIRR)</span>
+                            <span class="fs-3 fw-bold" id="resumen-tir">--</span>
                         </div>
                         <div class="mb-3">
                             <span class="text-secondary small d-block">P&L Latente (Abierto)</span>
@@ -426,14 +428,16 @@
                         <div class="p-3 border-bottom border-secondary border-opacity-25">
                             <h5 class="m-0 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Mi Cartera (Abierta)</h5>
                         </div>
-                        <div class="table-responsive" =
+                        <div class="table-responsive" style="max-height: 30vh;">
+                            <table class="table table-borderless align-middle mb-0">
                                 <thead class="bg-dark bg-opacity-25" style="position: sticky; top: 0; z-index: 1;">
                                     <tr>
-                                        <th class="ps-4">Ticker</th>
+                                        <th class="ps-4">Activo</th>
                                         <th class="text-end">Cantidad</th>
-                                        <th class="ts s-end">Precio Actual</th>
-                                        <th class="text-end">Valor</th>
-                                        <th class="text-end">Rentabilidad</th>
+                                        <th class="text-end">Coste Medio</th>
+                                        <th class="text-end">Precio Actual</th>
+                                        <th class="text-end">Valor Actual</th>
+                                        <th class="text-end">Rentab. %</th>
                                         <th class="text-end pe-4">P&L Latente</th>
                                     </tr>
                                 </thead>
@@ -449,24 +453,30 @@
                             <h5 class="m-0 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Historial de Operaciones</h5>
                             <div>
                                 <button class="action-btn" onclick="exportExcel('operaciones')" title="Exportar a CSV">
-                                      </button>
-                 sneetElementById('import-operaciones-file').click()" title="Importar de CSV">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                </button>
+                                <button class="action-btn" onclick="document.getElementById('import-operaciones-file').click()" title="Importar de CSV">
                                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                                 </button>
                                 <input type="file" id="import-operaciones-file" style="display:none" accept=".csv" onchange="importExcel('operaciones', this)">
-                            </di
+                            </div>
+                        </div>
                         <div class="table-responsive flex-grow-1">
                             <table class="table table-borderless align-middle mb-0">
-                                <t
+                                <thead class="bg-dark bg-opacity-25" style="position: sticky; top: 0; z-index: 1;">
+                                    <tr>
                                         <th class="ps-4">Fecha</th>
                                         <th>Ticker</th>
-                                    
+                                        <th>Tipo</th>
+                                        <th class="text-end">Cantidad</th>
                                         <th class="text-end">Precio</th>
-                                        <th class="text-end">Rentabilidad</th>
-                           
+                                        <th class="text-end">Comisiones</th>
+                                        <th class="text-end">Impuestos</th>
+                                        <th class="text-end pe-4">Acciones</th>
+                                    </tr>
                                 </thead>
                                 <tbody id="operaciones-table">
-                                    <tr><td colspan="7" class="text-center py-4 text-secondary">Cargando...</td></tr>
+                                    <tr><td colspan="8" class="text-center py-4 text-secondary">Cargando...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -929,9 +939,9 @@
                             <div class="text-secondary" style="font-size: 0.75rem">${metrics.name || ''}</div>
                         </td>
                         <td class="text-end font-monospace">${metrics.cantidad.toFixed(4)}</td>
-                        <td class="text-end font-monospace">${formatCurrency(metrics.coste_medio, currency)}</td>
-                        <td class="text-end font-monospace">${formatCurrency(metrics.precio_actual, currency)}</td>
-                        <td class="text-end font-monospace text-white">${formatCurrency(metrics.valor_actual, currency)}</td>
+                        <td class="text-end font-monospace">${formatCurrency(metrics.coste_medio, currency)}</td> <!-- Coste Medio -->
+                        <td class="text-end font-monospace">${formatCurrency(metrics.precio_actual, currency)}</td> <!-- Precio Actual -->
+                        <td class="text-end font-monospace text-white">${formatCurrency(metrics.valor_actual, currency)}</td> <!-- Valor Actual -->
                         <td class="text-end font-monospace ${rentPctClass}">${rentPctSign}${rentPctStr}</td>
                         <td class="text-end font-monospace ${latenteClass} pe-4">${latenteSign}${formatCurrency(metrics.pnl_latente, currency)}</td>
                     </tr>
@@ -939,21 +949,12 @@
                 document.getElementById('cartera-table').innerHTML = carteraHtml || '<tr><td colspan="7" class="text-center py-4 text-secondary">No hay activos en cartera</td></tr>';
 
                 // Renderizar Operaciones
-                const opsHtml = data.operaciones.map(op => {
+                const opsHtml = data.operaciones.reverse().map(op => {
                     const isCompra = op.tipo === 'COMPRA' || op.tipo === 'APORTACION';
                     const tipoColor = isCompra ? 'text-success' : 'text-danger';
                     const info = data.activos_info[op.ticker] || {};
                     const currency = info.currency || 'USD';
                     const name = info.name || '';
-                    
-                    let rentabilidadHtml = '-';
-                    if (op.tipo === 'VENTA' && op.rentabilidad_pct !== undefined) {
-                        const rentColor = op.rentabilidad_pct >= 0 ? 'text-success' : 'text-danger';
-                        const rentSign = op.rentabilidad_pct >= 0 ? '+' : '';
-                        const rentPct = (op.rentabilidad_pct * 100).toFixed(2) + '%';
-                        
-                        rentabilidadHtml = `<div class="${rentColor} fw-semibold">${rentSign}${rentPct}</div>`;
-                    }
 
                     return `
                     <tr>
@@ -963,9 +964,10 @@
                             <div class="text-secondary" style="font-size: 0.75rem">${name}</div>
                         </td>
                         <td><span class="${tipoColor}">${op.tipo}</span></td>
-                        <td class="text-end font-monospace">${op.cantidad}</td>
+                        <td class="text-end font-monospace">${op.cantidad.toFixed(4)}</td>
                         <td class="text-end font-monospace">${formatCurrency(op.precio, currency)}</td>
-                        <td class="text-end font-monospace">${rentabilidadHtml}</td>
+                        <td class="text-end font-monospace text-secondary">${formatCurrency(op.comisiones, currency)}</td>
+                        <td class="text-end font-monospace text-secondary">${formatCurrency(op.impuestos, currency)}</td>
                         <td class="text-end pe-4">
                             <button onclick="borrarOperacion('${op.id}')" class="action-btn delete" title="Eliminar">
                                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -973,14 +975,12 @@
                         </td>
                     </tr>
                 `}).join('');
-                document.getElementById('operaciones-table').innerHTML = opsHtml || '<tr><td colspan="7" class="text-center py-4 text-secondary">No hay operaciones registradas</td></tr>';
+                document.getElementById('operaciones-table').innerHTML = opsHtml || '<tr><td colspan="8" class="text-center py-4 text-secondary">No hay operaciones registradas</td></tr>';
 
                 // Renderizar Resumen Global
                 let totalLatente = 0;
-                let totalRealizado = 0;
                 Object.values(data.cartera).forEach(m => {
                     totalLatente += m.pnl_latente;
-                    totalRealizado += m.pnl_realizado;
                 });
                 
                 document.getElementById('resumen-tir').textContent = data.tir_anualizada ? (data.tir_anualizada * 100).toFixed(2) + '%' : 'N/A';
@@ -989,8 +989,8 @@
                 document.getElementById('resumen-latente').textContent = formatCurrency(totalLatente, 'EUR');
                 document.getElementById('resumen-latente').className = 'fs-4 fw-bold ' + (totalLatente >= 0 ? 'text-success' : 'text-danger');
                 
-                document.getElementById('resumen-realizado').textContent = formatCurrency(totalRealizado, 'EUR');
-                document.getElementById('resumen-realizado').className = 'fs-4 fw-bold ' + (totalRealizado >= 0 ? 'text-success' : 'text-danger');
+                document.getElementById('resumen-realizado').textContent = formatCurrency(data.total_pnl_realizado, 'EUR');
+                document.getElementById('resumen-realizado').className = 'fs-4 fw-bold ' + (data.total_pnl_realizado >= 0 ? 'text-success' : 'text-danger');
                 
             } catch (err) {
                 UI.showToast('Error cargando operaciones', 'error');

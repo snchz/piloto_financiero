@@ -239,6 +239,7 @@ def get_operaciones():
         # Calcular FIFO y métricas por activo
         cartera = {}
         flujos_caja = [] # Para TIR
+        total_pnl_realizado = 0.0
         
         activos_info = {}
         
@@ -247,6 +248,8 @@ def get_operaciones():
             activos_info[ticker] = info
             
             resultado = portfolio_math.calcular_fifo(ops)
+            total_pnl_realizado += resultado['beneficio_realizado']
+
             if resultado['cantidad_actual'] > 0:
                 # Intentar obtener precio actual
                 precio_actual = 0.0
@@ -297,7 +300,8 @@ def get_operaciones():
             "operaciones": operaciones,
             "cartera": cartera,
             "activos_info": activos_info,
-            "tir_anualizada": tir
+            "tir_anualizada": tir,
+            "total_pnl_realizado": total_pnl_realizado
         })
     except Exception as e:
         tb = traceback.format_exc()
