@@ -254,7 +254,8 @@ def get_operaciones():
                     'precio_actual': precio_actual,
                     'valor_actual': valor_actual,
                     'pnl_latente': pnl_latente,
-                    'pnl_realizado': resultado['beneficio_realizado']
+                    'pnl_realizado': resultado['beneficio_realizado'],
+                    'rentabilidad_pct': (pnl_latente / inversion_actual) if inversion_actual > 0 else 0
                 }
                 
                 # Añadir al flujo de caja el valor actual (como si lo vendiéramos hoy)

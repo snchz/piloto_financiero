@@ -440,11 +440,12 @@
                                         <th class="text-end">Coste Medio</th>
                                         <th class="text-end">Precio Actual</th>
                                         <th class="text-end">Valor</th>
+                                        <th class="text-end">Rentabilidad</th>
                                         <th class="text-end pe-4">P&L Latente</th>
                                     </tr>
                                 </thead>
                                 <tbody id="cartera-table">
-                                    <tr><td colspan="6" class="text-center py-4 text-secondary">Cargando...</td></tr>
+                                    <tr><td colspan="7" class="text-center py-4 text-secondary">Cargando...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -928,6 +929,11 @@
                     const latenteClass = metrics.pnl_latente >= 0 ? 'text-success' : 'text-danger';
                     const latenteSign = metrics.pnl_latente >= 0 ? '+' : '';
                     const currency = metrics.currency || 'USD';
+                    
+                    const rentPctClass = metrics.rentabilidad_pct >= 0 ? 'text-success' : 'text-danger';
+                    const rentPctSign = metrics.rentabilidad_pct >= 0 ? '+' : '';
+                    const rentPctStr = (metrics.rentabilidad_pct * 100).toFixed(2) + '%';
+                    
                     return `
                     <tr>
                         <td class="ps-4">
@@ -938,10 +944,11 @@
                         <td class="text-end font-monospace">${formatCurrency(metrics.coste_medio, currency)}</td>
                         <td class="text-end font-monospace">${formatCurrency(metrics.precio_actual, currency)}</td>
                         <td class="text-end font-monospace text-white">${formatCurrency(metrics.valor_actual, currency)}</td>
+                        <td class="text-end font-monospace ${rentPctClass}">${rentPctSign}${rentPctStr}</td>
                         <td class="text-end font-monospace ${latenteClass} pe-4">${latenteSign}${formatCurrency(metrics.pnl_latente, currency)}</td>
                     </tr>
                 `}).join('');
-                document.getElementById('cartera-table').innerHTML = carteraHtml || '<tr><td colspan="6" class="text-center py-4 text-secondary">No hay activos en cartera</td></tr>';
+                document.getElementById('cartera-table').innerHTML = carteraHtml || '<tr><td colspan="7" class="text-center py-4 text-secondary">No hay activos en cartera</td></tr>';
 
                 // Renderizar Operaciones
                 const opsHtml = data.operaciones.map(op => {
@@ -957,15 +964,7 @@
                         const rentSign = op.rentabilidad_pct >= 0 ? '+' : '';
                         const rentPct = (op.rentabilidad_pct * 100).toFixed(2) + '%';
                         
-                        let anualHtml = '';
-                        if (op.rentabilidad_anualizada_pct !== null && op.rentabilidad_anualizada_pct !== undefined) {
-                            const anualColor = op.rentabilidad_anualizada_pct >= 0 ? 'text-success' : 'text-danger';
-                            const anualSign = op.rentabilidad_anualizada_pct >= 0 ? '+' : '';
-                            const anualPct = (op.rentabilidad_anualizada_pct * 100).toFixed(2) + '%';
-                            anualHtml = `<div class="${anualColor}" style="font-size: 0.70rem;">(${anualSign}${anualPct} anual)</div>`;
-                        }
-                        
-                        rentabilidadHtml = `<div class="${rentColor} fw-semibold">${rentSign}${rentPct}</div>${anualHtml}`;
+                        rentabilidadHtml = `<div class="${rentColor} fw-semibold">${rentSign}${rentPct}</div>`;
                     }
 
                     return `

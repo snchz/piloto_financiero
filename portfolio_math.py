@@ -130,12 +130,6 @@ def calcular_fifo(operaciones_activo):
             op['beneficio'] = beneficio_op
             op['rentabilidad_pct'] = (beneficio_op / coste_ventas) if coste_ventas > 0 else 0
             
-            # Para evitar problemas con XIRR en ventas de un mismo día:
-            try:
-                op['rentabilidad_anualizada_pct'] = xirr(flujos_venta) if coste_ventas > 0 else None
-            except:
-                op['rentabilidad_anualizada_pct'] = None
-            
             cantidad_total -= cantidad
             if cantidad_total < 1e-8: # Evitar errores de coma flotante
                 cantidad_total = 0.0
