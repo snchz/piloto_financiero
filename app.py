@@ -263,7 +263,12 @@ def get_operaciones():
                     flujos_caja.append((datetime.now(), valor_actual))
                     
             for op in ops:
-                dt = datetime.strptime(op['fecha'], '%Y-%m-%d')
+                fecha_str = str(op['fecha']).strip().split(' ')[0]
+                try:
+                    dt = datetime.strptime(fecha_str, '%Y-%m-%d')
+                except ValueError:
+                    dt = datetime.now()
+                    
                 cash_flow = 0.0
                 if op['tipo'] in ('COMPRA', 'APORTACION'):
                     cash_flow = -(op['cantidad'] * op['precio'] + op.get('comisiones',0) + op.get('impuestos',0))
