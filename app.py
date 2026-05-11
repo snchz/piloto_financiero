@@ -367,8 +367,8 @@ def import_monitores():
                 name, currency = finance_api.fetch_asset_info(sym)
                 tipo = 'superior' if target > current_price else 'inferior'
                 
-                m_id = str(row.get('id', uuid.uuid4()))
-                if pd.isna(m_id) or m_id == 'nan':
+                m_id = str(row.get('id', ''))
+                if pd.isna(row.get('id')) or not m_id or m_id == 'nan' or m_id.strip() == '':
                     m_id = str(uuid.uuid4())
                 
                 conn.execute('''
@@ -413,8 +413,8 @@ def import_operaciones():
         with db.get_db() as conn:
             for _, row in df.iterrows():
                 try:
-                    op_id = str(row.get('id', uuid.uuid4()))
-                    if pd.isna(row.get('id')):
+                    op_id = str(row.get('id', ''))
+                    if pd.isna(row.get('id')) or not op_id or op_id == 'nan' or op_id.strip() == '':
                         op_id = str(uuid.uuid4())
                     
                     # Formatear fecha
