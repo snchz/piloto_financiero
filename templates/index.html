@@ -472,11 +472,12 @@
                                         <th class="text-end">Precio</th>
                                         <th class="text-end">Comisiones</th>
                                         <th class="text-end">Impuestos</th>
+                                        <th class="text-end">Rentabilidad</th>
                                         <th class="text-end pe-4">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="operaciones-table">
-                                    <tr><td colspan="8" class="text-center py-4 text-secondary">Cargando...</td></tr>
+                                    <tr><td colspan="9" class="text-center py-4 text-secondary">Cargando...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -955,6 +956,25 @@
                     const info = data.activos_info[op.ticker] || {};
                     const currency = info.currency || 'USD';
                     const name = info.name || '';
+                    
+                    let rentabilidadHtml = '-';
+                    if (op.tipo === 'VENTA') {
+                        const pnlVal = op.pnl !== undefined ? op.pnl : (op.beneficio !== undefined ? op.beneficio : null);
+                        if (pnlVal !== null) {
+                            const pnlClass = pnlVal >= 0 ? 'text-success' : 'text-danger';
+                            const pnlSign = pnlVal > 0 ? '+' : '';
+                            let rentabPctHtml = '';
+                            const pctVal = op.rentabilidad !== undefined ? op.rentabilidad : (op.rentabilidad_pct !== undefined ? op.rentabilidad_pct : null);
+                            if (pctVal !== null) {
+                                rentabPctHtml = `<br><span style="font-size: 0.75em">(${pctVal > 0 ? '+' : ''}${(pctVal * 100).toFixed(2)}%)</span>`;
+                            }
+                            rentabilidadHtml = `<span class="${pnlClass}">${pnlSign}${formatCurrency(pnlVal, currency)}${rentabPctHtml}</span>`;
+                        } else if (op.rentabilidad !== undefined || op.rentabilidad_pct !== undefined) {
+                            const pctVal = op.rentabilidad !== undefined ? op.rentabilidad : op.rentabilidad_pct;
+                            const pnlClass = pctVal >= 0 ? 'text-success' : 'text-danger';
+                            rentabilidadHtml = `<span class="${pnlClass}">${pctVal > 0 ? '+' : ''}${(pctVal * 100).toFixed(2)}%</span>`;
+                        }
+                    }
 
                     return `
                     <tr>
@@ -968,6 +988,7 @@
                         <td class="text-end font-monospace">${formatCurrency(op.precio, currency)}</td>
                         <td class="text-end font-monospace text-secondary">${formatCurrency(op.comisiones, currency)}</td>
                         <td class="text-end font-monospace text-secondary">${formatCurrency(op.impuestos, currency)}</td>
+                        <td class="text-end font-monospace">${rentabilidadHtml}</td>
                         <td class="text-end pe-4">
                             <button onclick="borrarOperacion('${op.id}')" class="action-btn delete" title="Eliminar">
                                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -975,7 +996,7 @@
                         </td>
                     </tr>
                 `}).join('');
-                document.getElementById('operaciones-table').innerHTML = opsHtml || '<tr><td colspan="8" class="text-center py-4 text-secondary">No hay operaciones registradas</td></tr>';
+                document.getElementById('operaciones-table').innerHTML = opsHtml || '<tr><td colspan="9" class="text-center py-4 text-secondary">No hay operaciones registradas</td></tr>';
 
                 // Renderizar Resumen Global
                 let totalLatente = 0;
