@@ -233,7 +233,7 @@ def get_operaciones():
             activos_info[ticker] = info
             
             resultado = portfolio_math.calcular_fifo(ops)
-            if resultado['cantidad_actual'] > 0 or resultado['beneficio_realizado'] != 0:
+            if resultado['cantidad_actual'] > 0:
                 # Intentar obtener precio actual
                 precio_actual = 0.0
                 if info['sym']:
