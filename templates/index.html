@@ -697,13 +697,14 @@
             },
 
             renderFeed(alertas) {
-                if (alertas.length === 0) return;
+                if (alertas.length === 0) {
+                    document.getElementById('alerts-feed').innerHTML = '<div class="text-secondary small">Sin actividad reciente</div>';
+                    return;
+                }
                 const html = alertas.map(a => `
-                    <div class="alert-item d-flex flex-column">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="opacity-75 font-monospace" style="font-size:0.75rem">${a.time}</span>
-                        </div>
-                        <div>${a.msg}</div>
+                    <div class="alert-item">
+                        <span class="opacity-75 font-monospace me-2" style="font-size:0.75rem">[${a.time}]</span>
+                        <span>${a.msg}</span>
                     </div>
                 `).join('');
                 document.getElementById('alerts-feed').innerHTML = html;
@@ -1076,6 +1077,83 @@
             formData.append('file', file);
 
             try {
+                const res = await fetch(`/api/import/${type}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || 'Error al importar');
+                }
+                
+                UI.showToast('Datos importados correctamente');
+                if (type === 'operaciones') {
+                    cargarOperaciones();
+                } else {
+                    // Esperar a que llegue el SSE o forzar recarga (el SSE actualizará automáticamente)
+                }
+            } catch (err) {
+                UI.showToast(err.message, 'error');
+            } finally {
+                inputElement.value = ''; // Reset input
+            }
+        };
+
+        // Initialize defaults
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date();
+            const fechaInput = document.getElementById('op-fecha');
+            if(fechaInput) fechaInput.valueAsDate = today;
+        });
+
+    </script>
+</body>
+</html> };
+
+        // Initialize defaults
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date();
+            const fechaInput = document.getElementById('op-fecha');
+            if(fechaInput) fechaInput.valueAsDate = today;
+        });
+
+    </script>
+</body>
+</html> };
+
+        // Initialize defaults
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date();
+            const fechaInput = document.getElementById('op-fecha');
+            if(fechaInput) fechaInput.valueAsDate = today;
+        });
+
+    </script>
+</body>
+</html> };
+
+        // Initialize=de aults
+        document.addEventL'stener('DOMContentLoaded', () => {
+            const today = new Date();
+            const fechaInput = document.getE'ementById('op-f;cha' // Reset input
+            if(fechaInput) fechaInput.valueAsDate = today;            }
+        });
+
+    </script>
+</body>
+</html> };
+
+        // Initialize defaults
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date();
+            const fechaInput = document.getElementById('op-fecha');
+            if(fechaInput) fechaInput.valueAsDate = today;
+        });
+
+    </script>
+</body>
+</html>     try {
                 const res = await fetch(`/api/import/${type}`, {
                     method: 'POST',
                     body: formData
