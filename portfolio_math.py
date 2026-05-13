@@ -1,6 +1,3 @@
-from datetime import datetime
-import math
-
 def xnpv(rate, cash_flows):
     """
     Calcula el Valor Actual Neto (NPV) para flujos de caja irregulares.
@@ -87,48 +84,26 @@ def calcular_fifo(operaciones_activo):
         elif tipo == 'VENTA':
             cantidad_a_vender = cantidad
             coste_ventas = 0.0
-            flujos_venta = []
-            
-            # El ingreso neto de la venta es tras comisiones e impuestos
-            ingreso_neto = (cantidad * precio) - comisiones - impuestos
             
             while cantidad_a_vender > 0 and compras_abiertas:
                 compra = compras_abiertas[0]
-                if isinstance(compra['fecha'], str):
-                    dt_compra = datetime.strptime(compra['fecha'], '%Y-%m-%d')
-                else:
-                    dt_compra = compra['fecha']
-                    
                 if compra['cantidad'] <= cantidad_a_vender:
                     # Vendemos todo este lote
-                    coste_lote = compra['cantidad'] * compra['precio_unitario']
-                    coste_ventas += coste_lote
-                    flujos_venta.append((dt_compra, -coste_lote))
-                    
+                    coste_ventas += compra['cantidad'] * compra['precio_unitario']
                     cantidad_a_vender -= compra['cantidad']
                     compras_abiertas.pop(0)
                 else:
                     # Vendemos parte de este lote
-                    coste_lote = cantidad_a_vender * compra['precio_unitario']
-                    coste_ventas += coste_lote
-                    flujos_venta.append((dt_compra, -coste_lote))
-                    
+                    coste_ventas += cantidad_a_vender * compra['precio_unitario']
                     compra['cantidad'] -= cantidad_a_vender
                     cantidad_a_vender = 0
             
-            if isinstance(op['fecha'], str):
-                dt_venta = datetime.strptime(op['fecha'], '%Y-%m-%d')
-            else:
-                dt_venta = op['fecha']
-                
-            flujos_venta.append((dt_venta, ingreso_neto))
+            # El ingreso neto de la venta es tras comisiones e impuestos
+            ingreso_neto = (cantidad * precio) - comisiones - impuestos
             
             # Beneficio de la operación
             beneficio_op = ingreso_neto - coste_ventas
             beneficio_realizado += beneficio_op
-            
-            op['beneficio'] = beneficio_op
-            op['rentabilidad_pct'] = (beneficio_op / coste_ventas) if coste_ventas > 0 else 0
             
             cantidad_total -= cantidad
             if cantidad_total < 1e-8: # Evitar errores de coma flotante

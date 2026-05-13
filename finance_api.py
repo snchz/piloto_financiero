@@ -1,8 +1,6 @@
 import requests
 import yfinance as yf
 import time
-import json
-import os
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -69,6 +67,22 @@ def fetch_asset_info(ticker):
         return name, currency
     except Exception:
         return "", ""
+
+def fetch_news(ticker, limit=3):
+    try:
+        news = yf.Ticker(ticker).news
+        if not news: return []
+        
+        parsed = []
+        for n in news[:limit]:
+            title = n.get('title')
+            publisher = n.get('publisher')
+            link = n.get('link')
+            if title:
+                parsed.append({"title": title, "publisher": publisher, "link": link})
+        return parsed
+    except Exception:
+        return []
 
 def fetch_price(ticker):
     t = yf.Ticker(ticker)
