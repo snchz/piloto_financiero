@@ -60,7 +60,11 @@ def resolve_ticker(isin_or_ticker):
 def fetch_asset_info(ticker):
     try:
         info = yf.Ticker(ticker).info
-        name = info.get('shortName') or info.get('longName') or ""
+        
+        # Para los fondos de inversión, Yahoo Finance suele guardar el nombre real
+        # en 'longName', mientras que 'shortName' a veces solo contiene el símbolo.
+        # Priorizamos longName para obtener la descripción correcta.
+        name = info.get('longName') or info.get('shortName') or ""
         currency = info.get('currency') or ""
         return name, currency
     except Exception:
@@ -144,20 +148,3 @@ def is_market_open(ticker_symbol):
         return market_open <= now <= market_close
     except Exception:
         return True
-
-def fetch_news(ticker, limit=3):
-    try:
-        import yfinance as yf
-        news = yf.Ticker(ticker).news
-        if not news: return []
-        
-        parsed = []
-        for n in news[:limit]:
-            title = n.get('title')
-            publisher = n.get('publisher')
-            link = n.get('link')
-            if title:
-                parsed.append({"title": title, "publisher": publisher, "link": link})
-        return parsed
-    except Exception:
-        return []
