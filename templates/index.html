@@ -47,13 +47,15 @@
             border-bottom-color: var(--border-color);
             color: var(--text-secondary);
             font-weight: 500;
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            padding: 0.5rem;
         }
         .table td {
             border-bottom-color: var(--border-color);
             vertical-align: middle;
+            padding: 0.4rem 0.5rem;
         }
         .table tbody tr {
             transition: background-color 0.2s;
@@ -123,8 +125,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
-            padding: 1rem 0;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem 0;
             border-bottom: 1px solid var(--border-color);
         }
         .brand {
@@ -215,7 +217,7 @@
         .container {
             flex: 1;
             overflow: auto;
-            padding: 1.5rem;
+            padding: 1rem;
             max-width: 100%;
         }
         
@@ -276,11 +278,11 @@
     </style>
 </head>
 <body>
-    <div class="container-fluid py-4 px-4 h-100 d-flex flex-column" style="min-height: 100vh;">
-        <div class="row h-100 g-4 flex-grow-1">
+    <div class="container-fluid py-2 px-3 h-100 d-flex flex-column" style="min-height: 100vh;">
+        <div class="row h-100 g-3 flex-grow-1">
             <div id="main-content-col" class="col-12 d-flex flex-column h-100">
-        <header class="page-header pb-0 mb-4 border-0" style="display: block;">
-            <div class="d-flex w-100 justify-content-between align-items-center mb-3">
+        <header class="page-header pb-0 mb-3 border-0" style="display: block;">
+            <div class="d-flex w-100 justify-content-between align-items-center mb-2">
                 <div>
                     <span class="brand">✨ <span id="brand-text">{{ app_title }}</span></span>
                     <span class="last-update">Última actualización: <span id="last-update-time">--:--:--</span></span>
@@ -307,10 +309,10 @@
         <div class="tab-content h-100" id="nav-tabContent">
             <!-- Tab Actividad -->
             <div class="tab-pane fade show active h-100" id="nav-actividad" role="tabpanel" aria-labelledby="actividad-tab">
-                <main class="row g-4 h-100">
+                <main class="row g-3 h-100">
                     <div class="col-12 d-flex flex-column">
-                        <div class="glass-panel p-4 d-flex flex-column flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="glass-panel p-3 d-flex flex-column flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h5 class="m-0 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Actividad Reciente</h5>
                             </div>
                             <div id="alerts-feed" class="alerts-feed flex-grow-1 overflow-auto" style="max-height: none;">
@@ -322,10 +324,10 @@
             </div>
             
             <div class="tab-pane fade h-100" id="nav-alertas" role="tabpanel" aria-labelledby="alertas-tab">
-                <main class="row g-4">
+                <main class="row g-3">
             <div class="d-flex flex-column h-100">
                 <!-- Add Form -->
-                <div class="glass-panel p-4 mb-4">
+                <div class="glass-panel p-3 mb-3">
                     <form id="add-form" class="row g-3 align-items-end">
                         <div class="col-md-4">
                             <label class="form-label text-secondary small mb-1">Activo (Ticker o ISIN)</label>
@@ -386,14 +388,14 @@
         
         <!-- Tab Operaciones -->
         <div class="tab-pane fade h-100" id="nav-operaciones" role="tabpanel" aria-labelledby="operaciones-tab">
-            <main class="row g-4 h-100">
+            <main class="row g-3 h-100">
                 <div class="col-lg-4 col-12 d-flex flex-column">
                     <!-- Resumen Cartera -->
-                    <button class="btn btn-primary w-100 mb-4 py-2 fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#opModal">
+                    <button class="btn btn-primary w-100 mb-3 py-2 fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#opModal">
                         ➕ Añadir Operación
                     </button>
                     
-                    <div class="glass-panel p-4 flex-grow-1">
+                    <div class="glass-panel p-3 flex-grow-1">
                         <h5 class="mb-3 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Resumen Global</h5>
                         <div class="mb-3">
                             <span class="text-secondary small d-block" title="Rentabilidad media anual de tus inversiones teniendo en cuenta cuándo compraste (TIR)">Rentabilidad Anualizada</span>
@@ -411,11 +413,11 @@
                 </div>
 
                 <div class="col-lg-8 col-12 d-flex flex-column">
-                    <div class="glass-panel d-flex flex-column overflow-hidden mb-4">
+                    <div class="glass-panel d-flex flex-column overflow-hidden mb-3">
                         <div class="p-3 border-bottom border-secondary border-opacity-25">
                             <h5 class="m-0 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Mi Cartera (Abierta)</h5>
                         </div>
-                        <div class="table-responsive" style="max-height: 30vh;">
+                        <div class="table-responsive" style="max-height: 40vh;">
                             <table class="table table-borderless align-middle mb-0">
                                 <thead class="bg-dark bg-opacity-25" style="position: sticky; top: 0; z-index: 1;">
                                     <tr>
