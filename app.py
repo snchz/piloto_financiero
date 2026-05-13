@@ -416,8 +416,18 @@ def export_operaciones():
             rows = conn.execute("SELECT * FROM operaciones ORDER BY fecha ASC").fetchall()
             df = pd.DataFrame([dict(row) for row in rows])
         
+        if 'fecha' in df.columns:
+            def format_date(x):
+                if pd.isna(x): return ''
+                x_str = str(x).strip()
+                try:
+                    return (datetime(1899, 12, 30) + timedelta(days=int(float(x_str)))).strftime('%Y-%m-%d')
+                except ValueError:
+                    return x_str.split(' ')[0]
+            df['fecha'] = df['fecha'].apply(format_date)
+            
         csv_data = df.to_csv(index=False)
-        output = io.BytesIO(csv_data.encode('utf-8'))
+        output = io.BytesIO(csv_data.encode('utf-8-sig'))
         
         return send_file(output, mimetype='text/csv', download_name="operaciones.csv", as_attachment=True)
     except Exception as e:
@@ -444,10 +454,14 @@ def import_operaciones():
                     
                     # Formatear fecha
                     if pd.notna(row['fecha']):
+                        fecha_val = str(row['fecha']).strip()
                         if isinstance(row['fecha'], datetime):
                             fecha = row['fecha'].strftime('%Y-%m-%d')
                         else:
-                            fecha = str(row['fecha']).split(' ')[0] # Intentar extraer YYYY-MM-DD
+                            try:
+                                fecha = (datetime(1899, 12, 30) + timedelta(days=int(float(fecha_val)))).strftime('%Y-%m-%d')
+                            except ValueError:
+                                fecha = fecha_val.split(' ')[0]
                     else:
                         fecha = datetime.now().strftime('%Y-%m-%d')
 
