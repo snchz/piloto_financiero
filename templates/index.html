@@ -388,49 +388,11 @@
         <div class="tab-pane fade h-100" id="nav-operaciones" role="tabpanel" aria-labelledby="operaciones-tab">
             <main class="row g-4 h-100">
                 <div class="col-lg-4 col-12 d-flex flex-column">
-                    <!-- Formulario de Operaciones -->
-                    <div class="glass-panel p-4 mb-4">
-                        <h5 class="mb-3 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Registrar Operación</h5>
-                        <form id="op-form" class="row g-3">
-                            <div class="col-12">
-                                <label class="form-label text-secondary small mb-1">Fecha</label>
-                                <input type="date" id="op-fecha" class="form-control" required>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Ticker</label>
-                                <input type="text" id="op-ticker" class="form-control" placeholder="AAPL" required>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Tipo</label>
-                                <select id="op-tipo" class="form-control" required>
-                                    <option value="COMPRA">Compra</option>
-                                    <option value="VENTA">Venta</option>
-                                    <option value="APORTACION">Aportación</option>
-                                </select>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Cantidad</label>
-                                <input type="number" step="0.0000001" id="op-cantidad" class="form-control" min="0" required>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Precio Unitario</label>
-                                <input type="number" step="0.0000001" id="op-precio" class="form-control" min="0" required>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Comisiones</label>
-                                <input type="number" step="0.01" id="op-comisiones" class="form-control" value="0" min="0">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Impuestos</label>
-                                <input type="number" step="0.01" id="op-impuestos" class="form-control" value="0" min="0">
-                            </div>
-                            <div class="col-12 mt-4">
-                                <button type="submit" class="btn btn-primary w-100" id="op-submit-btn">Guardar Operación</button>
-                            </div>
-                        </form>
-                    </div>
-                    
                     <!-- Resumen Cartera -->
+                    <button class="btn btn-primary w-100 mb-4 py-2 fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#opModal">
+                        ➕ Añadir Operación
+                    </button>
+                    
                     <div class="glass-panel p-4 flex-grow-1">
                         <h5 class="mb-3 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Resumen Global</h5>
                         <div class="mb-3">
@@ -514,6 +476,58 @@
             </div> <!-- End main-content-col -->
             
 
+
+    
+    <!-- Operacion Modal -->
+    <div class="modal fade" id="opModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content glass-panel" style="background: var(--bg-surface);">
+                <div class="modal-header border-bottom-0">
+                    <h5 class="modal-title">➕ Registrar Operación</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <form id="op-form" class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label text-secondary small mb-1">Fecha</label>
+                                <input type="date" id="op-fecha" class="form-control" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Ticker</label>
+                                <input type="text" id="op-ticker" class="form-control" placeholder="AAPL" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Tipo</label>
+                                <select id="op-tipo" class="form-control" required>
+                                    <option value="COMPRA">Compra</option>
+                                    <option value="VENTA">Venta</option>
+                                    <option value="APORTACION">Aportación</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Cantidad</label>
+                                <input type="number" step="0.0000001" id="op-cantidad" class="form-control" min="0" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Precio Unitario</label>
+                                <input type="number" step="0.0000001" id="op-precio" class="form-control" min="0" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Comisiones</label>
+                                <input type="number" step="0.01" id="op-comisiones" class="form-control" value="0" min="0">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Impuestos</label>
+                                <input type="number" step="0.01" id="op-impuestos" class="form-control" value="0" min="0">
+                            </div>
+                            <div class="col-12 mt-4">
+                                <button type="submit" class="btn btn-primary w-100" id="op-submit-btn">Guardar Operación</button>
+                            </div>
+                        </form>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Config Modal -->
     <div class="modal fade" id="configModal" tabindex="-1">
@@ -755,6 +769,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             configModal = new bootstrap.Modal(document.getElementById('configModal'));
             editModal = new bootstrap.Modal(document.getElementById('editModal'));
+            new bootstrap.Modal(document.getElementById('opModal'));
             UI.loadLastRefreshTime();
         });
 
@@ -1081,6 +1096,7 @@
                 // Set default date to today
                 document.getElementById('op-fecha').valueAsDate = new Date();
                 UI.showToast('Operación registrada');
+                bootstrap.Modal.getInstance(document.getElementById('opModal'))?.hide();
                 cargarOperaciones();
             } catch (err) {
                 UI.showToast(err.message, 'error');
