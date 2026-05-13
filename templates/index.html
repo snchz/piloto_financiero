@@ -969,7 +969,10 @@
                         </td>
                         <td class="text-end font-monospace">${metrics.cantidad.toFixed(4)}</td>
                         <td class="text-end font-monospace">${formatCurrency(metrics.coste_medio, currency)}</td> <!-- Coste Medio -->
-                        <td class="text-end font-monospace">${formatCurrency(metrics.precio_actual, currency)}</td> <!-- Precio Actual -->
+                        <td class="text-end">
+                            <div class="font-monospace fs-6">${formatCurrency(metrics.precio_actual, currency)}</div>
+                            <div class="text-secondary font-monospace mt-1" style="font-size: 0.70rem;">${metrics.current_price_time || 'N/A'}</div>
+                        </td> <!-- Precio Actual -->
                         <td class="text-end font-monospace text-white">${formatCurrency(metrics.valor_actual, currency)}</td> <!-- Valor Actual -->
                         <td class="text-end font-monospace ${rentPctClass}">${rentPctSign}${rentPctStr}</td>
                         <td class="text-end font-monospace ${latenteClass} pe-4">${latenteSign}${formatCurrency(metrics.pnl_latente, currency)}</td>
