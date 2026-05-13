@@ -45,6 +45,40 @@ def log_debug(msg, level="INFO"):
 
 # --- Cache ---
 ASSET_INFO_CACHE = {}
+EXCHANGE_RATES_CACHE = {}
+HISTORICAL_RATES_CACHE = {}
+
+def get_exchange_rate(from_currency, to_currency="EUR"):
+    if not from_currency or from_currency.upper() == to_currency.upper() or from_currency == '-':
+        return 1.0
+    
+    pair = f"{from_currency.upper()}{to_currency.upper()}=X"
+    if pair in EXCHANGE_RATES_CACHE:
+        return EXCHANGE_RATES_CACHE[pair]
+        
+    try:
+        price, _ = finance_api.fetch_price(pair)
+        EXCHANGE_RATES_CACHE[pair] = price
+        return price
+    except Exception:
+        return 1.0  # Fallback si no encuentra la divisa
+
+def get_historical_exchange_rate(from_currency, date_str, to_currency="EUR"):
+    if not from_currency or from_currency.upper() == to_currency.upper() or from_currency == '-':
+        return 1.0
+    
+    pair = f"{from_currency.upper()}{to_currency.upper()}=X"
+    cache_key = f"{pair}_{date_str}"
+    
+    if cache_key in HISTORICAL_RATES_CACHE:
+        return HISTORICAL_RATES_CACHE[cache_key]
+        
+    price = finance_api.fetch_historical_price(pair, date_str)
+    if price:
+        HISTORICAL_RATES_CACHE[cache_key] = price
+        return price
+        
+    return get_exchange_rate(from_currency, to_currency)
 
 def get_asset_info_cached(ticker):
     if ticker in ASSET_INFO_CACHE:
@@ -248,8 +282,17 @@ def get_operaciones():
             info = get_asset_info_cached(ticker)
             activos_info[ticker] = info
             
+            # Obtener tipo de cambio a EUR (Divisa base de la cartera)
+            currency = info.get('currency', 'EUR') or 'EUR'
+            tasa_cambio_actual = get_exchange_rate(currency, 'EUR')
+            
+            # Inyectar tasa de cambio histórica a cada operación
+            for op in ops:
+                fecha_str = str(op['fecha']).strip().split(' ')[0]
+                op['tasa_cambio'] = get_historical_exchange_rate(currency, fecha_str, 'EUR')
+
             resultado = portfolio_math.calcular_fifo(ops)
-            total_pnl_realizado += resultado['beneficio_realizado']
+            total_pnl_realizado += resultado['beneficio_realizado_base']
 
             if resultado['cantidad_actual'] > 0:
                 # Intentar obtener precio actual
@@ -269,6 +312,7 @@ def get_operaciones():
                 cartera[ticker] = {
                     'name': info['name'],
                     'currency': info['currency'],
+                    'tasa_cambio': tasa_cambio_actual,
                     'cantidad': resultado['cantidad_actual'],
                     'coste_medio': resultado['coste_medio'],
                     'precio_actual': precio_actual,
@@ -281,7 +325,7 @@ def get_operaciones():
                 
                 # Añadir al flujo de caja el valor actual (como si lo vendiéramos hoy)
                 if valor_actual > 0:
-                    flujos_caja.append((datetime.now(), valor_actual))
+                    flujos_caja.append((datetime.now(), valor_actual * tasa_cambio_actual))
                     
             for op in ops:
                 fecha_str = str(op['fecha']).strip().split(' ')[0]
@@ -296,7 +340,7 @@ def get_operaciones():
                 elif op['tipo'] == 'VENTA':
                     cash_flow = (op['cantidad'] * op['precio']) - op.get('comisiones',0) - op.get('impuestos',0)
                 if cash_flow != 0:
-                    flujos_caja.append((dt, cash_flow))
+                    flujos_caja.append((dt, cash_flow * op['tasa_cambio']))
         
         tir = portfolio_math.xirr(flujos_caja) if flujos_caja else None
         

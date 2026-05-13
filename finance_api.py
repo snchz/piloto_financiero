@@ -68,6 +68,19 @@ def fetch_asset_info(ticker):
     except Exception:
         return "", ""
 
+def fetch_historical_price(ticker, date_str):
+    try:
+        t = yf.Ticker(ticker)
+        from datetime import datetime, timedelta
+        start_date = datetime.strptime(date_str, '%Y-%m-%d')
+        end_date = start_date + timedelta(days=7) # Margen amplio por festivos/fines de semana
+        hist = t.history(start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'))
+        if not hist.empty:
+            return float(hist['Close'].iloc[0])
+    except Exception:
+        pass
+    return None
+
 def fetch_news(ticker, limit=3):
     try:
         news = yf.Ticker(ticker).news

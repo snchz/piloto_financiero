@@ -61,8 +61,8 @@ def calcular_fifo(operaciones_activo):
     compras_abiertas = [] # Lista de {cantidad, precio_unitario, fecha}
     
     cantidad_total = 0.0
-    coste_total_invertido = 0.0 # Coste de lo que tengo ahora
     beneficio_realizado = 0.0
+    beneficio_realizado_base = 0.0
     
     for op in operaciones_activo:
         tipo = op['tipo'].upper()
@@ -70,6 +70,7 @@ def calcular_fifo(operaciones_activo):
         precio = float(op['precio'])
         comisiones = float(op.get('comisiones', 0) or 0)
         impuestos = float(op.get('impuestos', 0) or 0)
+        tasa_cambio = float(op.get('tasa_cambio', 1.0))
         
         if tipo in ('COMPRA', 'APORTACION'):
             # El coste real de la compra incluye las comisiones
@@ -77,6 +78,7 @@ def calcular_fifo(operaciones_activo):
             compras_abiertas.append({
                 'cantidad': cantidad,
                 'precio_unitario': precio_unitario_real,
+                'tasa_cambio': tasa_cambio,
                 'fecha': op['fecha']
             })
             cantidad_total += cantidad
@@ -84,29 +86,37 @@ def calcular_fifo(operaciones_activo):
         elif tipo == 'VENTA':
             cantidad_a_vender = cantidad
             coste_ventas = 0.0
+            coste_ventas_base = 0.0
             
             while cantidad_a_vender > 0 and compras_abiertas:
                 compra = compras_abiertas[0]
                 if compra['cantidad'] <= cantidad_a_vender:
                     # Vendemos todo este lote
                     coste_ventas += compra['cantidad'] * compra['precio_unitario']
+                    coste_ventas_base += compra['cantidad'] * compra['precio_unitario'] * compra['tasa_cambio']
                     cantidad_a_vender -= compra['cantidad']
                     compras_abiertas.pop(0)
                 else:
                     # Vendemos parte de este lote
                     coste_ventas += cantidad_a_vender * compra['precio_unitario']
+                    coste_ventas_base += cantidad_a_vender * compra['precio_unitario'] * compra['tasa_cambio']
                     compra['cantidad'] -= cantidad_a_vender
                     cantidad_a_vender = 0
             
             # El ingreso neto de la venta es tras comisiones e impuestos
             ingreso_neto = (cantidad * precio) - comisiones - impuestos
+            ingreso_neto_base = ingreso_neto * tasa_cambio
             
             # Beneficio de la operación
             beneficio_op = ingreso_neto - coste_ventas
+            beneficio_op_base = ingreso_neto_base - coste_ventas_base
+            
             beneficio_realizado += beneficio_op
+            beneficio_realizado_base += beneficio_op_base
             
             # Guardamos el resultado en el diccionario de la operación para el frontend
             op['pnl'] = beneficio_op
+            op['pnl_base'] = beneficio_op_base
             op['rentabilidad_pct'] = (beneficio_op / coste_ventas) if coste_ventas > 0 else 0
             
             cantidad_total -= cantidad
@@ -122,5 +132,6 @@ def calcular_fifo(operaciones_activo):
     return {
         'cantidad_actual': cantidad_total,
         'coste_medio': coste_medio,
-        'beneficio_realizado': beneficio_realizado
+        'beneficio_realizado': beneficio_realizado,
+        'beneficio_realizado_base': beneficio_realizado_base
     }

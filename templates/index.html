@@ -1055,7 +1055,7 @@
                 // Renderizar Resumen Global
                 let totalLatente = 0;
                 Object.values(data.cartera).forEach(m => {
-                    totalLatente += m.pnl_latente;
+                    totalLatente += m.pnl_latente * (m.tasa_cambio || 1);
                 });
                 
                 document.getElementById('resumen-tir').textContent = data.tir_anualizada ? (data.tir_anualizada * 100).toFixed(2) + '%' : 'N/A';
