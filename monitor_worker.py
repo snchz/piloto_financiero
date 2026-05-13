@@ -179,7 +179,15 @@ def get_all_data():
                 'current_price_time': price_time
             }
         
-        alertas = [{'id': r['id'], 'msg': r['msg'], 'time': r['time']} for r in alertas_rows]
+        def format_ts(ts, fallback_time):
+            if not ts: return fallback_time
+            try:
+                dt = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
+                return dt.strftime('%d/%m/%Y %H:%M:%S')
+            except:
+                return fallback_time
+
+        alertas = [{'id': r['id'], 'msg': r['msg'], 'time': format_ts(r['timestamp'], r['time'])} for r in alertas_rows]
         
         data = {
             "monitores": monitores,
