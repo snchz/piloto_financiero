@@ -369,12 +369,14 @@
                                     <th class="text-end">Actual</th>
                                     <th class="text-end" title="Variación respecto al cierre del día anterior">Variación Diaria</th>
                                     <th class="text-end">Objetivo</th>
+                                    <th class="text-end" title="Distancia porcentual desde el precio actual hasta el objetivo">Dist. Objetivo</th>
                                     <th class="text-center">Estado</th>
                                     <th class="pe-4 text-end">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="monitors-table">
                                 <tr><td colspan="7" class="text-center py-4 text-secondary"><div class="spinner-border spinner-border-sm"></div> Conectando con servidor...</td></tr>
+                                <tr><td colspan="8" class="text-center py-4 text-secondary"><div class="spinner-border spinner-border-sm"></div> Conectando con servidor...</td></tr>
                             </tbody>
                         </table></div>
                     </div>
@@ -688,6 +690,7 @@
                 console.log(`📋 Renderizando tabla con ${entries.length} monitores`);
                 if (entries.length === 0) {
                     document.getElementById('monitors-table').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-secondary">No hay alertas configuradas</td></tr>';
+                    document.getElementById('monitors-table').innerHTML = '<tr><td colspan="8" class="text-center py-4 text-secondary">No hay alertas configuradas</td></tr>';
                     return;
                 }
 
@@ -707,6 +710,10 @@
                     const variacionClass = variacion >= 0 ? 'text-success' : 'text-danger';
                     const variacionSign = variacion >= 0 ? '+' : '';
                     
+                    // Calcular distancia al objetivo
+                    const distObj = (m.current > 0 && m.target) ? ((m.target - m.current) / m.current * 100) : null;
+                    const distObjText = distObj !== null ? `${distObj > 0 ? '+' : ''}${distObj.toFixed(2)}%` : '-';
+                    
                     console.log(`  ⏰ ${m.ticker}: current_price_time = "${m.current_price_time}"`);
                     
                     return `
@@ -725,6 +732,7 @@
                         </td>
                         <td class="text-end font-monospace fs-6 ${variacionClass}">${variacion ? `${variacionSign}${variacion.toFixed(1)}%` : '-'}</td>
                         <td class="text-end font-monospace fs-6 text-white">${formatCurrency(m.target, m.currency)}</td>
+                        <td class="text-end font-monospace fs-6 text-secondary">${distObjText}</td>
                         <td class="text-center">
                             <span class="badge-status ${m.triggered ? 'badge-alert' : 'badge-active'}">
                                 ${m.triggered ? 'ALERTA' : 'Vigilando'}
