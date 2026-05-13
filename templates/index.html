@@ -264,12 +264,21 @@
             flex: 1;
         }
         
+    
+        .nav-tabs .nav-link {
+            border-bottom: 2px solid transparent !important;
+            color: var(--text-secondary) !important;
+        }
+        .nav-tabs .nav-link.active {
+            border-bottom-color: var(--accent) !important;
+            color: var(--text-primary) !important;
+        }
     </style>
 </head>
 <body>
     <div class="container-fluid py-4 px-4 h-100 d-flex flex-column" style="min-height: 100vh;">
         <div class="row h-100 g-4 flex-grow-1">
-            <div id="main-content-col" class="col-xl-9 col-lg-8 col-12 d-flex flex-column h-100">
+            <div id="main-content-col" class="col-12 d-flex flex-column h-100">
         <header class="page-header pb-0 mb-4 border-0" style="display: block;">
             <div class="d-flex w-100 justify-content-between align-items-center mb-3">
                 <div>
@@ -277,24 +286,42 @@
                     <span class="last-update">Última actualización: <span id="last-update-time">--:--:--</span></span>
                 </div>
                 <div class="d-flex align-items-center gap-3">
-                    <button class="action-btn" onclick="toggleActivityPanel()" title="Alternar Actividad Reciente" style="font-size: 1.25rem;">🔔</button>
                     <button class="action-btn" onclick="abrirConfig()" title="Configuración" style="font-size: 1.25rem;">⚙️</button>
                     <div class="version-badge">v<span id="version">{{ version }}</span></div>
                 </div>
             </div>
             
-            <ul class="nav nav-tabs border-bottom-0 gap-2" id="myTab" role="tablist">
+                        <ul class="nav nav-tabs border-bottom-0 gap-2" id="myTab" role="tablist">
               <li class="nav-item" role="presentation">
-                <button class="nav-link active bg-transparent border-0 text-secondary px-0 pb-3 fw-semibold" id="alertas-tab" data-bs-toggle="tab" data-bs-target="#nav-alertas" type="button" role="tab" style="border-bottom: 2px solid var(--accent) !important; color: var(--text-primary) !important;" onclick="this.style.color='var(--text-primary)';this.style.borderBottomColor='var(--accent)!important';document.getElementById('operaciones-tab').style.color='var(--text-secondary)';document.getElementById('operaciones-tab').style.borderBottomColor='transparent!important';">Monitores y Alertas</button>
+                <button class="nav-link active bg-transparent border-0 px-0 pb-3 fw-semibold" id="actividad-tab" data-bs-toggle="tab" data-bs-target="#nav-actividad" type="button" role="tab">Actividad Reciente</button>
               </li>
               <li class="nav-item ms-4" role="presentation">
-                <button class="nav-link bg-transparent border-0 text-secondary px-0 pb-3 fw-semibold" id="operaciones-tab" data-bs-toggle="tab" data-bs-target="#nav-operaciones" type="button" role="tab" style="border-bottom: 2px solid transparent !important;" onclick="this.style.color='var(--text-primary)';this.style.borderBottomColor='var(--accent)!important';document.getElementById('alertas-tab').style.color='var(--text-secondary)';document.getElementById('alertas-tab').style.borderBottomColor='transparent!important'; cargarOperaciones();">Operaciones y Cartera</button>
+                <button class="nav-link bg-transparent border-0 px-0 pb-3 fw-semibold" id="alertas-tab" data-bs-toggle="tab" data-bs-target="#nav-alertas" type="button" role="tab">Monitores y Alertas</button>
+              </li>
+              <li class="nav-item ms-4" role="presentation">
+                <button class="nav-link bg-transparent border-0 px-0 pb-3 fw-semibold" id="operaciones-tab" data-bs-toggle="tab" data-bs-target="#nav-operaciones" type="button" role="tab" onclick="cargarOperaciones();">Operaciones y Cartera</button>
               </li>
             </ul>
         </header>
 
         <div class="tab-content h-100" id="nav-tabContent">
-            <div class="tab-pane fade show active h-100" id="nav-alertas" role="tabpanel" aria-labelledby="alertas-tab">
+            <!-- Tab Actividad -->
+            <div class="tab-pane fade show active h-100" id="nav-actividad" role="tabpanel" aria-labelledby="actividad-tab">
+                <main class="row g-4 h-100">
+                    <div class="col-12 d-flex flex-column">
+                        <div class="glass-panel p-4 d-flex flex-column flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="m-0 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Actividad Reciente</h5>
+                            </div>
+                            <div id="alerts-feed" class="alerts-feed flex-grow-1 overflow-auto" style="max-height: none;">
+                                <div class="text-secondary small">Sin actividad reciente</div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+            
+            <div class="tab-pane fade h-100" id="nav-alertas" role="tabpanel" aria-labelledby="alertas-tab">
                 <main class="row g-4">
             <div class="d-flex flex-column h-100">
                 <!-- Add Form -->
@@ -486,23 +513,6 @@
         </div>
             </div> <!-- End main-content-col -->
             
-            <!-- Panel Lateral Actividad Reciente -->
-            <div id="activity-panel-col" class="offcanvas-lg offcanvas-end col-xl-3 col-lg-4" tabindex="-1">
-                <div class="offcanvas-header d-lg-none glass-panel border-bottom-0 rounded-bottom-0 mb-0 pb-0" style="background: var(--bg-surface);">
-                    <h5 class="offcanvas-title text-secondary fs-6 text-uppercase" style="letter-spacing: 0.05em">Actividad Reciente</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" data-bs-target="#activity-panel-col"></button>
-                </div>
-                <div class="offcanvas-body p-0 d-flex flex-column h-100">
-                    <div class="glass-panel p-4 d-flex flex-column h-100 border-top-0 w-100">
-                        <h5 class="mb-4 fs-6 text-uppercase text-secondary d-none d-lg-block" style="letter-spacing: 0.05em">Actividad Reciente</h5>
-                        <div id="alerts-feed" class="alerts-feed flex-grow-1 overflow-auto">
-                            <div class="text-secondary small">Sin actividad reciente</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div> <!-- End row -->
-    </div> <!-- End container-fluid -->
 
 
     <!-- Config Modal -->
@@ -1118,29 +1128,7 @@
         };
 
         
-        window.toggleActivityPanel = () => {
-            const mainCol = document.getElementById('main-content-col');
-            const activityCol = document.getElementById('activity-panel-col');
-            
-            if (window.innerWidth < 992) {
-                // Mobile: toggle offcanvas
-                const bsOffcanvas = bootstrap.Offcanvas.getInstance(activityCol) || new bootstrap.Offcanvas(activityCol);
-                bsOffcanvas.toggle();
-            } else {
-                // Desktop: toggle grid columns
-                if (activityCol.style.display === 'none') {
-                    // Show
-                    activityCol.style.setProperty('display', '', '');
-                    mainCol.className = 'col-xl-9 col-lg-8 col-12 d-flex flex-column h-100';
-                } else {
-                    // Hide
-                    activityCol.style.setProperty('display', 'none', 'important');
-                    mainCol.className = 'col-12 d-flex flex-column h-100';
-                }
-            }
-        };
-
-        // Initialize defaults
+                // Initialize defaults
         document.addEventListener('DOMContentLoaded', () => {
             const today = new Date();
             const fechaInput = document.getElementById('op-fecha');
