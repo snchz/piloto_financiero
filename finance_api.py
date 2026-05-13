@@ -144,3 +144,20 @@ def is_market_open(ticker_symbol):
         return market_open <= now <= market_close
     except Exception:
         return True
+
+def fetch_news(ticker, limit=3):
+    try:
+        import yfinance as yf
+        news = yf.Ticker(ticker).news
+        if not news: return []
+        
+        parsed = []
+        for n in news[:limit]:
+            title = n.get('title')
+            publisher = n.get('publisher')
+            link = n.get('link')
+            if title:
+                parsed.append({"title": title, "publisher": publisher, "link": link})
+        return parsed
+    except Exception:
+        return []

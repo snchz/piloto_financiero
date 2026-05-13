@@ -541,6 +541,10 @@
                             <label class="form-label text-secondary small mb-1">Intervalo de Refresco (minutos)</label>
                             <input type="number" id="cfg-refresh-interval" class="form-control" min="1">
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small mb-1">Días de retención de Actividad Reciente</label>
+                            <input type="number" id="cfg-activity-retention" class="form-control" min="1" value="2">
+                        </div>
                         <div class="form-check form-switch mb-3">
                             <input class="form-check-input" type="checkbox" id="cfg-check-market-hours">
                             <label class="form-check-label text-secondary small">Respetar horario de mercado</label>
@@ -761,6 +765,7 @@
                 document.getElementById('cfg-telegram-token').value = config.telegram_token;
                 document.getElementById('cfg-telegram-chat-id').value = config.telegram_chat_id;
                 document.getElementById('cfg-refresh-interval').value = config.refresh_interval;
+                document.getElementById('cfg-activity-retention').value = config.activity_retention_days || 2;
                 document.getElementById('cfg-check-market-hours').checked = config.check_market_hours;
                 document.getElementById('cfg-debug-ui').checked = config.debug_ui;
                 configModal.show();
@@ -776,6 +781,7 @@
                 telegram_token: document.getElementById('cfg-telegram-token').value,
                 telegram_chat_id: document.getElementById('cfg-telegram-chat-id').value,
                 refresh_interval: parseInt(document.getElementById('cfg-refresh-interval').value) || 30,
+                activity_retention_days: parseInt(document.getElementById('cfg-activity-retention').value) || 2,
                 check_market_hours: document.getElementById('cfg-check-market-hours').checked,
                 debug_ui: document.getElementById('cfg-debug-ui').checked
             };

@@ -119,6 +119,7 @@ def api_set_config():
             conn.execute("UPDATE config SET valor = ? WHERE clave = 'check_market_hours'", ("1" if data.get('check_market_hours') else "0",))
             conn.execute("UPDATE config SET valor = ? WHERE clave = 'debug_ui'", ("1" if data.get('debug_ui') else "0",))
             conn.execute("UPDATE config SET valor = ? WHERE clave = 'app_title'", (data.get('app_title', 'Piloto Financiero'),))
+            conn.execute("INSERT OR REPLACE INTO config (clave, valor) VALUES ('activity_retention_days', ?)", (str(data.get('activity_retention_days', 2)),))
             conn.commit()
         return jsonify({"ok": True})
     except Exception as e:
