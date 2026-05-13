@@ -105,6 +105,10 @@ def calcular_fifo(operaciones_activo):
             beneficio_op = ingreso_neto - coste_ventas
             beneficio_realizado += beneficio_op
             
+            # Guardamos el resultado en el diccionario de la operación para el frontend
+            op['pnl'] = beneficio_op
+            op['rentabilidad_pct'] = (beneficio_op / coste_ventas) if coste_ventas > 0 else 0
+            
             cantidad_total -= cantidad
             if cantidad_total < 1e-8: # Evitar errores de coma flotante
                 cantidad_total = 0.0
