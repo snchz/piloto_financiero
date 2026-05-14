@@ -93,6 +93,8 @@ def calcular_fifo(operaciones_activo):
             
             op['pnl'] = ingreso_neto
             op['pnl_base'] = ingreso_neto_base
+            op['pnl_activo_base'] = ingreso_neto_base
+            op['pnl_divisa_base'] = 0.0
             op['rentabilidad_pct'] = 0
             
         elif tipo == 'VENTA':
@@ -129,6 +131,8 @@ def calcular_fifo(operaciones_activo):
             # Guardamos el resultado en el diccionario de la operación para el frontend
             op['pnl'] = beneficio_op
             op['pnl_base'] = beneficio_op_base
+            op['pnl_activo_base'] = beneficio_op * tasa_cambio
+            op['pnl_divisa_base'] = (coste_ventas * tasa_cambio) - coste_ventas_base
             op['rentabilidad_pct'] = (beneficio_op / coste_ventas) if coste_ventas > 0 else 0
             
             cantidad_total -= cantidad
