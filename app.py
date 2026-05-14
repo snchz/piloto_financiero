@@ -494,23 +494,8 @@ def import_operaciones():
     if 'file' not in request.files:
         return jsonify({"error": "No file provided"}), 400
     file = request.files['file']
-    filename = file.filename.lower()
     
     try:
-        # Procesamiento de archivos de Inversis (.xls html-based)
-        if filename.endswith('.xls'):
-            import importer
-            temp_path = os.path.join(DATA_DIR, f"temp_import_{uuid.uuid4().hex}.xls")
-            file.save(temp_path)
-            try:
-                res = importer.process_inversis_xls(temp_path)
-            finally:
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
-            # Avisar a UI de la recarga de cartera
-            return jsonify(res)
-
-        # Procesamiento de archivos CSV genéricos (lógica existente adaptada)
         df = pd.read_csv(file)
         required_cols = ['fecha', 'ticker', 'tipo', 'cantidad', 'precio']
         if not all(col in df.columns for col in required_cols):
