@@ -309,6 +309,14 @@ def get_operaciones():
                 inversion_actual = resultado['cantidad_actual'] * resultado['coste_medio']
                 pnl_latente = valor_actual - inversion_actual
                 
+                coste_medio_base = resultado.get('coste_medio_base', resultado['coste_medio'] * tasa_cambio_actual)
+                inversion_actual_base = resultado['cantidad_actual'] * coste_medio_base
+                pnl_latente_base = (valor_actual * tasa_cambio_actual) - inversion_actual_base
+                
+                tasa_cambio_media = (inversion_actual_base / inversion_actual) if inversion_actual > 0 else tasa_cambio_actual
+                pnl_activo_base = pnl_latente * tasa_cambio_actual
+                pnl_divisa_base = inversion_actual * (tasa_cambio_actual - tasa_cambio_media)
+                
                 cartera[ticker] = {
                     'name': info['name'],
                     'currency': info['currency'],
@@ -319,6 +327,9 @@ def get_operaciones():
                     'current_price_time': current_price_time,
                     'valor_actual': valor_actual,
                     'pnl_latente': pnl_latente,
+                    'pnl_latente_base': pnl_latente_base,
+                    'pnl_activo_base': pnl_activo_base,
+                    'pnl_divisa_base': pnl_divisa_base,
                     'pnl_realizado': resultado['beneficio_realizado'],
                     'rentabilidad_pct': (pnl_latente / inversion_actual) if inversion_actual > 0 else 0
                 }
@@ -337,7 +348,7 @@ def get_operaciones():
                 cash_flow = 0.0
                 if op['tipo'] in ('COMPRA', 'APORTACION'):
                     cash_flow = -(op['cantidad'] * op['precio'] + op.get('comisiones',0) + op.get('impuestos',0))
-                elif op['tipo'] == 'VENTA':
+                elif op['tipo'] in ('VENTA', 'DIVIDENDO'):
                     cash_flow = (op['cantidad'] * op['precio']) - op.get('comisiones',0) - op.get('impuestos',0)
                 if cash_flow != 0:
                     flujos_caja.append((dt, cash_flow * op['tasa_cambio']))
@@ -516,7 +527,7 @@ def import_operaciones():
                     comisiones = float(row.get('comisiones', 0)) if pd.notna(row.get('comisiones')) else 0.0
                     impuestos = float(row.get('impuestos', 0)) if pd.notna(row.get('impuestos')) else 0.0
                     
-                    if not ticker or cantidad <= 0 or precio < 0 or tipo not in ['COMPRA', 'VENTA', 'APORTACION']:
+                    if not ticker or cantidad <= 0 or precio < 0 or tipo not in ['COMPRA', 'VENTA', 'APORTACION', 'DIVIDENDO']:
                         continue
                         
                     conn.execute('''

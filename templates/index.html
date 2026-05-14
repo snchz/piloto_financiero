@@ -424,8 +424,12 @@
                         ➕ Añadir Operación
                     </button>
                     
-                    <div class="glass-panel p-2 p-md-3 flex-grow-1">
+                    <div class="glass-panel p-2 p-md-3 flex-grow-1 d-flex flex-column">
                         <h5 class="mb-2 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Resumen Global</h5>
+                        <div class="mb-2">
+                            <span class="text-secondary small d-block" title="Valor total actual de tu cartera">Valor Total de la Cartera</span>
+                            <span class="fs-4 fw-bold text-white" id="resumen-valor-total">--</span>
+                        </div>
                         <div class="mb-2">
                             <span class="text-secondary small d-block" title="Rentabilidad media anual de tus inversiones teniendo en cuenta cuándo compraste (TIR)">Rentabilidad Anualizada</span>
                             <span class="fs-5 fw-bold" id="resumen-tir">--</span>
@@ -437,6 +441,9 @@
                         <div>
                             <span class="text-secondary small d-block" title="Ganancias o pérdidas reales ya consolidadas de activos que has vendido (P&L Realizado)">Beneficio / Pérdida (Consolidado)</span>
                             <span class="fs-5 fw-bold" id="resumen-realizado">--</span>
+                        </div>
+                        <div class="mt-auto pt-3 flex-grow-1" style="min-height: 200px; position: relative;">
+                            <canvas id="allocationChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -533,6 +540,7 @@
                                     <option value="COMPRA">Compra</option>
                                     <option value="VENTA">Venta</option>
                                     <option value="APORTACION">Aportación</option>
+                                    <option value="DIVIDENDO">Dividendo</option>
                                 </select>
                             </div>
                             <div class="col-6">
@@ -654,6 +662,7 @@
     <div class="toast-container position-fixed bottom-0 end-0 p-2 p-md-3"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         const API = {
             async fetch(url, options = {}) {
@@ -747,10 +756,10 @@
                     <tr>
                         <td class="ps-4">
                             <div class="fw-semibold text-white">
-                                ${m.ticker}
+                                ${m.name || m.ticker}
                                 ${m.target_pct > 0 ? '<span class="ms-1" title="Alerta de volatilidad configurada">📈</span>' : ''}
                             </div>
-                            <div class="text-secondary" style="font-size: 0.75rem">${m.name || 'Desconocido'}</div>
+                            <div class="text-secondary" style="font-size: 0.75rem">${m.ticker}</div>
                         </td>
                         <td><span class="badge bg-dark border border-secondary border-opacity-25">${m.currency || '-'}</span></td>
                         <td class="text-end">
@@ -1019,11 +1028,17 @@
                     const rentPctSign = metrics.rentabilidad_pct >= 0 ? '+' : '';
                     const rentPctStr = (metrics.rentabilidad_pct * 100).toFixed(2) + '%';
                     
+                    let pnlTooltipAttr = '';
+                    if (currency !== 'EUR' && currency !== '-') {
+                        const tooltipText = `Desglose (EUR):\nRevalorización Activo: ${formatCurrency(metrics.pnl_activo_base, 'EUR')}\nImpacto Divisa: ${formatCurrency(metrics.pnl_divisa_base, 'EUR')}\nTotal P&L: ${formatCurrency(metrics.pnl_latente_base, 'EUR')}`;
+                        pnlTooltipAttr = `title="${tooltipText}" style="cursor: help; text-decoration: underline dotted rgba(255,255,255,0.3); text-underline-offset: 4px;"`;
+                    }
+                    
                     return `
                     <tr>
                         <td class="ps-4">
-                            <div class="fw-semibold text-white">${ticker}</div>
-                            <div class="text-secondary" style="font-size: 0.75rem">${metrics.name || ''}</div>
+                            <div class="fw-semibold text-white">${metrics.name || ticker}</div>
+                            <div class="text-secondary" style="font-size: 0.75rem">${ticker}</div>
                         </td>
                         <td class="text-end font-monospace">${metrics.cantidad.toFixed(4)}</td>
                         <td class="text-end font-monospace">${formatCurrency(metrics.coste_medio, currency)}</td> <!-- Coste Medio -->
@@ -1033,7 +1048,7 @@
                         </td> <!-- Precio Actual -->
                         <td class="text-end font-monospace text-white">${formatCurrency(metrics.valor_actual, currency)}</td> <!-- Valor Actual -->
                         <td class="text-end font-monospace ${rentPctClass}">${rentPctSign}${rentPctStr}</td>
-                        <td class="text-end font-monospace ${latenteClass} pe-4">${latenteSign}${formatCurrency(metrics.pnl_latente, currency)}</td>
+                        <td class="text-end font-monospace ${latenteClass} pe-4" ${pnlTooltipAttr}>${latenteSign}${formatCurrency(metrics.pnl_latente, currency)}</td>
                     </tr>
                 `}).join('');
                 document.getElementById('cartera-table').innerHTML = carteraHtml || '<tr><td colspan="7" class="text-center py-3 text-secondary">No hay activos en cartera</td></tr>';
@@ -1041,20 +1056,21 @@
                 // Renderizar Operaciones
                 const opsHtml = data.operaciones.reverse().map(op => {
                     const isCompra = op.tipo === 'COMPRA' || op.tipo === 'APORTACION';
-                    const tipoColor = isCompra ? 'text-success' : 'text-danger';
+                    const isDividendo = op.tipo === 'DIVIDENDO';
+                    const tipoColor = isCompra ? 'text-success' : (isDividendo ? 'text-info' : 'text-danger');
                     const info = data.activos_info[op.ticker] || {};
                     const currency = info.currency || 'USD';
                     const name = info.name || '';
                     
                     let rentabilidadHtml = '-';
-                    if (op.tipo === 'VENTA') {
+                    if (op.tipo === 'VENTA' || op.tipo === 'DIVIDENDO') {
                         const pnlVal = op.pnl !== undefined ? op.pnl : (op.beneficio !== undefined ? op.beneficio : null);
                         if (pnlVal !== null) {
                             const pnlClass = pnlVal >= 0 ? 'text-success' : 'text-danger';
                             const pnlSign = pnlVal > 0 ? '+' : '';
                             let rentabPctHtml = '';
                             const pctVal = op.rentabilidad !== undefined ? op.rentabilidad : (op.rentabilidad_pct !== undefined ? op.rentabilidad_pct : null);
-                            if (pctVal !== null) {
+                            if (pctVal !== null && op.tipo !== 'DIVIDENDO') {
                                 rentabPctHtml = `<br><span style="font-size: 0.75em">(${pctVal > 0 ? '+' : ''}${(pctVal * 100).toFixed(2)}%)</span>`;
                             }
                             rentabilidadHtml = `<span class="${pnlClass}">${pnlSign}${formatCurrency(pnlVal, currency)}${rentabPctHtml}</span>`;
@@ -1069,8 +1085,8 @@
                     <tr>
                         <td class="ps-4 font-monospace text-secondary" style="font-size: 0.85rem">${op.fecha}</td>
                         <td>
-                            <div class="fw-semibold text-white">${op.ticker}</div>
-                            <div class="text-secondary" style="font-size: 0.75rem">${name}</div>
+                            <div class="fw-semibold text-white">${name || op.ticker}</div>
+                            <div class="text-secondary" style="font-size: 0.75rem">${op.ticker}</div>
                         </td>
                         <td><span class="${tipoColor}">${op.tipo}</span></td>
                         <td class="text-end font-monospace">${op.cantidad.toFixed(4)}</td>
@@ -1089,9 +1105,23 @@
 
                 // Renderizar Resumen Global
                 let totalLatente = 0;
-                Object.values(data.cartera).forEach(m => {
+                let totalValor = 0;
+                const allocationLabels = [];
+                const allocationData = [];
+                const bgColors = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#14b8a6', '#0ea5e9'];
+
+                Object.entries(data.cartera).forEach(([ticker, m]) => {
+                    const valorBase = m.valor_actual * (m.tasa_cambio || 1);
                     totalLatente += m.pnl_latente * (m.tasa_cambio || 1);
+                    totalValor += valorBase;
+                    
+                    if (valorBase > 0) {
+                        allocationLabels.push(ticker);
+                        allocationData.push(valorBase);
+                    }
                 });
+                
+                document.getElementById('resumen-valor-total').textContent = formatCurrency(totalValor, 'EUR');
                 
                 document.getElementById('resumen-tir').textContent = data.tir_anualizada ? (data.tir_anualizada * 100).toFixed(2) + '%' : 'N/A';
                 document.getElementById('resumen-tir').className = 'fs-5 fw-bold ' + (data.tir_anualizada >= 0 ? 'text-success' : 'text-danger');
@@ -1101,6 +1131,56 @@
                 
                 document.getElementById('resumen-realizado').textContent = formatCurrency(data.total_pnl_realizado, 'EUR');
                 document.getElementById('resumen-realizado').className = 'fs-5 fw-bold ' + (data.total_pnl_realizado >= 0 ? 'text-success' : 'text-danger');
+                
+                // Actualizar Gráfico
+                if (window.allocationChartInstance) {
+                    window.allocationChartInstance.destroy();
+                }
+                
+                if (allocationLabels.length > 0) {
+                    const ctx = document.getElementById('allocationChart');
+                    if (ctx) {
+                        window.allocationChartInstance = new Chart(ctx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: allocationLabels,
+                                datasets: [{
+                                    data: allocationData,
+                                    backgroundColor: bgColors.slice(0, allocationLabels.length).concat(Array(Math.max(0, allocationLabels.length - bgColors.length)).fill('#475569')),
+                                    borderWidth: 0,
+                                    hoverOffset: 4
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'right',
+                                        labels: {
+                                            color: '#a1a1aa',
+                                            font: { size: 10, family: "'Inter', sans-serif" },
+                                            boxWidth: 12
+                                        }
+                                    },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(context) {
+                                                let label = context.label || '';
+                                                if (label) label += ': ';
+                                                if (context.parsed !== null) {
+                                                    label += new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(context.parsed);
+                                                }
+                                                return label;
+                                            }
+                                        }
+                                    }
+                                },
+                                cutout: '70%'
+                            }
+                        });
+                    }
+                }
                 
             } catch (err) {
                 UI.showToast('Error cargando operaciones', 'error');

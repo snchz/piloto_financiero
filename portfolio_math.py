@@ -83,6 +83,18 @@ def calcular_fifo(operaciones_activo):
             })
             cantidad_total += cantidad
             
+        elif tipo == 'DIVIDENDO':
+            # El ingreso neto del dividendo es tras comisiones e impuestos
+            ingreso_neto = (cantidad * precio) - comisiones - impuestos
+            ingreso_neto_base = ingreso_neto * tasa_cambio
+            
+            beneficio_realizado += ingreso_neto
+            beneficio_realizado_base += ingreso_neto_base
+            
+            op['pnl'] = ingreso_neto
+            op['pnl_base'] = ingreso_neto_base
+            op['rentabilidad_pct'] = 0
+            
         elif tipo == 'VENTA':
             cantidad_a_vender = cantidad
             coste_ventas = 0.0
@@ -125,13 +137,17 @@ def calcular_fifo(operaciones_activo):
 
     # Calcular coste medio de la posición actual
     coste_medio = 0.0
+    coste_medio_base = 0.0
     if cantidad_total > 0 and compras_abiertas:
         total_coste = sum(c['cantidad'] * c['precio_unitario'] for c in compras_abiertas)
+        total_coste_base = sum(c['cantidad'] * c['precio_unitario'] * c['tasa_cambio'] for c in compras_abiertas)
         coste_medio = total_coste / cantidad_total
+        coste_medio_base = total_coste_base / cantidad_total
         
     return {
         'cantidad_actual': cantidad_total,
         'coste_medio': coste_medio,
+        'coste_medio_base': coste_medio_base,
         'beneficio_realizado': beneficio_realizado,
         'beneficio_realizado_base': beneficio_realizado_base
     }
