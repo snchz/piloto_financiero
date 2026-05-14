@@ -155,3 +155,102 @@ def calcular_fifo(operaciones_activo):
         'beneficio_realizado': beneficio_realizado,
         'beneficio_realizado_base': beneficio_realizado_base
     }
+
+def calcular_historico_cartera(operaciones, historicos_precios, activos_info, start_date, end_date):
+    """
+    Calcula la evolución del Capital Aportado y Valor de Mercado.
+    historicos_precios: dict {ticker: Series(fecha -> precio)}
+    """
+    import pandas as pd
+    from datetime import datetime
+
+    days_diff = (end_date - start_date).days
+    if days_diff > 365 * 2:
+        freq = 'ME'
+    elif days_diff > 180:
+        freq = 'W-FRI'
+    else:
+        freq = 'B'
+
+    rango = pd.date_range(start=start_date, end=end_date, freq=freq).tolist()
+    if not rango or rango[-1].date() != end_date.date():
+        rango.append(end_date)
+        
+    labels = []
+    capital_aportado_list = []
+    valor_mercado_list = []
+    
+    ops_por_fecha = {}
+    for op in operaciones:
+        dt = datetime.strptime(str(op['fecha']).split(' ')[0], '%Y-%m-%d').date()
+        if dt not in ops_por_fecha:
+            ops_por_fecha[dt] = []
+        ops_por_fecha[dt].append(op)
+        
+    inventario = {}
+    capital_acumulado = 0.0
+    
+    fechas_ops = sorted(list(ops_por_fecha.keys()))
+    ops_idx = 0
+    
+    for dt in rango:
+        date_obj = dt.date()
+        
+        while ops_idx < len(fechas_ops) and fechas_ops[ops_idx] <= date_obj:
+            current_ops = ops_por_fecha[fechas_ops[ops_idx]]
+            for op in current_ops:
+                ticker = op['ticker']
+                tipo = op['tipo'].upper()
+                cantidad = float(op['cantidad'])
+                precio = float(op['precio'])
+                comisiones = float(op.get('comisiones', 0))
+                impuestos = float(op.get('impuestos', 0))
+                tasa_cambio = float(op.get('tasa_cambio', 1.0))
+                
+                if ticker not in inventario:
+                    inventario[ticker] = {'cantidad': 0.0, 'precio_compra': 0.0}
+                    
+                if tipo in ('COMPRA', 'APORTACION'):
+                    inventario[ticker]['cantidad'] += cantidad
+                    inventario[ticker]['precio_compra'] = precio
+                    capital_acumulado += (cantidad * precio + comisiones) * tasa_cambio
+                elif tipo == 'VENTA':
+                    inventario[ticker]['cantidad'] -= cantidad
+                    if inventario[ticker]['cantidad'] < 1e-8:
+                        inventario[ticker]['cantidad'] = 0.0
+                    capital_acumulado -= ((cantidad * precio) - comisiones - impuestos) * tasa_cambio
+                elif tipo == 'DIVIDENDO':
+                    capital_acumulado -= ((cantidad * precio) - comisiones - impuestos) * tasa_cambio
+                    
+            ops_idx += 1
+            
+        valor_mercado = 0.0
+        for ticker, data_inv in inventario.items():
+            cant = data_inv['cantidad']
+            if cant > 0:
+                info = activos_info.get(ticker, {})
+                sym = info.get('sym')
+                precio_hist = 0.0
+                
+                if sym and sym in historicos_precios and not historicos_precios[sym].empty:
+                    ts = pd.Timestamp(date_obj)
+                    hist_series = historicos_precios[sym]
+                    past_prices = hist_series[hist_series.index <= ts]
+                    if not past_prices.empty:
+                        precio_hist = float(past_prices.iloc[-1])
+                
+                if precio_hist == 0.0:
+                    precio_hist = data_inv['precio_compra']
+                
+                tasa = info.get('tasa_cambio_actual', 1.0) 
+                valor_mercado += cant * precio_hist * tasa
+                
+        labels.append(date_obj.strftime('%Y-%m-%d'))
+        capital_aportado_list.append(round(capital_acumulado, 2))
+        valor_mercado_list.append(round(valor_mercado, 2))
+        
+    return {
+        "labels": labels,
+        "capital": capital_aportado_list,
+        "values": valor_mercado_list
+    }

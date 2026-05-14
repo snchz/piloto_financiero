@@ -47,6 +47,7 @@ def log_debug(msg, level="INFO"):
 ASSET_INFO_CACHE = {}
 EXCHANGE_RATES_CACHE = {}
 HISTORICAL_RATES_CACHE = {}
+HISTORICAL_PRICES_CACHE = {}
 
 def get_exchange_rate(from_currency, to_currency="EUR"):
     if not from_currency or from_currency.upper() == to_currency.upper() or from_currency == '-':
@@ -355,12 +356,54 @@ def get_operaciones():
         
         tir = portfolio_math.xirr(flujos_caja) if flujos_caja else None
         
+        # --- Generar Historial ---
+        history = {"labels": [], "capital": [], "values": []}
+        if operaciones:
+            import yfinance as yf
+            
+            fechas_ops = [datetime.strptime(str(op['fecha']).split(' ')[0], '%Y-%m-%d') for op in operaciones]
+            start_date = min(fechas_ops)
+            end_date = datetime.now()
+            
+            historicos_precios = {}
+            for ticker, info in activos_info.items():
+                sym = info.get('sym')
+                if sym:
+                    info['tasa_cambio_actual'] = get_exchange_rate(info.get('currency', 'EUR'), 'EUR')
+                    
+                    if sym not in HISTORICAL_PRICES_CACHE or HISTORICAL_PRICES_CACHE[sym]['end_date'] < end_date.date() - timedelta(days=1) or HISTORICAL_PRICES_CACHE[sym]['start_date'] > start_date.date():
+                        try:
+                            df = yf.Ticker(sym).history(start=start_date.strftime('%Y-%m-%d'))
+                            if not df.empty:
+                                df.index = df.index.tz_localize(None).normalize()
+                                HISTORICAL_PRICES_CACHE[sym] = {
+                                    'data': df['Close'],
+                                    'start_date': start_date.date(),
+                                    'end_date': end_date.date()
+                                }
+                        except Exception as e:
+                            log_debug(f"Error fetching historical data for {sym}: {e}", "WARNING")
+                            if sym not in HISTORICAL_PRICES_CACHE:
+                                HISTORICAL_PRICES_CACHE[sym] = {'data': pd.Series(dtype=float), 'start_date': start_date.date(), 'end_date': end_date.date()}
+                    
+                    historicos_precios[sym] = HISTORICAL_PRICES_CACHE[sym]['data']
+            
+            history = portfolio_math.calcular_historico_cartera(operaciones, historicos_precios, activos_info, start_date, end_date)
+        else:
+            dt_now = datetime.now()
+            history = {
+                "labels": [dt_now.strftime('%Y-%m-%d')],
+                "capital": [0],
+                "values": [0]
+            }
+
         return jsonify({
             "operaciones": operaciones,
             "cartera": cartera,
             "activos_info": activos_info,
             "tir_anualizada": tir,
-            "total_pnl_realizado": total_pnl_realizado
+            "total_pnl_realizado": total_pnl_realizado,
+            "history": history
         })
     except Exception as e:
         tb = traceback.format_exc()

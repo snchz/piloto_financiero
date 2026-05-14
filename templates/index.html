@@ -1196,20 +1196,29 @@
                 document.getElementById('resumen-realizado').textContent = formatCurrency(data.total_pnl_realizado, 'EUR');
                 document.getElementById('resumen-realizado').className = 'fs-5 fw-bold ' + (data.total_pnl_realizado >= 0 ? 'text-success' : 'text-danger');
                 
+                console.log("Historial de la Cartera:", data.history);
+                
                 // Actualizar Gráfico Lineas (Evolución)
                 if (window.equityCurveChartInstance) {
                     window.equityCurveChartInstance.destroy();
                 }
                 const ctxLine = document.getElementById('equityCurveChart');
                 if (ctxLine) {
+                    const history = data.history || { labels: [], capital: [], values: [] };
+                    if (history.labels.length === 0) {
+                        history.labels = [new Date().toISOString().split('T')[0]];
+                        history.capital = [0];
+                        history.values = [0];
+                    }
+
                     window.equityCurveChartInstance = new Chart(ctxLine, {
                         type: 'line',
                         data: {
-                            labels: [], // Data provided por un backend dinámico en el futuro
+                            labels: history.labels,
                             datasets: [
                                 {
                                     label: 'Capital Aportado',
-                                    data: [],
+                                    data: history.capital,
                                     borderColor: '#6366f1',
                                     backgroundColor: 'rgba(99, 102, 241, 0.1)',
                                     borderWidth: 2,
@@ -1218,7 +1227,7 @@
                                 },
                                 {
                                     label: 'Valor de Mercado',
-                                    data: [],
+                                    data: history.values,
                                     borderColor: '#10b981',
                                     backgroundColor: 'rgba(16, 185, 129, 0.1)',
                                     borderWidth: 2,
