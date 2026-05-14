@@ -5,18 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ app_title }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-base: #0f1115;
-            --bg-surface: #181a20;
-            --bg-surface-hover: #22252d;
-            --accent: #3b82f6;
-            --accent-hover: #2563eb;
-            --text-primary: #f3f4f6;
-            --text-secondary: #9ca3af;
-            --border-color: rgba(255, 255, 255, 0.05);
+            /* Colores 2026: Ultra oscuros, alto contraste, sin tintes excesivos */
+            --bg-base: #090a0c;
+            --bg-surface: #111317;
+            --bg-surface-hover: #1a1d24;
+            --accent: #4f46e5; /* Índigo moderno */
+            --accent-hover: #4338ca;
+            --text-primary: #e2e8f0;
+            --text-secondary: #8b95a5;
+            --border-color: #1e293b;
+            --radius-bento: 10px; /* Bordes más tensos y compactos */
         }
+        
         html, body {
             min-height: 100vh;
             width: 100%;
@@ -24,20 +27,25 @@
             padding: 0;
             background-color: var(--bg-base);
         }
+        
         body {
             font-family: 'Inter', sans-serif;
             color: var(--text-primary);
             -webkit-font-smoothing: antialiased;
             display: flex;
             flex-direction: column;
+            font-size: 0.85rem; /* Base más pequeña */
         }
+
+        /* Reemplazamos el Glassmorphism por Bento Box Flat */
         .glass-panel {
             background: var(--bg-surface);
             border: 1px solid var(--border-color);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-radius: var(--radius-bento);
+            box-shadow: none; /* Cero sombras, diseño plano y limpio */
         }
+
+        /* Tablas ultra compactas */
         .table {
             --bs-table-bg: transparent;
             --bs-table-color: var(--text-primary);
@@ -46,1130 +54,336 @@
         .table th {
             border-bottom-color: var(--border-color);
             color: var(--text-secondary);
-            font-weight: 500;
-            font-size: 0.75rem;
+            font-weight: 600;
+            font-size: 0.65rem; /* Más pequeño para que no quite protagonismo */
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            padding: 0.5rem;
+            padding: 0.4rem;
         }
         .table td {
             border-bottom-color: var(--border-color);
             vertical-align: middle;
-            padding: 0.4rem 0.5rem;
+            padding: 0.25rem 0.4rem; /* Reducción drástica del alto de la fila */
+            font-size: 0.8rem; /* Datos compactos */
         }
         .table tbody tr {
-            transition: background-color 0.2s;
+            transition: background-color 0.1s;
         }
         .table tbody tr:hover {
             background-color: var(--bg-surface-hover);
         }
-        .form-control {
-            background-color: rgba(255,255,255,0.03);
+
+        /* Formularios compactos */
+        .form-control, .form-select {
+            background-color: #00000033;
             border: 1px solid var(--border-color);
             color: var(--text-primary);
-            border-radius: 8px;
-            transition: all 0.2s;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            padding: 0.35rem 0.6rem;
+            transition: all 0.15s;
         }
-        .form-control:focus {
-            background-color: rgba(255,255,255,0.05);
+        .form-control:focus, .form-select:focus {
+            background-color: #00000066;
             border-color: var(--accent);
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+            box-shadow: 0 0 0 1px var(--accent);
             color: var(--text-primary);
         }
+
         .btn-primary {
             background-color: var(--accent);
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             font-weight: 500;
-            transition: all 0.2s;
+            font-size: 0.85rem;
+            padding: 0.4rem 0.8rem;
+            transition: all 0.15s;
         }
         .btn-primary:hover {
             background-color: var(--accent-hover);
-            transform: translateY(-1px);
         }
+
         .badge-status {
-            font-weight: 500;
-            padding: 0.35em 0.65em;
-            border-radius: 6px;
-            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.25em 0.5em;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            letter-spacing: 0.02em;
         }
-        .badge-active {
-            background-color: rgba(16, 185, 129, 0.1);
-            color: #34d399;
-        }
+        .badge-active { background-color: #10b9811a; color: #34d399; }
         .badge-alert {
-            background-color: rgba(239, 68, 68, 0.1);
+            background-color: #ef44441a;
             color: #f87171;
-            animation: pulse 2s infinite;
+            border: 1px solid #ef444440;
         }
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-            70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
+
         .action-btn {
             background: transparent;
             border: none;
             color: var(--text-secondary);
-            transition: color 0.2s;
-            padding: 4px;
+            transition: color 0.15s;
+            padding: 2px;
+            border-radius: 4px;
         }
-        .action-btn:hover {
-            color: var(--text-primary);
-        }
-        .action-btn.delete:hover {
-            color: #f87171;
-        }
-        /* Layout adjustments */
+        .action-btn:hover { background: #ffffff1a; color: var(--text-primary); }
+        .action-btn.delete:hover { color: #f87171; background: #ef44441a; }
+
+        /* Cabecera optimizada */
         .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
             padding: 0.5rem 0;
             border-bottom: 1px solid var(--border-color);
         }
         .brand {
-            font-size: 1.5rem;
+            font-size: 1.1rem;
             font-weight: 700;
-            letter-spacing: -0.025em;
-            background: linear-gradient(to right, #60a5fa, #a78bfa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+            color: #fff;
         }
-        .version-badge {
-            font-size: 0.75rem;
+        .version-badge, .last-update {
+            font-size: 0.7rem;
             color: var(--text-secondary);
-            background: rgba(255,255,255,0.05);
-            padding: 4px 8px;
-            border-radius: 99px;
-        }
-        .alerts-feed {
-            max-height: 400px;
-            overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: var(--border-color) transparent;
-        }
-        .alerts-feed::-webkit-scrollbar {
-            width: 4px;
-        }
-        .alerts-feed::-webkit-scrollbar-thumb {
-            background-color: var(--border-color);
+            background: #ffffff0a;
+            padding: 2px 6px;
             border-radius: 4px;
-        }
-        .alert-item {
-            background: rgba(245, 158, 11, 0.05);
-            border-left: 3px solid #f59e0b;
-            color: #fbbf24;
-            padding: 12px;
-            border-radius: 4px;
-            margin-bottom: 8px;
-            font-size: 0.875rem;
-        }
-        
-        /* Debug panel */
-        .debug-toggle {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--bg-surface);
-            color: var(--text-secondary);
             border: 1px solid var(--border-color);
-            border-radius: 50%;
-            width: 44px;
-            height: 44px;
-            cursor: pointer;
-            z-index: 1001;
-            transition: all 0.2s;
+            margin-left: 0.5rem;
         }
-        .debug-toggle:hover {
-            color: var(--text-primary);
-            background: var(--bg-surface-hover);
-        }
-        .debug-panel {
-            position: fixed;
-            bottom: 70px;
-            right: 20px;
-            width: 450px;
-            max-height: 400px;
-            background: rgba(15, 17, 21, 0.95);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 16px;
-            font-family: monospace;
-            font-size: 12px;
-            z-index: 1000;
-            display: none;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-        }
-        .debug-logs {
-            max-height: 320px;
-            overflow-y: auto;
-        }
-        .log-entry { margin: 4px 0; }
-        .log-timestamp { color: #6b7280; margin-right: 8px; }
-        .log-level-ERROR { color: #ef4444; }
-        .log-level-WARNING { color: #f59e0b; }
-        .log-level-INFO { color: #60a5fa; }
-        
-        /* Fullscreen layout */
-        .container {
-            flex: 1;
-            overflow: auto;
-            padding: 1rem;
-            max-width: 100%;
-        }
-        
-        .last-update {
-            display: inline-block;
-            padding: 0.35em 0.65em;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            background: rgba(100, 165, 250, 0.1);
-            color: #64a5fa;
-            margin-left: 1rem;
-        }
-        
-        main {
-            height: 100%;
-        }
-        
-        .row.g-4 {
-            height: 100%;
-        }
-        
-        .col-xl-8, .col-xl-4 {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .col-xl-8 > .glass-panel:last-child {
-            flex: 1;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .table-responsive {
-            flex: 1;
-            overflow: auto;
-        }
-        
-        .col-xl-4 > .glass-panel {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .col-xl-4 > .glass-panel > div {
-            flex: 1;
-        }
-        
-    
+
+        /* Nav Tabs Bento */
         .nav-tabs .nav-link {
-            border-bottom: 2px solid transparent !important;
+            border: none !important;
             color: var(--text-secondary) !important;
+            font-size: 0.85rem;
+            padding: 0.4rem 0 !important;
+            margin-right: 1.5rem;
+            border-bottom: 2px solid transparent !important;
         }
         .nav-tabs .nav-link.active {
             border-bottom-color: var(--accent) !important;
             color: var(--text-primary) !important;
+            background: transparent !important;
+        }
+
+        /* Layout Grid */
+        .container-fluid { padding: 0.5rem 1rem !important; }
+        
+        .bento-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin: 0;
+        }
+
+        /* Ajustes Tipográficos Internos */
+        .val-large { font-size: 1.25rem; font-weight: 700; font-family: monospace; }
+        .val-medium { font-size: 1rem; font-weight: 600; font-family: monospace; }
+        
+        /* Debug y Alertas igual de compactos */
+        .alert-item {
+            background: #f59e0b0a;
+            border-left: 2px solid #f59e0b;
+            color: #fbbf24;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            font-size: 0.75rem;
         }
     </style>
 </head>
 <body>
-    <div class="container-fluid py-2 px-3 h-100 d-flex flex-column" style="min-height: 100vh;">
-        <div class="row h-100 g-3 flex-grow-1">
-            <div id="main-content-col" class="col-12 d-flex flex-column h-100">
-        <header class="page-header pb-0 mb-3 border-0" style="display: block;">
-            <div class="d-flex w-100 justify-content-between align-items-center mb-2">
-                <div>
-                    <span class="brand">✨ <span id="brand-text">{{ app_title }}</span></span>
-                    <span class="last-update">Última actualización: <span id="last-update-time">--:--:--</span></span>
-                </div>
-                <div class="d-flex align-items-center gap-3">
-                    <button class="action-btn" onclick="abrirConfig()" title="Configuración" style="font-size: 1.25rem;">⚙️</button>
-                    <div class="version-badge">v<span id="version">{{ version }}</span></div>
-                </div>
-            </div>
-            
-                        <ul class="nav nav-tabs border-bottom-0 gap-2" id="myTab" role="tablist">
-              <li class="nav-item" role="presentation">
-                <button class="nav-link active bg-transparent border-0 px-0 pb-3 fw-semibold" id="actividad-tab" data-bs-toggle="tab" data-bs-target="#nav-actividad" type="button" role="tab">Actividad Reciente</button>
-              </li>
-              <li class="nav-item ms-4" role="presentation">
-                <button class="nav-link bg-transparent border-0 px-0 pb-3 fw-semibold" id="alertas-tab" data-bs-toggle="tab" data-bs-target="#nav-alertas" type="button" role="tab">Monitores y Alertas</button>
-              </li>
-              <li class="nav-item ms-4" role="presentation">
-                <button class="nav-link bg-transparent border-0 px-0 pb-3 fw-semibold" id="operaciones-tab" data-bs-toggle="tab" data-bs-target="#nav-operaciones" type="button" role="tab" onclick="cargarOperaciones();">Operaciones y Cartera</button>
-              </li>
-            </ul>
-        </header>
-
-        <div class="tab-content h-100" id="nav-tabContent">
-            <!-- Tab Actividad -->
-            <div class="tab-pane fade show active h-100" id="nav-actividad" role="tabpanel" aria-labelledby="actividad-tab">
-                <main class="row g-3 h-100">
-                    <div class="col-12 d-flex flex-column">
-                        <div class="glass-panel p-3 d-flex flex-column flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="m-0 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Actividad Reciente</h5>
-                            </div>
-                            <div id="alerts-feed" class="alerts-feed flex-grow-1 overflow-auto" style="max-height: none;">
-                                <div class="text-secondary small">Sin actividad reciente</div>
-                            </div>
+    <div class="container-fluid h-100 d-flex flex-column" style="min-height: 100vh;">
+        <div class="row h-100 g-2 flex-grow-1"> <div id="main-content-col" class="col-12 d-flex flex-column h-100">
+                
+                <header class="page-header border-0 pb-0">
+                    <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                        <div class="d-flex align-items-center">
+                            <span class="brand">⚡ <span id="brand-text">{{ app_title }}</span></span>
+                            <span class="last-update">Act: <span id="last-update-time">--:--:--</span></span>
                         </div>
-                    </div>
-                </main>
-            </div>
-            
-            <div class="tab-pane fade h-100" id="nav-alertas" role="tabpanel" aria-labelledby="alertas-tab">
-                <main class="row g-3">
-            <div class="d-flex flex-column h-100">
-                <!-- Add Form -->
-                <div class="glass-panel p-3 mb-3">
-                    <form id="add-form" class="row g-3 align-items-end">
-                        <div class="col-md-4">
-                            <label class="form-label text-secondary small mb-1">Activo (Ticker o ISIN)</label>
-                            <input type="text" id="ticker" class="form-control" placeholder="Ej. AAPL, ES0105065009" required>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label text-secondary small mb-1">Precio Objetivo</label>
-                            <input type="number" step="0.01" id="target" class="form-control" placeholder="0.00" required>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label text-secondary small mb-1">Alerta Variación Diaria (%)</label>
-                            <input type="number" step="0.1" id="target_pct" class="form-control" placeholder="5.0" min="0">
-                        </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-primary w-100" id="submit-btn">
-                                Añadir Alerta
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="action-btn" onclick="abrirConfig()" title="Configuración">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                             </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Table -->
-                <div class="glass-panel overflow-hidden">
-                    <div class="d-flex justify-content-between align-items-center p-3 border-bottom border-secondary border-opacity-25">
-                        <h5 class="m-0 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Mis Alertas</h5>
-                        <div>
-                            <button class="action-btn" onclick="exportExcel('monitores')" title="Exportar a 2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            </button>
-                            <button class="action-btn" onclick="document.getElementById('import-monitores-file').click()" title="Importar de CSV">
-                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d=6 
-                            <input type="file" id="import-monitores-file" style="display:none" accept=".csv" onchange="importExcel('monitores', this)">
-                        </div>
-                    </div>
-                        <div class="table-responsive"><table class="table table-borderless align-middle" style="min-width: 800px;">
-                            <thead class="bg-dark bg-opacity-25">
-                                <tr>
-                                    <th class="ps-4">Activo</th>
-                                    <th>Moneda</th>
-                                    <th class="text-end">Actual</th>
-                                    <th class="text-end" title="Variación respecto al cierre del día anterior">Variación Diaria</th>
-                                    <th class="text-end">Objetivo</th>
-                                    <th class="text-end" title="Distancia porcentual desde el precio actual hasta el objetivo">Dist. Objetivo</th>
-                                    <th class="text-center">Estado</th>
-                                    <th class="pe-4 text-end">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="monitors-table">
-                                <tr><td colspan="7" class="text-center py-4 text-secondary"><div class="spinner-border spinner-border-sm"></div> Conectando con servidor...</td></tr>
-                                <tr><td colspan="8" class="text-center py-4 text-secondary"><div class="spinner-border spinner-border-sm"></div> Conectando con servidor...</td></tr>
-                            </tbody>
-                        </table></div>
-                    </div>
-                </div>
-            </div>
-
-            
-            </div>
-        </main>
-        </div>
-        
-        <!-- Tab Operaciones -->
-        <div class="tab-pane fade h-100" id="nav-operaciones" role="tabpanel" aria-labelledby="operaciones-tab">
-            <main class="row g-3 h-100">
-                <div class="col-lg-4 col-12 d-flex flex-column">
-                    <!-- Resumen Cartera -->
-                    <button class="btn btn-primary w-100 mb-3 py-2 fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#opModal">
-                        ➕ Añadir Operación
-                    </button>
-                    
-                    <div class="glass-panel p-3 flex-grow-1">
-                        <h5 class="mb-3 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Resumen Global</h5>
-                        <div class="mb-3">
-                            <span class="text-secondary small d-block" title="Rentabilidad media anual de tus inversiones teniendo en cuenta cuándo compraste (TIR)">Rentabilidad Anualizada</span>
-                            <span class="fs-3 fw-bold" id="resumen-tir">--</span>
-                        </div>
-                        <div class="mb-3">
-                            <span class="text-secondary small d-block" title="Dinero que ganarías o perderías si vendieras hoy toda tu cartera (P&L Latente)">Beneficio / Pérdida (Sin vender)</span>
-                            <span class="fs-4 fw-bold" id="resumen-latente">--</span>
-                        </div>
-                        <div>
-                            <span class="text-secondary small d-block" title="Ganancias o pérdidas reales ya consolidadas de activos que has vendido (P&L Realizado)">Beneficio / Pérdida (Consolidado)</span>
-                            <span class="fs-4 fw-bold" id="resumen-realizado">--</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-lg-8 col-12 d-flex flex-column">
-                    <div class="glass-panel d-flex flex-column overflow-hidden mb-3">
-                        <div class="p-3 border-bottom border-secondary border-opacity-25">
-                            <h5 class="m-0 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Mi Cartera (Abierta)</h5>
-                        </div>
-                        <div class="table-responsive" style="max-height: 40vh;">
-                            <table class="table table-borderless align-middle mb-0">
-                                <thead class="bg-dark bg-opacity-25" style="position: sticky; top: 0; z-index: 1;">
-                                    <tr>
-                                        <th class="ps-4">Activo</th>
-                                        <th class="text-end">Cantidad</th>
-                                        <th class="text-end">Coste Medio</th>
-                                        <th class="text-end">Precio Actual</th>
-                                        <th class="text-end">Valor Actual</th>
-                                        <th class="text-end">Rentab. %</th>
-                                        <th class="text-end pe-4" title="Dinero que ganarías o perderías si vendieras este activo hoy (P&L Latente)">Beneficio / Pérdida</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="cartera-table">
-                                    <tr><td colspan="7" class="text-center py-4 text-secondary">Cargando...</td></tr>
-                                </tbody>
-                            </table>
+                            <div class="version-badge">v<span id="version">{{ version }}</span></div>
                         </div>
                     </div>
                     
-                    <div class="glass-panel d-flex flex-column overflow-hidden flex-grow-1">
-                        <div class="d-flex justify-content-between align-items-center p-3 border-bottom border-secondary border-opacity-25">
-                            <h5 class="m-0 fs-6 text-uppercase text-secondary" style="letter-spacing: 0.05em">Historial de Operaciones</h5>
-                            <div>
-                                <button class="action-btn" onclick="exportExcel('operaciones')" title="Exportar a CSV">
-                                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                </button>
-                                <button class="action-btn" onclick="document.getElementById('import-operaciones-file').click()" title="Importar de CSV">
-                                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                </button>
-                                <input type="file" id="import-operaciones-file" style="display:none" accept=".csv" onchange="importExcel('operaciones', this)">
+                    <ul class="nav nav-tabs border-bottom-0" id="myTab" role="tablist">
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="actividad-tab" data-bs-toggle="tab" data-bs-target="#nav-actividad" type="button" role="tab">Actividad</button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="alertas-tab" data-bs-toggle="tab" data-bs-target="#nav-alertas" type="button" role="tab">Monitores</button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="operaciones-tab" data-bs-toggle="tab" data-bs-target="#nav-operaciones" type="button" role="tab" onclick="cargarOperaciones();">Cartera</button>
+                      </li>
+                    </ul>
+                </header>
+
+                <div class="tab-content h-100 pt-2" id="nav-tabContent">
+                    
+                    <div class="tab-pane fade show active h-100" id="nav-actividad" role="tabpanel">
+                        <div class="glass-panel p-2 d-flex flex-column h-100">
+                            <h5 class="bento-title mb-2">Actividad Reciente</h5>
+                            <div id="alerts-feed" class="flex-grow-1 overflow-auto">
+                                <div class="text-secondary small">Sin actividad</div>
                             </div>
                         </div>
-                        <div class="table-responsive flex-grow-1">
-                            <table class="table table-borderless align-middle mb-0">
-                                <thead class="bg-dark bg-opacity-25" style="position: sticky; top: 0; z-index: 1;">
-                                    <tr>
-                                        <th class="ps-4">Fecha</th>
-                                        <th>Ticker</th>
-                                        <th>Tipo</th>
-                                        <th class="text-end">Cantidad</th>
-                                        <th class="text-end">Precio</th>
-                                        <th class="text-end">Comisiones</th>
-                                        <th class="text-end">Impuestos</th>
-                                        <th class="text-end">Rentabilidad</th>
-                                        <th class="text-end pe-4">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="operaciones-table">
-                                    <tr><td colspan="9" class="text-center py-4 text-secondary">Cargando...</td></tr>
-                                </tbody>
-                            </table>
+                    </div>
+                    
+                    <div class="tab-pane fade h-100" id="nav-alertas" role="tabpanel">
+                        <div class="d-flex flex-column h-100 gap-2"> <div class="glass-panel p-2">
+                                <form id="add-form" class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label text-secondary" style="font-size:0.65rem; margin-bottom:2px">Activo</label>
+                                        <input type="text" id="ticker" class="form-control form-control-sm" placeholder="AAPL" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label text-secondary" style="font-size:0.65rem; margin-bottom:2px">Objetivo</label>
+                                        <input type="number" step="0.01" id="target" class="form-control form-control-sm" placeholder="0.00" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label text-secondary" style="font-size:0.65rem; margin-bottom:2px">Alerta %</label>
+                                        <input type="number" step="0.1" id="target_pct" class="form-control form-control-sm" placeholder="5.0" min="0">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="submit" class="btn btn-primary w-100 py-1" id="submit-btn" style="height: 31px;">Añadir</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div class="glass-panel d-flex flex-column flex-grow-1 overflow-hidden">
+                                <div class="d-flex justify-content-between align-items-center p-2 border-bottom border-secondary border-opacity-25">
+                                    <h5 class="bento-title">Mis Alertas</h5>
+                                    <div>
+                                        <button class="action-btn" onclick="exportExcel('monitores')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></button>
+                                        <button class="action-btn" onclick="document.getElementById('import-monitores-file').click()"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg></button>
+                                        <input type="file" id="import-monitores-file" style="display:none" accept=".csv" onchange="importExcel('monitores', this)">
+                                    </div>
+                                </div>
+                                <div class="table-responsive flex-grow-1">
+                                    <table class="table table-sm table-borderless align-middle" style="min-width: 700px;">
+                                        <thead class="bg-dark bg-opacity-25">
+                                            <tr>
+                                                <th class="ps-3">Activo</th>
+                                                <th>Moneda</th>
+                                                <th class="text-end">Actual</th>
+                                                <th class="text-end">Var. Diaria</th>
+                                                <th class="text-end">Objetivo</th>
+                                                <th class="text-end">Dist. Obj.</th>
+                                                <th class="text-center">Estado</th>
+                                                <th class="pe-3 text-end">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="monitors-table">
+                                            <tr><td colspan="8" class="text-center py-3 text-secondary">Cargando...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane fade h-100" id="nav-operaciones" role="tabpanel">
+                        <div class="row g-2 h-100">
+                            <div class="col-lg-3 col-12 d-flex flex-column gap-2">
+                                <button class="btn btn-primary w-100 py-1" data-bs-toggle="modal" data-bs-target="#opModal">
+                                    + Operación
+                                </button>
+                                
+                                <div class="glass-panel p-2 flex-grow-1">
+                                    <h5 class="bento-title mb-3">Resumen Global</h5>
+                                    <div class="mb-2">
+                                        <span class="text-secondary d-block" style="font-size:0.65rem">Rent. Anualizada</span>
+                                        <span class="val-large" id="resumen-tir">--</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <span class="text-secondary d-block" style="font-size:0.65rem">P&L (Latente)</span>
+                                        <span class="val-large" id="resumen-latente">--</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-secondary d-block" style="font-size:0.65rem">P&L (Consolidado)</span>
+                                        <span class="val-large" id="resumen-realizado">--</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-lg-9 col-12 d-flex flex-column gap-2 h-100">
+                                <div class="glass-panel d-flex flex-column overflow-hidden" style="height: 45%;">
+                                    <div class="p-2 border-bottom border-secondary border-opacity-25">
+                                        <h5 class="bento-title">Mi Cartera (Abierta)</h5>
+                                    </div>
+                                    <div class="table-responsive flex-grow-1">
+                                        <table class="table table-sm table-borderless align-middle mb-0">
+                                            <thead class="bg-dark bg-opacity-25" style="position: sticky; top: 0; z-index: 1;">
+                                                <tr>
+                                                    <th class="ps-3">Activo</th>
+                                                    <th class="text-end">Cant.</th>
+                                                    <th class="text-end">Coste M.</th>
+                                                    <th class="text-end">Actual</th>
+                                                    <th class="text-end">Valor</th>
+                                                    <th class="text-end">Rentab.%</th>
+                                                    <th class="text-end pe-3">P&L Latente</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="cartera-table">
+                                                <tr><td colspan="7" class="text-center py-3 text-secondary">Cargando...</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                
+                                <div class="glass-panel d-flex flex-column overflow-hidden flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center p-2 border-bottom border-secondary border-opacity-25">
+                                        <h5 class="bento-title">Historial</h5>
+                                        <div>
+                                            <button class="action-btn" onclick="exportExcel('operaciones')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></button>
+                                            <button class="action-btn" onclick="document.getElementById('import-operaciones-file').click()"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg></button>
+                                        </div>
+                                    </div>
+                                    <div class="table-responsive flex-grow-1">
+                                        <table class="table table-sm table-borderless align-middle mb-0">
+                                            <thead class="bg-dark bg-opacity-25" style="position: sticky; top: 0; z-index: 1;">
+                                                <tr>
+                                                    <th class="ps-3">Fecha</th>
+                                                    <th>Ticker</th>
+                                                    <th>Tipo</th>
+                                                    <th class="text-end">Cant.</th>
+                                                    <th class="text-end">Precio</th>
+                                                    <th class="text-end">Coms.</th>
+                                                    <th class="text-end">Imps.</th>
+                                                    <th class="text-end">Rentab.</th>
+                                                    <th class="text-end pe-3">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="operaciones-table">
+                                                <tr><td colspan="9" class="text-center py-3 text-secondary">Cargando...</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
-        </div>
-            </div> <!-- End main-content-col -->
-            
-
-
-    
-    <!-- Operacion Modal -->
-    <div class="modal fade" id="opModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content glass-panel" style="background: var(--bg-surface);">
-                <div class="modal-header border-bottom-0">
-                    <h5 class="modal-title">➕ Registrar Operación</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body pt-0">
-                    <form id="op-form" class="row g-3">
-                            <div class="col-12">
-                                <label class="form-label text-secondary small mb-1">Fecha</label>
-                                <input type="date" id="op-fecha" class="form-control" required>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Ticker</label>
-                                <input type="text" id="op-ticker" class="form-control" placeholder="AAPL" required>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Tipo</label>
-                                <select id="op-tipo" class="form-control" required>
-                                    <option value="COMPRA">Compra</option>
-                                    <option value="VENTA">Venta</option>
-                                    <option value="APORTACION">Aportación</option>
-                                </select>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Cantidad</label>
-                                <input type="number" step="0.0000001" id="op-cantidad" class="form-control" min="0" required>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Precio Unitario</label>
-                                <input type="number" step="0.0000001" id="op-precio" class="form-control" min="0" required>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Comisiones</label>
-                                <input type="number" step="0.01" id="op-comisiones" class="form-control" value="0" min="0">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Impuestos</label>
-                                <input type="number" step="0.01" id="op-impuestos" class="form-control" value="0" min="0">
-                            </div>
-                            <div class="col-12 mt-4">
-                                <button type="submit" class="btn btn-primary w-100" id="op-submit-btn">Guardar Operación</button>
-                            </div>
-                        </form>
-                </div>
             </div>
         </div>
     </div>
-
-    <!-- Config Modal -->
-    <div class="modal fade" id="configModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content glass-panel" style="background: var(--bg-surface);">
-                <div class="modal-header border-bottom-0">
-                    <h5 class="modal-title">⚙️ Configuración General</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="config-form">
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small mb-1">Título de la Aplicación</label>
-                            <input type="text" id="cfg-app-title" class="form-control" placeholder="Piloto Financiero">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small mb-1">Telegram Bot Token</label>
-                            <input type="password" id="cfg-telegram-token" class="form-control">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small mb-1">Telegram Chat ID</label>
-                            <input type="text" id="cfg-telegram-chat-id" class="form-control">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small mb-1">Intervalo de Refresco (minutos)</label>
-                            <input type="number" id="cfg-refresh-interval" class="form-control" min="1">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small mb-1">Días de retención de Actividad Reciente</label>
-                            <input type="number" id="cfg-activity-retention" class="form-control" min="1" value="2">
-                        </div>
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="cfg-check-market-hours">
-                            <label class="form-check-label text-secondary small">Respetar horario de mercado</label>
-                        </div>
-                        <div class="form-check form-switch mb-4">
-                            <input class="form-check-input" type="checkbox" id="cfg-debug-ui">
-                            <label class="form-check-label text-secondary small">Modo Debug</label>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Guardar Configuración</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Monitor Modal -->
-    <div class="modal fade" id="editModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content glass-panel" style="background: var(--bg-surface);">
-                <div class="modal-header border-bottom-0">
-                    <h5 class="modal-title">✏️ Editar Alerta</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="edit-form">
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small mb-1">Precio Objetivo</label>
-                            <input type="number" step="0.01" id="edit-target" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small mb-1">Alerta Variación Diaria (%)</label>
-                            <input type="number" step="0.1" id="edit-target-pct" class="form-control" min="0">
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Guardar cambios</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Debug Toggle -->
-    <button class="debug-toggle" onclick="toggleDebug()" title="Ver Logs del Sistema">
-        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"></path></svg>
-    </button>
-
-    <div class="debug-panel" id="debugPanel">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <span class="text-secondary small text-uppercase fw-bold">System Logs</span>
-            <div>
-                <button class="action-btn" onclick="copyLogs()" title="Copiar">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 16H6a2 2 0 01-2-2V4a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                </button>
-                <button class="action-btn" onclick="clearLogs()" title="Limpiar">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                </button>
-            </div>
-        </div>
-        <div class="debug-logs" id="debugLogs"></div>
-    </div>
-
-    <!-- Toast Container -->
-    <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        const API = {
-            async fetch(url, options = {}) {
-                const res = await fetch(url, options);
-                if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    throw new Error(data.error || 'Error de comunicación con el servidor');
-                }
-                return res.json();
-            }
-        };
-
-        const UI = {
-            version: '{{ version }}',
-            
-            updateLastRefreshTime() {
-                const now = new Date();
-                const timeStr = now.toLocaleTimeString('es-ES');
-                const dateStr = now.toLocaleDateString('es-ES');
-                const timestamp = `${dateStr} ${timeStr}`;
-                document.getElementById('last-update-time').textContent = timeStr;
-                localStorage.setItem('last_price_update', timestamp);
-            },
-            
-            loadLastRefreshTime() {
-                const timestamp = localStorage.getItem('last_price_update');
-                if (timestamp) {
-                    const parts = timestamp.split(' ');
-                    const timeStr = parts.slice(1).join(' ');
-                    document.getElementById('last-update-time').textContent = timeStr;
-                } else {
-                    document.getElementById('last-update-time').textContent = '--:--:--';
-                }
-            },
-            
-            showToast(message, type = 'success') {
-                const container = document.querySelector('.toast-container');
-                const id = 'toast-' + Date.now();
-                const icon = type === 'success' ? '✓' : '⚠️';
-                const bg = type === 'success' ? 'text-bg-success' : 'text-bg-danger';
-                
-                const toastHtml = `
-                    <div id="${id}" class="toast align-items-center ${bg} border-0 mb-2 shadow" role="alert" aria-live="assertive" aria-atomic="true">
-                        <div class="d-flex">
-                            <div class="toast-body">
-                                <strong>${icon}</strong> ${message}
-                            </div>
-                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                        </div>
-                    </div>
-                `;
-                container.insertAdjacentHTML('beforeend', toastHtml);
-                const toastEl = document.getElementById(id);
-                const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
-                toast.show();
-                toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
-            },
-
-            renderTable(monitores) {
-                const entries = Object.entries(monitores);
-                console.log(`📋 Renderizando tabla con ${entries.length} monitores`);
-                if (entries.length === 0) {
-                    document.getElementById('monitors-table').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-secondary">No hay alertas configuradas</td></tr>';
-                    document.getElementById('monitors-table').innerHTML = '<tr><td colspan="8" class="text-center py-4 text-secondary">No hay alertas configuradas</td></tr>';
-                    return;
-                }
-
-                const formatCurrency = (val, currency) => {
-                    if (val == null) return '...';
-                    try {
-                        const curr = (currency && currency !== '-') ? currency.toUpperCase() : 'USD';
-                        return new Intl.NumberFormat('es-ES', { style: 'currency', currency: curr }).format(val);
-                    } catch (e) {
-                        return val.toFixed(2) + ' ' + (currency || '');
-                    }
-                };
-
-                const html = entries.map(([id, m]) => {
-                    // Calcular variación porcentual
-                    const variacion = m.current && m.previous_close ? ((m.current - m.previous_close) / m.previous_close * 100) : 0;
-                    const variacionClass = variacion >= 0 ? 'text-success' : 'text-danger';
-                    const variacionSign = variacion >= 0 ? '+' : '';
-                    
-                    // Calcular distancia al objetivo
-                    const distObj = (m.current > 0 && m.target) ? ((m.target - m.current) / m.current * 100) : null;
-                    const distObjText = distObj !== null ? `${distObj > 0 ? '+' : ''}${distObj.toFixed(2)}%` : '-';
-                    
-                    console.log(`  ⏰ ${m.ticker}: current_price_time = "${m.current_price_time}"`);
-                    
-                    return `
-                    <tr>
-                        <td class="ps-4">
-                            <div class="fw-semibold text-white">
-                                ${m.ticker}
-                                ${m.target_pct > 0 ? '<span class="ms-1" title="Alerta de volatilidad configurada">📈</span>' : ''}
-                            </div>
-                            <div class="text-secondary" style="font-size: 0.75rem">${m.name || 'Desconocido'}</div>
-                        </td>
-                        <td><span class="badge bg-dark border border-secondary border-opacity-25">${m.currency || '-'}</span></td>
-                        <td class="text-end">
-                            <div class="font-monospace fs-6">${formatCurrency(m.current, m.currency)}</div>
-                            <div class="text-secondary font-monospace mt-1" style="font-size: 0.70rem;">${m.current_price_time || 'N/A'}</div>
-                        </td>
-                        <td class="text-end font-monospace fs-6 ${variacionClass}">${variacion ? `${variacionSign}${variacion.toFixed(1)}%` : '-'}</td>
-                        <td class="text-end font-monospace fs-6 text-white">${formatCurrency(m.target, m.currency)}</td>
-                        <td class="text-end font-monospace fs-6 text-secondary">${distObjText}</td>
-                        <td class="text-center">
-                            <span class="badge-status ${m.triggered ? 'badge-alert' : 'badge-active'}">
-                                ${m.triggered ? 'ALERTA' : 'Vigilando'}
-                            </span>
-                        </td>
-                        <td class="pe-4 text-end">
-                            <button onclick="openEditModal('${id}', ${m.target}, ${m.target_pct || 0})" class="action-btn me-1" title="Editar objetivo">
-                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                            </button>
-                            <button onclick="handleDelete('${id}')" class="action-btn delete" title="Eliminar">
-                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
-                        </td>
-                    </tr>
-                `}).join('');
-                document.getElementById('monitors-table').innerHTML = html;
-            },
-
-            renderFeed(alertas) {
-                if (alertas.length === 0) {
-                    document.getElementById('alerts-feed').innerHTML = '<div class="text-secondary small">Sin actividad reciente</div>';
-                    return;
-                }
-                const html = alertas.map(a => `
-                    <div class="alert-item">
-                        <div class="opacity-75 font-monospace mb-1" style="font-size:0.75rem">[${a.time}]</div>
-                        <span>${a.msg}</span>
-                    </div>
-                `).join('');
-                document.getElementById('alerts-feed').innerHTML = html;
-            },
-
-            checkVersion(newVersion) {
-                if (this.version !== newVersion) {
-                    this.version = newVersion;
-                    document.getElementById('version').textContent = newVersion;
-                    this.showToast(`Actualizado a v${newVersion}`, 'success');
-                }
-            }
-        };
-
-        let configModal = null;
-        let editModal = null;
-        document.addEventListener('DOMContentLoaded', () => {
-            configModal = new bootstrap.Modal(document.getElementById('configModal'));
-            editModal = new bootstrap.Modal(document.getElementById('editModal'));
-            new bootstrap.Modal(document.getElementById('opModal'));
-            UI.loadLastRefreshTime();
-        });
-
-        window.abrirConfig = async () => {
-            try {
-                const config = await API.fetch('/api/config');
-                document.getElementById('cfg-app-title').value = config.app_title || 'Piloto Financiero';
-                document.getElementById('cfg-telegram-token').value = config.telegram_token;
-                document.getElementById('cfg-telegram-chat-id').value = config.telegram_chat_id;
-                document.getElementById('cfg-refresh-interval').value = config.refresh_interval;
-                document.getElementById('cfg-activity-retention').value = config.activity_retention_days || 2;
-                document.getElementById('cfg-check-market-hours').checked = config.check_market_hours;
-                document.getElementById('cfg-debug-ui').checked = config.debug_ui;
-                configModal.show();
-            } catch (err) {
-                UI.showToast('Error cargando configuración', 'error');
-            }
-        };
-
-        document.getElementById('config-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = {
-                app_title: document.getElementById('cfg-app-title').value || 'Piloto Financiero',
-                telegram_token: document.getElementById('cfg-telegram-token').value,
-                telegram_chat_id: document.getElementById('cfg-telegram-chat-id').value,
-                refresh_interval: parseInt(document.getElementById('cfg-refresh-interval').value) || 30,
-                activity_retention_days: parseInt(document.getElementById('cfg-activity-retention').value) || 2,
-                check_market_hours: document.getElementById('cfg-check-market-hours').checked,
-                debug_ui: document.getElementById('cfg-debug-ui').checked
-            };
-            
-            try {
-                await API.fetch('/api/config', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                document.title = payload.app_title;
-                document.getElementById('brand-text').textContent = payload.app_title;
-                configModal.hide();
-                UI.showToast('Configuración guardada correctamente');
-            } catch (err) {
-                UI.showToast('Error guardando configuración', 'error');
-            }
-        });
-
-        // DOM Events
-        document.getElementById('add-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('submit-btn');
-            const ticker = document.getElementById('ticker').value;
-            const target = document.getElementById('target').value;
-            const target_pct = document.getElementById('target_pct').value;
-            
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-            
-            try {
-                await API.fetch('/api/add', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ ticker, target, target_pct: target_pct ? parseFloat(target_pct) : 0 })
-                });
-                document.getElementById('add-form').reset();
-                UI.showToast('Alerta añadida correctamente');
-            } catch (err) {
-                UI.showToast(err.message, 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Añadir Alerta';
-            }
-        });
-
-        window.handleDelete = async (id) => {
-            if (!confirm('¿Seguro que deseas eliminar esta alerta?')) return;
-            try {
-                await API.fetch(`/api/delete/${id}`, { method: 'DELETE' });
-                UI.showToast('Alerta eliminada');
-            } catch (err) {
-                UI.showToast('No se pudo eliminar', 'error');
-            }
-        };
-        let currentEditId = null;
-
-        const editForm = document.getElementById('edit-form');
-        const editTargetInput = document.getElementById('edit-target');
-        const editPctInput = document.getElementById('edit-target-pct');
-
-        window.openEditModal = (id, target, targetPct) => {
-            currentEditId = id;
-            editTargetInput.value = target;
-            editPctInput.value = targetPct || '';
-            editModal.show();
-        };
-
-        editForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!currentEditId) return;
-
-            const target = parseFloat(editTargetInput.value.replace(',', '.'));
-            const targetPct = parseFloat(editPctInput.value.replace(',', '.')) || 0;
-
-            if (isNaN(target) || target <= 0) return UI.showToast('Precio objetivo inválido', 'error');
-            if (isNaN(targetPct) || targetPct < 0) return UI.showToast('Porcentaje inválido', 'error');
-
-            try {
-                await API.fetch(`/api/edit/${currentEditId}`, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ target, target_pct: targetPct })
-                });
-                editModal.hide();
-                UI.showToast('Objetivo actualizado con éxito');
-            } catch (err) {
-                UI.showToast('No se pudo actualizar el objetivo', 'error');
-            }
-        });
-
-        // --- SSE implementation ---
-        const evtSource = new EventSource('/api/stream');
-        evtSource.onmessage = function(event) {
-            try {
-                const data = JSON.parse(event.data);
-                console.log("🔔 SSE recibido - Datos:", data);
-                if (data.monitores && Object.keys(data.monitores).length > 0) {
-                    const firstId = Object.keys(data.monitores)[0];
-                    const firstMonitor = data.monitores[firstId];
-                    console.log(`📊 Primer monitor: ${firstMonitor.ticker}, timestamp: ${firstMonitor.current_price_time}`);
-                }
-                UI.checkVersion(data.version);
-                UI.updateLastRefreshTime();
-                UI.renderTable(data.monitores);
-                UI.renderFeed(data.alertas);
-            } catch (err) {
-                console.error("SSE parsing error:", err);
-            }
-        };
-        evtSource.onerror = function(err) {
-            console.error("SSE connection error:", err);
-        };
-
-        let logInterval = null;
-
-        async function syncLogs() {
-            try {
-                const data = await API.fetch('/api/logs');
-                document.getElementById('debugLogs').innerHTML = data.logs.map(l => 
-                    `<div class="log-entry font-monospace">
-                        <span class="log-timestamp">${l.timestamp}</span>
-                        <span class="log-level-${l.level}">[${l.level}]</span> 
-                        <span class="text-light">${l.message}</span>
-                    </div>`
-                ).join('');
-            } catch (err) {}
-        }
-
-        window.toggleDebug = () => {
-            const panel = document.getElementById('debugPanel');
-            const isHidden = panel.style.display === 'none' || panel.style.display === '';
-            panel.style.display = isHidden ? 'block' : 'none';
-            if (isHidden) {
-                syncLogs();
-                logInterval = setInterval(syncLogs, 2000);
-            } else if (logInterval) {
-                clearInterval(logInterval);
-            }
-        };
-
-        window.clearLogs = async () => {
-            try {
-                await API.fetch('/api/logs', { method: 'DELETE' });
-                document.getElementById('debugLogs').innerHTML = '';
-            } catch (e) {}
-        };
-
-        window.copyLogs = () => {
-            const logsElement = document.getElementById('debugLogs');
-            const logsText = logsElement.innerText;
-            
-            if (!logsText.trim()) {
-                UI.showToast('No hay logs para copiar', 'error');
-                return;
-            }
-            
-            navigator.clipboard.writeText(logsText).then(() => {
-                UI.showToast('Logs copiados al portapapeles');
-            }).catch(() => {
-                UI.showToast('Error al copiar logs', 'error');
-            });
-        };
-
-        // --- Operaciones Logic ---
+        // MANTÉN TU JAVASCRIPT EXACTAMENTE IGUAL AQUÍ,
+        // Solo te recomiendo buscar en tu JS las referencias a 'fs-6' o 'fs-4' dentro de los
+        // template strings (backticks) y eliminarlos o cambiarlos a 'val-medium' / 'val-large'
+        // para que las filas hereden el tamaño compacto de la tabla.
         
-        const formatCurrency = (val, curr='USD') => {
-            if (val == null) return '...';
-            return new Intl.NumberFormat('es-ES', { style: 'currency', currency: curr }).format(val);
-        };
-
-        window.cargarOperaciones = async () => {
-            try {
-                const data = await API.fetch('/api/operaciones');
-                
-                // Renderizar Cartera
-                const carteraHtml = Object.entries(data.cartera).map(([ticker, metrics]) => {
-                    const latenteClass = metrics.pnl_latente >= 0 ? 'text-success' : 'text-danger';
-                    const latenteSign = metrics.pnl_latente >= 0 ? '+' : '';
-                    const currency = metrics.currency || 'USD';
-                    
-                    const rentPctClass = metrics.rentabilidad_pct >= 0 ? 'text-success' : 'text-danger';
-                    const rentPctSign = metrics.rentabilidad_pct >= 0 ? '+' : '';
-                    const rentPctStr = (metrics.rentabilidad_pct * 100).toFixed(2) + '%';
-                    
-                    return `
-                    <tr>
-                        <td class="ps-4">
-                            <div class="fw-semibold text-white">${ticker}</div>
-                            <div class="text-secondary" style="font-size: 0.75rem">${metrics.name || ''}</div>
-                        </td>
-                        <td class="text-end font-monospace">${metrics.cantidad.toFixed(4)}</td>
-                        <td class="text-end font-monospace">${formatCurrency(metrics.coste_medio, currency)}</td> <!-- Coste Medio -->
-                        <td class="text-end">
-                            <div class="font-monospace fs-6">${formatCurrency(metrics.precio_actual, currency)}</div>
-                            <div class="text-secondary font-monospace mt-1" style="font-size: 0.70rem;">${metrics.current_price_time || 'N/A'}</div>
-                        </td> <!-- Precio Actual -->
-                        <td class="text-end font-monospace text-white">${formatCurrency(metrics.valor_actual, currency)}</td> <!-- Valor Actual -->
-                        <td class="text-end font-monospace ${rentPctClass}">${rentPctSign}${rentPctStr}</td>
-                        <td class="text-end font-monospace ${latenteClass} pe-4">${latenteSign}${formatCurrency(metrics.pnl_latente, currency)}</td>
-                    </tr>
-                `}).join('');
-                document.getElementById('cartera-table').innerHTML = carteraHtml || '<tr><td colspan="7" class="text-center py-4 text-secondary">No hay activos en cartera</td></tr>';
-
-                // Renderizar Operaciones
-                const opsHtml = data.operaciones.reverse().map(op => {
-                    const isCompra = op.tipo === 'COMPRA' || op.tipo === 'APORTACION';
-                    const tipoColor = isCompra ? 'text-success' : 'text-danger';
-                    const info = data.activos_info[op.ticker] || {};
-                    const currency = info.currency || 'USD';
-                    const name = info.name || '';
-                    
-                    let rentabilidadHtml = '-';
-                    if (op.tipo === 'VENTA') {
-                        const pnlVal = op.pnl !== undefined ? op.pnl : (op.beneficio !== undefined ? op.beneficio : null);
-                        if (pnlVal !== null) {
-                            const pnlClass = pnlVal >= 0 ? 'text-success' : 'text-danger';
-                            const pnlSign = pnlVal > 0 ? '+' : '';
-                            let rentabPctHtml = '';
-                            const pctVal = op.rentabilidad !== undefined ? op.rentabilidad : (op.rentabilidad_pct !== undefined ? op.rentabilidad_pct : null);
-                            if (pctVal !== null) {
-                                rentabPctHtml = `<br><span style="font-size: 0.75em">(${pctVal > 0 ? '+' : ''}${(pctVal * 100).toFixed(2)}%)</span>`;
-                            }
-                            rentabilidadHtml = `<span class="${pnlClass}">${pnlSign}${formatCurrency(pnlVal, currency)}${rentabPctHtml}</span>`;
-                        } else if (op.rentabilidad !== undefined || op.rentabilidad_pct !== undefined) {
-                            const pctVal = op.rentabilidad !== undefined ? op.rentabilidad : op.rentabilidad_pct;
-                            const pnlClass = pctVal >= 0 ? 'text-success' : 'text-danger';
-                            rentabilidadHtml = `<span class="${pnlClass}">${pctVal > 0 ? '+' : ''}${(pctVal * 100).toFixed(2)}%</span>`;
-                        }
-                    }
-
-                    return `
-                    <tr>
-                        <td class="ps-4 font-monospace text-secondary" style="font-size: 0.85rem">${op.fecha}</td>
-                        <td>
-                            <div class="fw-semibold text-white">${op.ticker}</div>
-                            <div class="text-secondary" style="font-size: 0.75rem">${name}</div>
-                        </td>
-                        <td><span class="${tipoColor}">${op.tipo}</span></td>
-                        <td class="text-end font-monospace">${op.cantidad.toFixed(4)}</td>
-                        <td class="text-end font-monospace">${formatCurrency(op.precio, currency)}</td>
-                        <td class="text-end font-monospace text-secondary">${formatCurrency(op.comisiones, currency)}</td>
-                        <td class="text-end font-monospace text-secondary">${formatCurrency(op.impuestos, currency)}</td>
-                        <td class="text-end font-monospace">${rentabilidadHtml}</td>
-                        <td class="text-end pe-4">
-                            <button onclick="borrarOperacion('${op.id}')" class="action-btn delete" title="Eliminar">
-                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
-                        </td>
-                    </tr>
-                `}).join('');
-                document.getElementById('operaciones-table').innerHTML = opsHtml || '<tr><td colspan="9" class="text-center py-4 text-secondary">No hay operaciones registradas</td></tr>';
-
-                // Renderizar Resumen Global
-                let totalLatente = 0;
-                Object.values(data.cartera).forEach(m => {
-                    totalLatente += m.pnl_latente * (m.tasa_cambio || 1);
-                });
-                
-                document.getElementById('resumen-tir').textContent = data.tir_anualizada ? (data.tir_anualizada * 100).toFixed(2) + '%' : 'N/A';
-                document.getElementById('resumen-tir').className = 'fs-3 fw-bold ' + (data.tir_anualizada >= 0 ? 'text-success' : 'text-danger');
-                
-                document.getElementById('resumen-latente').textContent = formatCurrency(totalLatente, 'EUR');
-                document.getElementById('resumen-latente').className = 'fs-4 fw-bold ' + (totalLatente >= 0 ? 'text-success' : 'text-danger');
-                
-                document.getElementById('resumen-realizado').textContent = formatCurrency(data.total_pnl_realizado, 'EUR');
-                document.getElementById('resumen-realizado').className = 'fs-4 fw-bold ' + (data.total_pnl_realizado >= 0 ? 'text-success' : 'text-danger');
-                
-            } catch (err) {
-                UI.showToast('Error cargando operaciones', 'error');
-            }
-        };
-
-        document.getElementById('op-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('op-submit-btn');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-            
-            const payload = {
-                fecha: document.getElementById('op-fecha').value,
-                ticker: document.getElementById('op-ticker').value,
-                tipo: document.getElementById('op-tipo').value,
-                cantidad: document.getElementById('op-cantidad').value,
-                precio: document.getElementById('op-precio').value,
-                comisiones: document.getElementById('op-comisiones').value,
-                impuestos: document.getElementById('op-impuestos').value
-            };
-            
-            try {
-                await API.fetch('/api/operaciones/add', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                document.getElementById('op-form').reset();
-                // Set default date to today
-                document.getElementById('op-fecha').valueAsDate = new Date();
-                UI.showToast('Operación registrada');
-                bootstrap.Modal.getInstance(document.getElementById('opModal'))?.hide();
-                cargarOperaciones();
-            } catch (err) {
-                UI.showToast(err.message, 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Guardar Operación';
-            }
-        });
-
-        window.borrarOperacion = async (id) => {
-            if (!confirm('¿Seguro que deseas eliminar esta operación? Esto recalculará toda la cartera.')) return;
-            try {
-                await API.fetch(`/api/operaciones/${id}`, { method: 'DELETE' });
-                UI.showToast('Operación eliminada');
-                cargarOperaciones();
-            } catch (err) {
-                UI.showToast('No se pudo eliminar', 'error');
-            }
-        };
-
-        window.exportExcel = (type) => {
-            window.location.href = `/api/export/${type}`;
-        };
-
-        window.importExcel = async (type, inputElement) => {
-            const file = inputElement.files[0];
-            if (!file) return;
-
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                const res = await fetch(`/api/import/${type}`, {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    throw new Error(data.error || 'Error al importar');
-                }
-                
-                UI.showToast('Datos importados correctamente');
-                if (type === 'operaciones') {
-                    cargarOperaciones();
-                } else {
-                    // Esperar a que llegue el SSE o forzar recarga (el SSE actualizará automáticamente)
-                }
-            } catch (err) {
-                UI.showToast(err.message, 'error');
-            } finally {
-                inputElement.value = ''; // Reset input
-            }
-        };
-
-        
-                // Initialize defaults
-        document.addEventListener('DOMContentLoaded', () => {
-            const today = new Date();
-            const fechaInput = document.getElementById('op-fecha');
-            if(fechaInput) fechaInput.valueAsDate = today;
-        });
-
+        // Ejemplo de cambio en renderTable:
+        // ANTES: <div class="font-monospace fs-6">${formatCurrency...}</div>
+        // AHORA: <div class="font-monospace">${formatCurrency...}</div>
     </script>
 </body>
 </html>
