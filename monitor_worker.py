@@ -124,51 +124,32 @@ def background_monitor():
                             conn.execute("UPDATE monitores SET current_price_time = ? WHERE id = ?", (current_time, m_id))
                             conn.commit()
                             changes_made = True
+                            
+                    # Integrar última noticia en la actividad reciente
+                    try:
+                        noticias = finance_api.fetch_news(sym, limit=1)
+                        for noticia in noticias:
+                            title = noticia.get('title')
+                            publisher = noticia.get('publisher')
+                            link = noticia.get('link')
+                            if title and link:
+                                # Reemplazar caracteres especiales para evitar romper el HTML
+                                title_safe = title.replace('"', '&quot;').replace('<', '&lt;').replace('>', '&gt;')
+                                msg_noticia = f"📰 <b>{m['ticker']}</b>: <a href='{link}' target='_blank' style='color: inherit; text-decoration: underline;'>{title_safe}</a> <small class='opacity-75'>({publisher})</small>"
+                                with db.get_db() as conn:
+                                    existe = conn.execute("SELECT 1 FROM alertas WHERE msg = ?", (msg_noticia,)).fetchone()
+                                    if not existe:
+                                        conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
+                                                     (str(uuid.uuid4()), msg_noticia, time.strftime('%H:%M:%S')))
+                                        conn.commit()
+                                        changes_made = True
+                    except Exception as e:
+                        log_debug(f"Error fetching news for {m['ticker']}: {e}", "WARNING")
                 except Exception as e:
                     log_debug(f"Monitor update failed for {m['ticker']}: {e}", "WARNING")
             
             # Notificar siempre para actualizar "Última actualización" en la UI
             sse_subs.notify()
-            
-            # --- Cleanup and News Fetching ---
-            try:
-                retention_days = int(cfg.get("activity_retention_days", "2"))
-                with db.get_db() as conn:
-                    # Limpiar alertas antiguas
-                    conn.execute("DELETE FROM alertas WHERE timestamp < datetime('now', '-{} days')".format(retention_days))
-                    
-                    # Obtener símbolos de la cartera (operaciones) y monitores
-                    symbols_to_check = set()
-                    for m in monitores:
-                        if m['symbol']: symbols_to_check.add((m['ticker'], m['symbol']))
-                        
-                    ops = conn.execute("SELECT ticker FROM operaciones").fetchall()
-                    for op in ops:
-                        t = op['ticker']
-                        sym = finance_api.resolve_ticker(t)
-                        if sym: symbols_to_check.add((t, sym))
-                        
-                    # Fetch news and insert as alerts if not present
-                    for ticker, sym in symbols_to_check:
-                        news = finance_api.fetch_news(sym, limit=2)
-                        for n in news:
-                            title = n['title']
-                            publisher = n['publisher']
-                            msg = f"📰 Noticia {ticker}: {title} ({publisher})"
-                            
-                            # Comprobar si ya existe
-                            exists = conn.execute("SELECT 1 FROM alertas WHERE msg = ?", (msg,)).fetchone()
-                            if not exists:
-                                conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
-                                             (str(uuid.uuid4()), msg, time.strftime('%H:%M:%S')))
-                                changes_made = True
-                    conn.commit()
-                    
-                if changes_made:
-                    sse_subs.notify()
-            except Exception as e:
-                log_debug(f"Cleanup or news fetch error: {e}", "ERROR")
-
                 
         except Exception as e:
             log_debug(f"Background monitor loop error: {e}", "ERROR")
@@ -219,15 +200,7 @@ def get_all_data():
                 'current_price_time': price_time
             }
         
-        def format_ts(ts, fallback_time):
-            if not ts: return fallback_time
-            try:
-                dt = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
-                return dt.strftime('%d/%m/%Y %H:%M:%S')
-            except:
-                return fallback_time
-
-        alertas = [{'id': r['id'], 'msg': r['msg'], 'time': format_ts(r['timestamp'], r['time'])} for r in alertas_rows]
+        alertas = [{'id': r['id'], 'msg': r['msg'], 'time': r['time']} for r in alertas_rows]
         
         data = {
             "monitores": monitores,
