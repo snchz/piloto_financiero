@@ -494,7 +494,23 @@ def import_operaciones():
     if 'file' not in request.files:
         return jsonify({"error": "No file provided"}), 400
     file = request.files['file']
+    filename = file.filename.lower()
+    
     try:
+        # Procesamiento de archivos de Inversis (.xls html-based)
+        if filename.endswith('.xls'):
+            import importer
+            temp_path = os.path.join(DATA_DIR, f"temp_import_{uuid.uuid4().hex}.xls")
+            file.save(temp_path)
+            try:
+                res = importer.process_inversis_xls(temp_path)
+            finally:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            # Avisar a UI de la recarga de cartera
+            return jsonify(res)
+
+        # Procesamiento de archivos CSV genéricos (lógica existente adaptada)
         df = pd.read_csv(file)
         required_cols = ['fecha', 'ticker', 'tipo', 'cantidad', 'precio']
         if not all(col in df.columns for col in required_cols):
@@ -526,14 +542,15 @@ def import_operaciones():
                     precio = float(row['precio'])
                     comisiones = float(row.get('comisiones', 0)) if pd.notna(row.get('comisiones')) else 0.0
                     impuestos = float(row.get('impuestos', 0)) if pd.notna(row.get('impuestos')) else 0.0
+                    external_id = str(row.get('external_id', '')).strip() if 'external_id' in df.columns and pd.notna(row['external_id']) else None
                     
                     if not ticker or cantidad <= 0 or precio < 0 or tipo not in ['COMPRA', 'VENTA', 'APORTACION', 'DIVIDENDO']:
                         continue
                         
                     conn.execute('''
-                        INSERT OR REPLACE INTO operaciones (id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (op_id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos))
+                        INSERT OR REPLACE INTO operaciones (id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, external_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (op_id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, external_id))
                 except Exception as row_e:
                     log_debug(f"Row import error: {row_e}", "WARNING")
             conn.commit()

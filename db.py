@@ -43,6 +43,10 @@ def init_db():
             c.execute("ALTER TABLE monitores ADD COLUMN current_price_time TEXT DEFAULT NULL")
         except sqlite3.OperationalError:
             pass  # Columna ya existe
+        try:
+            c.execute("ALTER TABLE operaciones ADD COLUMN external_id TEXT UNIQUE DEFAULT NULL")
+        except sqlite3.OperationalError:
+            pass  # Columna ya existe
         
         c.execute('''
             CREATE TABLE IF NOT EXISTS alertas (
