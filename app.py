@@ -499,6 +499,8 @@ def import_operaciones():
     try:
         # Procesamiento de archivos de Inversis (.xls html-based)
         if filename.endswith('.xls'):
+            import sys
+            log_debug(f"Intentando cargar 'importer'. CWD: {os.getcwd()} | sys.path: {sys.path}", "DEBUG")
             import importer
             temp_path = os.path.join(DATA_DIR, f"temp_import_{uuid.uuid4().hex}.xls")
             file.save(temp_path)
@@ -556,7 +558,8 @@ def import_operaciones():
             conn.commit()
         return jsonify({"ok": True})
     except Exception as e:
-        log_debug(f"Error importing operaciones: {e}", "ERROR")
+        tb = traceback.format_exc()
+        log_debug(f"Error importing operaciones: {e}\nTraceback:\n{tb}", "ERROR")
         return jsonify({"error": str(e)}), 400
 
 # --- UI Template ---
