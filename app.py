@@ -381,6 +381,12 @@ def get_operaciones():
                                     'start_date': start_date.date(),
                                     'end_date': end_date.date()
                                 }
+                            else:
+                                HISTORICAL_PRICES_CACHE[sym] = {
+                                    'data': pd.Series(dtype=float),
+                                    'start_date': start_date.date(),
+                                    'end_date': end_date.date()
+                                }
                         except Exception as e:
                             log_debug(f"Error fetching historical data for {sym}: {e}", "WARNING")
                             if sym not in HISTORICAL_PRICES_CACHE:
