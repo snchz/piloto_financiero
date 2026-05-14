@@ -555,7 +555,7 @@ def index():
 
 if __name__ == '__main__':
     log_debug(f"Starting Piloto Financiero v{VERSION} on port 5000")
-    # Notificar inicio por Telegramsud
+    # Notificar inicio por Telegram
     cfg = db.get_config()
     app_title = cfg.get("app_title", "Piloto Financiero").upper()
     startup_msg = f"🚀 *{app_title} INICIADO*\nVersión: *{VERSION}*\nFecha: *{time.strftime('%Y-%m-%d %H:%M:%S')}*\nEstado: *Listo para monitorear activos*"

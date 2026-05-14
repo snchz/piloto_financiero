@@ -1,4 +1,4 @@
-# 📈 Piloto Financiero
+# 📈 Piloto Financiero (v1.0.9)
 
 ## Descripción del Proyecto
 
@@ -27,7 +27,7 @@ La aplicación combina una interfaz web intuitiva, fluida (responsive) y "dummy-
 - **Flask**: Framework web Python ligero y extensible para el servidor principal.
 - **SQLite**: Base de datos embebida para persistencia local de datos.
 - **yfinance**: Biblioteca para obtención de datos financieros en tiempo real y **noticias** desde Yahoo Finance.
-- **pyxirr**: Cálculo preciso de la Tasa Interna de Retorno (TIR / XIRR) para el seguimiento de la cartera.
+- **Matemática Financiera Propia**: Implementación nativa del algoritmo de Newton-Raphson para el cálculo preciso de la Tasa Interna de Retorno (TIR / XIRR) de la cartera sin dependencias de terceros.
 
 ### Frontend
 - **HTML5/CSS3**: Estructura semántica y estilos personalizados.
