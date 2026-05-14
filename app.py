@@ -14,7 +14,6 @@ import finance_api
 import notifications
 import monitor_worker
 import portfolio_math
-import importer
 
 app = Flask(__name__)
 
@@ -500,6 +499,7 @@ def import_operaciones():
     try:
         # Procesamiento de archivos de Inversis (.xls html-based)
         if filename.endswith('.xls'):
+            import importer
             temp_path = os.path.join(DATA_DIR, f"temp_import_{uuid.uuid4().hex}.xls")
             file.save(temp_path)
             try:
