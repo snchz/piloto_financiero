@@ -190,6 +190,7 @@ def calcular_historico_cartera(operaciones, historicos_precios, activos_info, st
     inventario = {}
     capital_acumulado = 0.0
     
+    last_valid_price = {} # Diccionario para filtrar anomalías y spikes irreales
     fechas_ops = sorted(list(ops_por_fecha.keys()))
     ops_idx = 0
     
