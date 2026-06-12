@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+venv/
+.venv/
+data/
+# Node (por si acaso usas más herramientas web en el futuro)
+node_modules/
+npm-debug.log*
+# Sistema operativo
+Thumbs.db
+
+# Bases de datos y SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# Herramientas de IA e IDEs
+.agents/
+.cursor/
+.vscode/
+.gemini/
+.idea/

@@ -1,0 +1,19 @@
+# Version: 1.0.8
+services:
+  piloto-financiero:
+    image: ghcr.io/snchz/piloto_financiero:latest
+    container_name: piloto-financiero
+    ports:
+      - "5000:5000"
+    environment:
+      - PYTHONUNBUFFERED=1  # No buffear salida de Python para ver logs en tiempo real
+      - TZ=Europe/Madrid  # Zona horaria (ajustar si es diferente)
+    volumes:
+      - /home/leif/docker/configs/piloto_financiero:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
