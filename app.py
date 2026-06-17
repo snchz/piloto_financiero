@@ -265,6 +265,18 @@ def delete_monitor(m_id):
     monitor_worker.sse_subs.notify()
     return jsonify({"ok": True})
 
+@app.route('/api/alertas', methods=['DELETE'])
+def clear_alertas():
+    try:
+        with db.get_db() as conn:
+            conn.execute("DELETE FROM alertas")
+            conn.commit()
+        # Notificamos a los clientes SSE para que la UI se actualice al instante
+        monitor_worker.sse_subs.notify()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/logs', methods=['GET', 'DELETE'])
 def handle_logs():
     if request.method == 'DELETE':

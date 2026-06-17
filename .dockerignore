@@ -8,6 +8,7 @@ venv/
 .venv/
 data/
 
+
 # Bases de datos y SQLite
 *.db
 *.sqlite
@@ -19,3 +20,5 @@ data/
 .vscode/
 .gemini/
 .idea/
+.aider*
+skills-lock.json

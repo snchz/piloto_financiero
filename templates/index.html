@@ -351,6 +351,9 @@
                         <div class="glass-panel p-2 p-md-3 d-flex flex-column flex-grow-1">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Actividad Reciente</h5>
+                                <button class="action-btn" onclick="limpiarActividad()" title="Borrar Actividad Reciente">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
                             </div>
                             <div id="alerts-feed" class="alerts-feed flex-grow-1 overflow-auto" style="max-height: none;">
                                 <div class="text-secondary small">Sin actividad reciente</div>
@@ -1061,6 +1064,16 @@
                 UI.showToast('Alerta eliminada');
             } catch (err) {
                 UI.showToast('No se pudo eliminar', 'error');
+            }
+        };
+
+        window.limpiarActividad = async () => {
+            if (!confirm('¿Seguro que deseas borrar toda la actividad reciente?')) return;
+            try {
+                await API.fetch('/api/alertas', { method: 'DELETE' });
+                UI.showToast('Actividad reciente borrada');
+            } catch (err) {
+                UI.showToast('No se pudo borrar la actividad', 'error');
             }
         };
         let currentEditId = null;

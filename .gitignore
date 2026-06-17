@@ -23,3 +23,5 @@ Thumbs.db
 .vscode/
 .gemini/
 .idea/
+.aider*
+skills-lock.json
