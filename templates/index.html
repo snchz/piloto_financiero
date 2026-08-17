@@ -1656,28 +1656,42 @@
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
             
-            const formData = new FormData(e.target);
-            const opId = formData.get('id');
-            const isEdit = !!opId;
-            
-            const tasaVal = formData.get('tasa_cambio');
-            
-            const payload = {
-                fecha: formData.get('fecha'),
-                ticker: formData.get('ticker').toUpperCase().trim(),
-                tipo: formData.get('tipo'),
-                cantidad: parseFloat(formData.get('cantidad').replace(',', '.')) || 0,
-                precio: parseFloat(formData.get('precio').replace(',', '.')) || 0,
-                moneda: formData.get('moneda').trim() || null,
-                comisiones: parseFloat(formData.get('comisiones').replace(',', '.')) || 0,
-                impuestos: parseFloat(formData.get('impuestos').replace(',', '.')) || 0,
-                tasa_cambio: tasaVal ? parseFloat(tasaVal.replace(',', '.')) : null
-            };
-            
-            const url = isEdit ? `/api/operaciones/edit/${opId}` : '/api/operaciones/add';
-            const method = isEdit ? 'PUT' : 'POST';
-
             try {
+                const formData = new FormData(e.target);
+                const opId = formData.get('id');
+                const isEdit = !!opId;
+                
+                const tasaVal = formData.get('tasa_cambio');
+                
+                const getSafeFloat = (name) => {
+                    const val = formData.get(name);
+                    if (val === null || val === undefined) return 0;
+                    const str = String(val).trim().replace(',', '.');
+                    const parsed = parseFloat(str);
+                    return isNaN(parsed) ? 0 : parsed;
+                };
+
+                const getSafeString = (name) => {
+                    const val = formData.get(name);
+                    if (val === null || val === undefined) return '';
+                    return String(val);
+                };
+
+                const payload = {
+                    fecha: getSafeString('fecha'),
+                    ticker: getSafeString('ticker').toUpperCase().trim(),
+                    tipo: getSafeString('tipo'),
+                    cantidad: getSafeFloat('cantidad'),
+                    precio: getSafeFloat('precio'),
+                    moneda: getSafeString('moneda').trim() || null,
+                    comisiones: getSafeFloat('comisiones'),
+                    impuestos: getSafeFloat('impuestos'),
+                    tasa_cambio: tasaVal ? getSafeFloat('tasa_cambio') : null
+                };
+                
+                const url = isEdit ? `/api/operaciones/edit/${opId}` : '/api/operaciones/add';
+                const method = isEdit ? 'PUT' : 'POST';
+
                 await API.fetch(url, {
                     method: method,
                     headers: {'Content-Type': 'application/json'},
@@ -1688,7 +1702,8 @@
                 document.getElementById('opModal').close();
                 cargarOperaciones();
             } catch (err) {
-                UI.showToast(err.message, 'error');
+                console.error(err);
+                UI.showToast(err.message || err, 'error');
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Guardar Operación';
