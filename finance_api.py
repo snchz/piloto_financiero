@@ -77,7 +77,9 @@ def fetch_historical_price(ticker, date_str):
         end_date = req_date + timedelta(days=1)   # +1 día porque 'end' es exclusivo en yfinance
         hist = t.history(start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'))
         if not hist.empty:
-            return float(hist['Close'].iloc[-1])
+            closes = hist['Close'].dropna()
+            if not closes.empty:
+                return float(closes.iloc[-1])
     except Exception:
         pass
     return None
@@ -118,7 +120,10 @@ def fetch_price(ticker):
     if not current_price:
         try:
             hist = t.history(period="1d")
-            if not hist.empty: current_price = float(hist['Close'].iloc[-1])
+            if not hist.empty:
+                closes = hist['Close'].dropna()
+                if not closes.empty:
+                    current_price = float(closes.iloc[-1])
         except Exception: pass
             
     if not current_price:

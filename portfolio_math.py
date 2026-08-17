@@ -241,11 +241,11 @@ def calcular_historico_cartera(operaciones, historicos_precios, activos_info, st
                 if sym and sym in historicos_precios and not historicos_precios[sym].empty:
                     ts = pd.Timestamp(date_obj)
                     hist_series = historicos_precios[sym]
-                    past_prices = hist_series[hist_series.index <= ts]
+                    past_prices = hist_series[hist_series.index <= ts].dropna()
                     if not past_prices.empty:
                         precio_hist = float(past_prices.iloc[-1])
                 
-                if precio_hist == 0.0:
+                if precio_hist == 0.0 or pd.isna(precio_hist):
                     precio_hist = data_inv['precio_compra']
                 
                 tasa = info.get('tasa_cambio_actual', 1.0) 

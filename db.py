@@ -43,18 +43,6 @@ def init_db():
             c.execute("ALTER TABLE monitores ADD COLUMN current_price_time TEXT DEFAULT NULL")
         except sqlite3.OperationalError:
             pass  # Columna ya existe
-        try:
-            c.execute("ALTER TABLE operaciones ADD COLUMN external_id TEXT UNIQUE DEFAULT NULL")
-        except sqlite3.OperationalError:
-            pass  # Columna ya existe
-        try:
-            c.execute("ALTER TABLE operaciones ADD COLUMN moneda TEXT DEFAULT NULL")
-        except sqlite3.OperationalError:
-            pass  # Columna ya existe
-        try:
-            c.execute("ALTER TABLE operaciones ADD COLUMN tasa_cambio REAL DEFAULT NULL")
-        except sqlite3.OperationalError:
-            pass  # Columna ya existe
         
         c.execute('''
             CREATE TABLE IF NOT EXISTS alertas (
@@ -82,9 +70,29 @@ def init_db():
                 precio REAL,
                 comisiones REAL,
                 impuestos REAL,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                external_id TEXT UNIQUE DEFAULT NULL,
+                moneda TEXT DEFAULT NULL,
+                tasa_cambio REAL DEFAULT NULL
             )
         ''')
+        
+        try:
+            c.execute("ALTER TABLE operaciones ADD COLUMN external_id TEXT DEFAULT NULL")
+        except sqlite3.OperationalError:
+            pass  # Columna ya existe
+        try:
+            c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_operaciones_external_id ON operaciones(external_id)")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            c.execute("ALTER TABLE operaciones ADD COLUMN moneda TEXT DEFAULT NULL")
+        except sqlite3.OperationalError:
+            pass  # Columna ya existe
+        try:
+            c.execute("ALTER TABLE operaciones ADD COLUMN tasa_cambio REAL DEFAULT NULL")
+        except sqlite3.OperationalError:
+            pass  # Columna ya existe
         
         if c.execute("SELECT COUNT(*) FROM config").fetchone()[0] == 0:
             defaults = [
