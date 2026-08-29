@@ -409,10 +409,14 @@
                                             <button type="button" class="btn time-btn" onclick="filtrarRangoHistorico('1Y', this)">1Y</button>
                                             <button type="button" class="btn time-btn" onclick="filtrarRangoHistorico('YTD', this)">YTD</button>
                                             <button type="button" class="btn time-btn active" onclick="filtrarRangoHistorico('ALL', this)">TODOS</button>
-                                        </div>
-                                        <div class="form-check form-switch m-0 ms-1" title="Comparar con el índice de referencia VWCE">
-                                            <input class="form-check-input" type="checkbox" role="switch" id="toggleBenchmark" checked>
-                                            <label class="form-check-label small text-secondary" for="toggleBenchmark" style="font-size:0.75rem;">Benchmark</label>
+                                            <div class="form-check form-switch m-0 ms-1" title="Comparar con el índice de referencia VWCE">
+                                                <input class="form-check-input" type="checkbox" role="switch" id="toggleBenchmark" checked>
+                                                <label class="form-check-label small text-secondary" for="toggleBenchmark" style="font-size:0.75rem;">Benchmark</label>
+                                            </div>
+                                            <div class="form-check form-switch m-0 ms-1" title="Incluir o excluir activos inmobiliarios de los cálculos">
+                                                <input class="form-check-input" type="checkbox" role="switch" id="toggleRealEstate" checked onchange="cargarOperaciones()">
+                                                <label class="form-check-label small text-secondary" for="toggleRealEstate" style="font-size:0.75rem;">🏠 Inmuebles</label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -554,21 +558,74 @@
                 <div class="d-flex flex-column gap-3">
                     <div class="glass-panel p-3">
                         <form id="add-form" class="row g-2 align-items-end">
-                            <div class="col-md-4">
-                                <label class="form-label text-secondary small mb-1">Activo (Ticker o ISIN)</label>
-                                <input type="text" id="ticker" name="ticker" class="form-control" placeholder="Ej. AAPL, ES0105065009" required>
-                            </div>
                             <div class="col-md-3">
+                                <label class="form-label text-secondary small mb-1">Tipo de Activo</label>
+                                <select id="add-tipo-activo" name="tipo_activo" class="form-select" onchange="toggleAddAssetFields(this.value)">
+                                    <option value="FINANCIERO">📈 Cotizado / Alerta Precios</option>
+                                    <option value="INMUEBLE">🏠 Inmueble / Bien Raíz (INE)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3" id="field-ticker-container">
+                                <label class="form-label text-secondary small mb-1" id="label-ticker">Ticker, ISIN o ID</label>
+                                <input type="text" id="ticker" name="ticker" class="form-control" placeholder="Ej. AAPL, CASA_MADRID" required>
+                            </div>
+                            
+                            <!-- Campos para Cotizados -->
+                            <div class="col-md-2 fields-financiero">
                                 <label class="form-label text-secondary small mb-1">Precio Objetivo</label>
-                                <input type="number" step="0.01" id="target" name="target" class="form-control" placeholder="0.00" required>
+                                <input type="number" step="0.01" id="target" name="target" class="form-control" placeholder="0.00">
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label text-secondary small mb-1">Alerta Variación Diaria (%)</label>
+                            <div class="col-md-2 fields-financiero">
+                                <label class="form-label text-secondary small mb-1">Alerta Var. Diaria (%)</label>
                                 <input type="number" step="0.1" id="target_pct" name="target_pct" class="form-control" placeholder="5.0" min="0">
                             </div>
+
+                            <!-- Campos para Inmuebles -->
+                            <div class="col-md-3 fields-inmueble d-none">
+                                <label class="form-label text-secondary small mb-1">Nombre / Nombre Finca</label>
+                                <input type="text" id="add-inm-name" name="name" class="form-control" placeholder="Ej. Vivienda Habitual">
+                            </div>
+                            <div class="col-md-3 fields-inmueble d-none">
+                                <label class="form-label text-secondary small mb-1">Comunidad Autónoma (INE)</label>
+                                <select id="add-comunidad" name="comunidad_autonoma" class="form-select">
+                                    <option value="NACIONAL">España (Nacional)</option>
+                                    <option value="ANDALUCIA">Andalucía</option>
+                                    <option value="ARAGON">Aragón</option>
+                                    <option value="ASTURIAS">Asturias, Principado de</option>
+                                    <option value="BALEARES">Balears, Illes</option>
+                                    <option value="CANARIAS">Canarias</option>
+                                    <option value="CANTABRIA">Cantabria</option>
+                                    <option value="CASTILLA_LEON">Castilla y León</option>
+                                    <option value="CASTILLA_MANCHA">Castilla - La Mancha</option>
+                                    <option value="CATALUNA">Cataluña</option>
+                                    <option value="VALENCIA">Comunitat Valenciana</option>
+                                    <option value="EXTREMADURA">Extremadura</option>
+                                    <option value="GALICIA">Galicia</option>
+                                    <option value="MADRID" selected>Madrid, Comunidad de</option>
+                                    <option value="MURCIA">Murcia, Región de</option>
+                                    <option value="NAVARRA">Navarra, Comunidad Foral de</option>
+                                    <option value="PAIS_VASCO">País Vasco</option>
+                                    <option value="LA_RIOJA">Rioja, La</option>
+                                    <option value="CEUTA">Ceuta</option>
+                                    <option value="MELILLA">Melilla</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 fields-inmueble d-none">
+                                <label class="form-label text-secondary small mb-1">% Tu Titularidad</label>
+                                <input type="number" step="0.01" id="add-pct-titularidad" name="pct_titularidad" class="form-control" placeholder="50.0" value="50">
+                            </div>
+                            <div class="col-md-2 fields-inmueble d-none">
+                                <label class="form-label text-secondary small mb-1">Precio Compra Total (€)</label>
+                                <input type="number" step="any" id="add-precio-compra" name="precio_compra_total" class="form-control" placeholder="200000">
+                            </div>
+                            <div class="col-md-2 fields-inmueble d-none">
+                                <label class="form-label text-secondary small mb-1">Hipoteca Inicial Tuya (€)</label>
+                                <input type="number" step="any" id="add-hipoteca-ini" name="hipoteca_inicial" class="form-control" placeholder="75000">
+                            </div>
+
                             <div class="col-md-2">
                                 <button type="submit" class="btn btn-primary w-100" id="submit-btn">
-                                    Añadir Alerta
+                                    Guardar
                                 </button>
                             </div>
                         </form>
@@ -648,11 +705,14 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label text-secondary small mb-1">Tipo de Operación</label>
-                    <select id="op-tipo" name="tipo" class="form-select" required>
+                    <select id="op-tipo" name="tipo" class="form-select" required onchange="toggleOpTypeFields(this.value)">
                         <option value="COMPRA">COMPRA</option>
                         <option value="APORTACION">APORTACIÓN (Fondo)</option>
                         <option value="VENTA">VENTA</option>
                         <option value="DIVIDENDO">DIVIDENDO / RENDIMIENTO</option>
+                        <option value="ENTRADA_INMUEBLE">🏠 ENTRADA / ARRAS (Solo tu parte)</option>
+                        <option value="HIPOTECA_CUOTA">🏠 CUOTA HIPOTECA (Solo tu parte)</option>
+                        <option value="REFORMA_MEJORA">🏠 REFORMA / MEJORA (Solo tu parte)</option>
                     </select>
                 </div>
                 <div class="col-md-6">
@@ -667,13 +727,24 @@
                     </select>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label text-secondary small mb-1">Cantidad de Títulos</label>
-                    <input type="number" step="any" id="op-cantidad" name="cantidad" class="form-control" placeholder="0.00" required>
+                    <label class="form-label text-secondary small mb-1" id="lbl-op-cantidad">Cantidad (Títulos o Propiedad)</label>
+                    <input type="number" step="any" id="op-cantidad" name="cantidad" class="form-control" placeholder="1.00" value="1" required>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label text-secondary small mb-1">Precio Unitario</label>
+                    <label class="form-label text-secondary small mb-1" id="lbl-op-precio">Importe / Cuota Total (€)</label>
                     <input type="number" step="any" id="op-precio" name="precio" class="form-control" placeholder="0.00" required>
                 </div>
+
+                <!-- Campos opcionales para Desglose Hipotecario -->
+                <div class="col-md-6 fields-hipoteca d-none">
+                    <label class="form-label text-secondary small mb-1 text-info">Amortización Capital (€)</label>
+                    <input type="number" step="any" id="op-amortizacion" name="amortizacion" class="form-control" placeholder="Solo tu parte amortizada">
+                </div>
+                <div class="col-md-6 fields-hipoteca d-none">
+                    <label class="form-label text-secondary small mb-1 text-warning">Intereses / Gastos (€)</label>
+                    <input type="number" step="any" id="op-intereses" name="intereses" class="form-control" placeholder="Solo tu parte de intereses">
+                </div>
+
                 <div class="col-md-4">
                     <label class="form-label text-secondary small mb-1">Comisiones</label>
                     <input type="number" step="any" id="op-comisiones" name="comisiones" class="form-control" placeholder="0.00" value="0">
@@ -1237,31 +1308,75 @@
             }
         });
 
+        window.toggleAddAssetFields = (tipo) => {
+            const isInmueble = tipo === 'INMUEBLE';
+            document.querySelectorAll('.fields-financiero').forEach(el => el.classList.toggle('d-none', isInmueble));
+            document.querySelectorAll('.fields-inmueble').forEach(el => el.classList.toggle('d-none', !isInmueble));
+            document.getElementById('label-ticker').textContent = isInmueble ? 'Identificador Inmueble (Ticker)' : 'Ticker o ISIN';
+            const targetEl = document.getElementById('target');
+            if (targetEl) targetEl.required = !isInmueble;
+        };
+
+        window.toggleOpTypeFields = (tipo) => {
+            const isHipoteca = tipo === 'HIPOTECA_CUOTA';
+            document.querySelectorAll('.fields-hipoteca').forEach(el => el.classList.toggle('d-none', !isHipoteca));
+            const isRealEstateOp = tipo === 'ENTRADA_INMUEBLE' || tipo === 'HIPOTECA_CUOTA' || tipo === 'REFORMA_MEJORA';
+            const lblPrecio = document.getElementById('lbl-op-precio');
+            const lblCant = document.getElementById('lbl-op-cantidad');
+            if (lblPrecio) {
+                lblPrecio.textContent = isHipoteca ? 'Cuota Total Pagada (€)' : (isRealEstateOp ? 'Importe Pagado por ti (€)' : 'Precio Unitario');
+            }
+            if (lblCant) {
+                lblCant.textContent = isRealEstateOp ? 'Participación / Títulos (1)' : 'Cantidad de Títulos';
+            }
+        };
+
         document.getElementById('add-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submit-btn');
             
             const formData = new FormData(e.target);
-            const ticker = formData.get('ticker');
-            const target = formData.get('target');
-            const target_pct = formData.get('target_pct');
+            const tipo_activo = formData.get('tipo_activo') || 'FINANCIERO';
             
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
             
             try {
-                await API.fetch('/api/add', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ ticker, target, target_pct: target_pct ? parseFloat(target_pct) : 0 })
-                });
+                if (tipo_activo === 'INMUEBLE') {
+                    const payload = {
+                        tipo_activo: 'INMUEBLE',
+                        ticker: formData.get('ticker'),
+                        name: formData.get('name') || formData.get('ticker'),
+                        comunidad_autonoma: formData.get('comunidad_autonoma'),
+                        pct_titularidad: (parseFloat(formData.get('pct_titularidad')) || 100) / 100.0,
+                        precio_compra_total: parseFloat(formData.get('precio_compra_total')) || 0,
+                        hipoteca_inicial: parseFloat(formData.get('hipoteca_inicial')) || 0
+                    };
+                    await API.fetch('/api/add', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+                    UI.showToast('Inmueble registrado correctamente');
+                } else {
+                    const ticker = formData.get('ticker');
+                    const target = formData.get('target');
+                    const target_pct = formData.get('target_pct');
+                    await API.fetch('/api/add', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ ticker, target, target_pct: target_pct ? parseFloat(target_pct) : 0 })
+                    });
+                    UI.showToast('Alerta añadida correctamente');
+                }
                 document.getElementById('add-form').reset();
-                UI.showToast('Alerta añadida correctamente');
+                toggleAddAssetFields('FINANCIERO');
+                cargarOperaciones();
             } catch (err) {
                 UI.showToast(err.message, 'error');
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Añadir Alerta';
+                btn.textContent = 'Guardar';
             }
         });
 
@@ -1469,7 +1584,8 @@
 
         window.cargarOperaciones = async () => {
             try {
-                const data = await API.fetch('/api/operaciones');
+                const includeRealEstate = document.getElementById('toggleRealEstate')?.checked ?? true;
+                const data = await API.fetch(`/api/operaciones?include_real_estate=${includeRealEstate ? 1 : 0}`);
                 operacionesData = data;
                 
                 if (data.warning_api_error) {
@@ -1492,6 +1608,7 @@
                     const latenteSign = metrics.pnl_latente >= 0 ? '+' : '';
                     const currency = metrics.currency || 'USD';
                     const tasa = metrics.tasa_cambio || 1;
+                    const isInmueble = metrics.tipo === 'INMUEBLE';
                     
                     const valorBase = metrics.valor_actual * tasa;
                     totalValor += valorBase;
@@ -1518,14 +1635,18 @@
                     }
                     
                     let priceTooltip = `Actualizado: ${metrics.current_price_time || 'N/A'}`;
-                    if (metrics.max_price || metrics.min_price) {
+                    if (isInmueble) {
+                        priceTooltip = `Valor Bruto Tu Parte: ${UI.formatCurrency(metrics.valor_bruto || 0, currency)}\nDeuda Pendiente Tu Parte: ${UI.formatCurrency(metrics.deuda_pendiente || 0, currency)}\nRevalorización automática INE IPV (${metrics.comunidad_autonoma || 'NACIONAL'})`;
+                    } else if (metrics.max_price || metrics.min_price) {
                         priceTooltip += `\nMáx compra: ${metrics.max_price ? UI.formatCurrency(metrics.max_price, currency) : '-'}\nMín compra: ${metrics.min_price ? UI.formatCurrency(metrics.min_price, currency) : '-'}`;
                     }
+
+                    const inmBadge = isInmueble ? `<span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 ms-1" style="font-size:0.65rem;">🏠 INMUEBLE (${metrics.comunidad_autonoma || 'INE'})</span>` : '';
 
                     return `
                     <tr>
                         <td class="ps-4">
-                            <div class="fw-bold text-white">${metrics.name || ticker}</div>
+                            <div class="fw-bold text-white d-flex align-items-center">${metrics.name || ticker} ${inmBadge}</div>
                             <div class="text-secondary font-monospace" style="font-size: 0.7rem;">${ticker}</div>
                         </td>
                         <td class="text-end font-monospace text-light">${metrics.cantidad.toFixed(4)}</td>
@@ -1546,12 +1667,16 @@
 
                 // 2. Renderizar Operaciones
                 const opsHtml = data.operaciones.reverse().map(op => {
-                    const isCompra = op.tipo === 'COMPRA' || op.tipo === 'APORTACION';
+                    const isCompra = op.tipo === 'COMPRA' || op.tipo === 'APORTACION' || op.tipo === 'ENTRADA_INMUEBLE' || op.tipo === 'HIPOTECA_CUOTA' || op.tipo === 'REFORMA_MEJORA';
                     const isDividendo = op.tipo === 'DIVIDENDO';
                     
                     let badgeStyle = 'background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);';
-                    if (op.tipo === 'APORTACION') {
+                    if (op.tipo === 'APORTACION' || op.tipo === 'ENTRADA_INMUEBLE') {
                         badgeStyle = 'background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);';
+                    } else if (op.tipo === 'HIPOTECA_CUOTA') {
+                        badgeStyle = 'background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);';
+                    } else if (op.tipo === 'REFORMA_MEJORA') {
+                        badgeStyle = 'background: rgba(236, 72, 153, 0.15); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.3);';
                     } else if (op.tipo === 'VENTA') {
                         badgeStyle = 'background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3);';
                     } else if (isDividendo) {

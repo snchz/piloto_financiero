@@ -44,6 +44,22 @@ def init_db():
             c.execute("ALTER TABLE monitores ADD COLUMN current_price_time TEXT DEFAULT NULL")
         except sqlite3.OperationalError:
             pass  # Columna ya existe
+        try:
+            c.execute("ALTER TABLE monitores ADD COLUMN comunidad_autonoma TEXT DEFAULT 'NACIONAL'")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            c.execute("ALTER TABLE monitores ADD COLUMN pct_titularidad REAL DEFAULT 1.0")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            c.execute("ALTER TABLE monitores ADD COLUMN precio_compra_total REAL DEFAULT 0.0")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            c.execute("ALTER TABLE monitores ADD COLUMN hipoteca_inicial REAL DEFAULT 0.0")
+        except sqlite3.OperationalError:
+            pass
         
         c.execute('''
             CREATE TABLE IF NOT EXISTS alertas (
@@ -91,10 +107,14 @@ def init_db():
         except sqlite3.OperationalError:
             pass  # Columna ya existe
         try:
-            c.execute("ALTER TABLE operaciones ADD COLUMN tasa_cambio REAL DEFAULT NULL")
+            c.execute("ALTER TABLE operaciones ADD COLUMN amortizacion REAL DEFAULT 0.0")
         except sqlite3.OperationalError:
-            pass  # Columna ya existe
-        
+            pass
+        try:
+            c.execute("ALTER TABLE operaciones ADD COLUMN intereses REAL DEFAULT 0.0")
+        except sqlite3.OperationalError:
+            pass
+            
         # Crear tablas para la caché persistente
         c.execute('''
             CREATE TABLE IF NOT EXISTS cache_activos (
@@ -124,6 +144,21 @@ def init_db():
                 fecha TEXT,
                 precio REAL,
                 PRIMARY KEY (ticker, fecha)
+            )
+        ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS cache_ine_ipv (
+                series_code TEXT,
+                anyo INTEGER,
+                trimestre INTEGER,
+                valor REAL,
+                PRIMARY KEY (series_code, anyo, trimestre)
+            )
+        ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS sync_ine_log (
+                series_code TEXT PRIMARY KEY,
+                last_sync REAL
             )
         ''')
         
@@ -267,3 +302,84 @@ def save_historical_prices(ticker, prices_series):
                 conn.commit()
     except Exception:
         pass
+
+# --- INE Cache Helpers ---
+def get_ine_last_sync(series_code):
+    try:
+        with get_db() as conn:
+            row = conn.execute("SELECT last_sync FROM sync_ine_log WHERE series_code = ?", (series_code,)).fetchone()
+            if row:
+                return row['last_sync']
+    except Exception:
+        pass
+    return None
+
+def save_ine_ipv_data(series_code, rows):
+    try:
+        with get_db() as conn:
+            conn.executemany(
+                "INSERT OR REPLACE INTO cache_ine_ipv (series_code, anyo, trimestre, valor) VALUES (?, ?, ?, ?)",
+                rows
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO sync_ine_log (series_code, last_sync) VALUES (?, ?)",
+                (series_code, time.time())
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"Error saving INE IPV data: {e}")
+
+def get_ine_ipv_value(series_code, year, quarter):
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT valor FROM cache_ine_ipv WHERE series_code = ? AND anyo = ? AND trimestre = ?",
+                (series_code, year, quarter)
+            ).fetchone()
+            if row:
+                return row['valor']
+    except Exception:
+        pass
+    return None
+
+def get_ine_ipv_closest(series_code, year, quarter):
+    try:
+        with get_db() as conn:
+            target_period = year * 10 + quarter
+            rows = conn.execute(
+                "SELECT anyo, trimestre, valor FROM cache_ine_ipv WHERE series_code = ?",
+                (series_code,)
+            ).fetchall()
+            if not rows:
+                return None
+            best_row = min(rows, key=lambda r: abs((r['anyo'] * 10 + r['trimestre']) - target_period))
+            return best_row['valor']
+    except Exception:
+        pass
+    return None
+
+def get_ine_ipv_first_available(series_code):
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT valor FROM cache_ine_ipv WHERE series_code = ? ORDER BY anyo ASC, trimestre ASC LIMIT 1",
+                (series_code,)
+            ).fetchone()
+            if row:
+                return row['valor']
+    except Exception:
+        pass
+    return None
+
+def get_ine_ipv_latest(series_code):
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT valor FROM cache_ine_ipv WHERE series_code = ? ORDER BY anyo DESC, trimestre DESC LIMIT 1",
+                (series_code,)
+            ).fetchone()
+            if row:
+                return row['valor']
+    except Exception:
+        pass
+    return None

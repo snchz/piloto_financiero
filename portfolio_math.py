@@ -78,9 +78,22 @@ def calcular_fifo(operaciones_activo):
         impuestos = float(op.get('impuestos', 0) or 0)
         tasa_cambio = float(op.get('tasa_cambio', 1.0))
         
-        if tipo in ('COMPRA', 'APORTACION'):
+        if tipo in ('COMPRA', 'APORTACION', 'ENTRADA_INMUEBLE', 'REFORMA_MEJORA'):
             # El coste real de la compra incluye las comisiones
             precio_unitario_real = (cantidad * precio + comisiones) / cantidad if cantidad > 0 else 0
+            compras_abiertas.append({
+                'cantidad': cantidad,
+                'precio_unitario': precio_unitario_real,
+                'tasa_cambio': tasa_cambio,
+                'fecha': op['fecha']
+            })
+            cantidad_total += cantidad
+
+        elif tipo == 'HIPOTECA_CUOTA':
+            amortizacion = float(op.get('amortizacion', 0) or 0)
+            if amortizacion <= 0:
+                amortizacion = max(precio - comisiones, 0.0)
+            precio_unitario_real = amortizacion / cantidad if cantidad > 0 else 0
             compras_abiertas.append({
                 'cantidad': cantidad,
                 'precio_unitario': precio_unitario_real,
@@ -216,10 +229,16 @@ def calcular_historico_cartera(operaciones, historicos_precios, activos_info, st
                 if ticker not in inventario:
                     inventario[ticker] = {'cantidad': 0.0, 'precio_compra': 0.0}
                     
-                if tipo in ('COMPRA', 'APORTACION'):
+                if tipo in ('COMPRA', 'APORTACION', 'ENTRADA_INMUEBLE', 'REFORMA_MEJORA'):
                     inventario[ticker]['cantidad'] += cantidad
                     inventario[ticker]['precio_compra'] = precio
                     capital_acumulado += (cantidad * precio + comisiones) * tasa_cambio
+                elif tipo == 'HIPOTECA_CUOTA':
+                    inventario[ticker]['cantidad'] += cantidad
+                    amortización_cap = float(op.get('amortizacion', 0) or 0)
+                    if amortización_cap <= 0:
+                        amortización_cap = max(precio - comisiones, 0.0)
+                    capital_acumulado += amortización_cap * tasa_cambio
                 elif tipo == 'VENTA':
                     inventario[ticker]['cantidad'] -= cantidad
                     if inventario[ticker]['cantidad'] < 1e-8:

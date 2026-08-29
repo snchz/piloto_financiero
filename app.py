@@ -14,6 +14,7 @@ import finance_api
 import notifications
 import monitor_worker
 import portfolio_math
+import ine_api
 
 app = Flask(__name__)
 
@@ -111,9 +112,22 @@ def get_historical_exchange_rate(from_currency, date_str, to_currency="EUR"):
     return get_exchange_rate(from_currency, to_currency)
 
 def get_asset_info_cached(ticker):
-    pref_currency = None
     try:
         with db.get_db() as conn:
+            row_inm = conn.execute("SELECT name, tipo, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial FROM monitores WHERE ticker = ?", (ticker,)).fetchone()
+            if row_inm and row_inm['tipo'] == 'INMUEBLE':
+                info_inm = {
+                    'sym': None,
+                    'name': row_inm['name'] or ticker,
+                    'currency': 'EUR',
+                    'tipo': 'INMUEBLE',
+                    'comunidad_autonoma': row_inm['comunidad_autonoma'] or 'NACIONAL',
+                    'pct_titularidad': float(row_inm['pct_titularidad'] or 1.0),
+                    'precio_compra_total': float(row_inm['precio_compra_total'] or 0.0),
+                    'hipoteca_inicial': float(row_inm['hipoteca_inicial'] or 0.0)
+                }
+                ASSET_INFO_CACHE[ticker] = info_inm
+                return info_inm
             row = conn.execute("SELECT DISTINCT moneda FROM operaciones WHERE ticker = ? AND moneda IS NOT NULL AND moneda != ''", (ticker,)).fetchone()
             if row:
                 pref_currency = row['moneda']
@@ -252,8 +266,35 @@ def add_monitor():
     raw_input = (data.get('ticker') or '').upper().strip()
     target = float(data.get('target') or 0)
     target_pct = float(data.get('target_pct') or 0)
+    tipo_activo = (data.get('tipo_activo') or '').upper().strip()
     
-    if not raw_input or target <= 0:
+    if not raw_input:
+        return jsonify({"error": "Parámetros inválidos"}), 400
+
+    if tipo_activo == 'INMUEBLE':
+        try:
+            m_id = str(uuid.uuid4())
+            name_input = data.get('name') or raw_input
+            comunidad = (data.get('comunidad_autonoma') or 'NACIONAL').upper().strip()
+            pct_tit = float(data.get('pct_titularidad') or 1.0)
+            precio_total = float(data.get('precio_compra_total') or 0.0)
+            hipoteca_ini = float(data.get('hipoteca_inicial') or 0.0)
+
+            with db.get_db() as conn:
+                conn.execute('''
+                    INSERT INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered, target_pct, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial)
+                    VALUES (?, ?, NULL, ?, 'EUR', 0, 0, 'INMUEBLE', 0, 0, ?, ?, ?, ?)
+                ''', (m_id, raw_input, name_input, comunidad, pct_tit, precio_total, hipoteca_ini))
+                conn.commit()
+
+            log_debug(f"Añadido inmueble {raw_input} en {comunidad}")
+            monitor_worker.sse_subs.notify()
+            return jsonify({"ok": True})
+        except Exception as e:
+            log_debug(f"Error añadiendo inmueble: {e}", "ERROR")
+            return jsonify({"error": str(e)}), 400
+        
+    if target <= 0:
         return jsonify({"error": "Parámetros inválidos"}), 400
         
     try:
@@ -354,6 +395,8 @@ def get_info(ticker):
 @app.route('/api/operaciones', methods=['GET'])
 def get_operaciones():
     try:
+        include_real_estate = request.args.get('include_real_estate', '1') == '1'
+
         with db.get_db() as conn:
             rows = conn.execute("SELECT * FROM operaciones ORDER BY fecha ASC").fetchall()
             operaciones = [dict(row) for row in rows]
@@ -361,6 +404,15 @@ def get_operaciones():
         # Sanear todas las fechas extraídas de la base de datos
         for op in operaciones:
             op['fecha'] = normalize_date(op['fecha'])
+
+        if not include_real_estate:
+            # Filtrar operaciones de activos tipo INMUEBLE
+            operaciones_filtradas = []
+            for op in operaciones:
+                info_t = get_asset_info_cached(op['ticker'])
+                if info_t.get('tipo') != 'INMUEBLE':
+                    operaciones_filtradas.append(op)
+            operaciones = operaciones_filtradas
             
         # Agrupar por ticker
         activos = {}
@@ -383,6 +435,9 @@ def get_operaciones():
             info = get_asset_info_cached(ticker)
             activos_info[ticker] = info
             
+            if not include_real_estate and info.get('tipo') == 'INMUEBLE':
+                continue
+
             # Obtener tipo de cambio a EUR (Divisa base de la cartera)
             currency = info.get('currency', 'EUR') or 'EUR'
             tasa_cambio_actual = get_exchange_rate(currency, 'EUR')
@@ -400,51 +455,92 @@ def get_operaciones():
             total_pnl_realizado += resultado['beneficio_realizado_base']
 
             if resultado['cantidad_actual'] > 0:
-                # Intentar obtener precio actual
-                precio_actual = 0.0
-                current_price_time = 'N/A'
-                prev_close = None
-                if info['sym']:
-                    try:
-                        precio_actual, prev_close = finance_api.fetch_price(info['sym'])
-                        current_price_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-                    except Exception as e:
-                        warning_api_error = True
-                        log_debug(f"Error fetching price for {info['sym']}: {e}", "WARNING")
-                
-                valor_actual = resultado['cantidad_actual'] * precio_actual
-                inversion_actual = resultado['cantidad_actual'] * resultado['coste_medio']
-                pnl_latente = valor_actual - inversion_actual
-                
-                coste_medio_base = resultado.get('coste_medio_base', resultado['coste_medio'] * tasa_cambio_actual)
-                inversion_actual_base = resultado['cantidad_actual'] * coste_medio_base
-                pnl_latente_base = (valor_actual * tasa_cambio_actual) - inversion_actual_base
-                
-                tasa_cambio_media = (inversion_actual_base / inversion_actual) if inversion_actual > 0 else tasa_cambio_actual
-                pnl_activo_base = pnl_latente * tasa_cambio_actual
-                pnl_divisa_base = inversion_actual * (tasa_cambio_actual - tasa_cambio_media)
-                
-                cartera[ticker] = {
-                    'name': info['name'],
-                    'currency': info['currency'],
-                    'tasa_cambio': tasa_cambio_actual,
-                    'cantidad': resultado['cantidad_actual'],
-                    'coste_medio': resultado['coste_medio'],
-                    'precio_actual': precio_actual,
-                    'previous_close': prev_close,
-                    'current_price_time': current_price_time,
-                    'valor_actual': valor_actual,
-                    'pnl_latente': pnl_latente,
-                    'pnl_latente_base': pnl_latente_base,
-                    'pnl_activo_base': pnl_activo_base,
-                    'pnl_divisa_base': pnl_divisa_base,
-                    'pnl_realizado': resultado['beneficio_realizado'],
-                    'rentabilidad_pct': (pnl_latente / inversion_actual) if inversion_actual > 0 else 0
-                }
-                
-                # Añadir al flujo de caja el valor actual (como si lo vendiéramos hoy)
-                if valor_actual > 0:
-                    flujos_caja.append((datetime.now(), valor_actual * tasa_cambio_actual))
+                if info.get('tipo') == 'INMUEBLE':
+                    fecha_primera_op = sorted(ops, key=lambda x: str(x['fecha']))[0]['fecha']
+                    comunidad = info.get('comunidad_autonoma', 'NACIONAL')
+                    rev_factor = ine_api.calculate_ine_revalorization(comunidad, str(fecha_primera_op))
+                    
+                    pct_tit = info.get('pct_titularidad', 1.0)
+                    precio_compra_total = info.get('precio_compra_total', 0.0)
+                    valor_bruto = (precio_compra_total * pct_tit) * rev_factor if precio_compra_total > 0 else (resultado['coste_medio'] * rev_factor)
+                    
+                    total_amortizado = sum(float(op.get('amortizacion', 0) or (float(op['precio']) - float(op.get('comisiones', 0)))) for op in ops if op['tipo'] == 'HIPOTECA_CUOTA')
+                    deuda_pendiente = max(info.get('hipoteca_inicial', 0.0) - total_amortizado, 0.0)
+                    valor_neto = max(valor_bruto - deuda_pendiente, 0.0)
+                    
+                    precio_actual = valor_neto / resultado['cantidad_actual'] if resultado['cantidad_actual'] > 0 else valor_neto
+                    valor_actual = valor_neto
+                    inversion_actual = resultado['cantidad_actual'] * resultado['coste_medio']
+                    pnl_latente = valor_actual - inversion_actual
+                    
+                    cartera[ticker] = {
+                        'name': info['name'],
+                        'currency': 'EUR',
+                        'tipo': 'INMUEBLE',
+                        'tasa_cambio': 1.0,
+                        'cantidad': resultado['cantidad_actual'],
+                        'coste_medio': resultado['coste_medio'],
+                        'precio_actual': precio_actual,
+                        'previous_close': None,
+                        'current_price_time': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
+                        'valor_actual': valor_actual,
+                        'valor_bruto': valor_bruto,
+                        'deuda_pendiente': deuda_pendiente,
+                        'comunidad_autonoma': comunidad,
+                        'pnl_latente': pnl_latente,
+                        'pnl_latente_base': pnl_latente,
+                        'pnl_activo_base': pnl_latente,
+                        'pnl_divisa_base': 0.0,
+                        'pnl_realizado': resultado['beneficio_realizado'],
+                        'rentabilidad_pct': (pnl_latente / inversion_actual) if inversion_actual > 0 else 0
+                    }
+                    if valor_actual > 0:
+                        flujos_caja.append((datetime.now(), valor_actual))
+                else:
+                    # Intentar obtener precio actual para activos financieros
+                    precio_actual = 0.0
+                    current_price_time = 'N/A'
+                    prev_close = None
+                    if info['sym']:
+                        try:
+                            precio_actual, prev_close = finance_api.fetch_price(info['sym'])
+                            current_price_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+                        except Exception as e:
+                            warning_api_error = True
+                            log_debug(f"Error fetching price for {info['sym']}: {e}", "WARNING")
+                    
+                    valor_actual = resultado['cantidad_actual'] * precio_actual
+                    inversion_actual = resultado['cantidad_actual'] * resultado['coste_medio']
+                    pnl_latente = valor_actual - inversion_actual
+                    
+                    coste_medio_base = resultado.get('coste_medio_base', resultado['coste_medio'] * tasa_cambio_actual)
+                    inversion_actual_base = resultado['cantidad_actual'] * coste_medio_base
+                    pnl_latente_base = (valor_actual * tasa_cambio_actual) - inversion_actual_base
+                    
+                    tasa_cambio_media = (inversion_actual_base / inversion_actual) if inversion_actual > 0 else tasa_cambio_actual
+                    pnl_activo_base = pnl_latente * tasa_cambio_actual
+                    pnl_divisa_base = inversion_actual * (tasa_cambio_actual - tasa_cambio_media)
+                    
+                    cartera[ticker] = {
+                        'name': info['name'],
+                        'currency': info['currency'],
+                        'tasa_cambio': tasa_cambio_actual,
+                        'cantidad': resultado['cantidad_actual'],
+                        'coste_medio': resultado['coste_medio'],
+                        'precio_actual': precio_actual,
+                        'previous_close': prev_close,
+                        'current_price_time': current_price_time,
+                        'valor_actual': valor_actual,
+                        'pnl_latente': pnl_latente,
+                        'pnl_latente_base': pnl_latente_base,
+                        'pnl_activo_base': pnl_activo_base,
+                        'pnl_divisa_base': pnl_divisa_base,
+                        'pnl_realizado': resultado['beneficio_realizado'],
+                        'rentabilidad_pct': (pnl_latente / inversion_actual) if inversion_actual > 0 else 0
+                    }
+                    
+                    if valor_actual > 0:
+                        flujos_caja.append((datetime.now(), valor_actual * tasa_cambio_actual))
                     
             for op in ops:
                 fecha_str = str(op['fecha']).strip().split(' ')[0]
@@ -454,17 +550,17 @@ def get_operaciones():
                     dt = datetime.now()
                     
                 cash_flow = 0.0
-                if op['tipo'] in ('COMPRA', 'APORTACION'):
+                if op['tipo'] in ('COMPRA', 'APORTACION', 'ENTRADA_INMUEBLE', 'REFORMA_MEJORA'):
                     cash_flow = -(op['cantidad'] * op['precio'] + op.get('comisiones',0) + op.get('impuestos',0))
+                elif op['tipo'] == 'HIPOTECA_CUOTA':
+                    amort = float(op.get('amortizacion', 0) or (op['precio'] - op.get('comisiones',0)))
+                    cash_flow = -(amort + op.get('comisiones',0) + op.get('impuestos',0))
                 elif op['tipo'] in ('VENTA', 'DIVIDENDO'):
                     cash_flow = (op['cantidad'] * op['precio']) - op.get('comisiones',0) - op.get('impuestos',0)
                 if cash_flow != 0:
                     flujo_base = cash_flow * op['tasa_cambio']
                     flujos_caja.append((dt, flujo_base))
 
-                    # Para la simulación, el flujo es capital que entra (+) o sale (-).
-                    # Mi `cash_flow` es negativo para compras (capital entra en cartera)
-                    # y positivo para ventas (capital sale de cartera). Invierto el signo.
                     fecha_key = dt.date()
                     flujos_caja_dict[fecha_key] = flujos_caja_dict.get(fecha_key, 0.0) - flujo_base
         
@@ -481,57 +577,79 @@ def get_operaciones():
             
             historicos_precios = {}
             for ticker, info in activos_info.items():
-                sym = info.get('sym')
-                if sym:
-                    info['tasa_cambio_actual'] = get_exchange_rate(info.get('currency', 'EUR'), 'EUR')
+                if not include_real_estate and info.get('tipo') == 'INMUEBLE':
+                    continue
                     
-                    cached_series = db.get_cached_historical_prices(sym, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
-                    needs_download = True
-                    if cached_series is not None and not cached_series.empty:
-                        last_cached_date = cached_series.index[-1].date()
-                        if last_cached_date >= (end_date - timedelta(days=2)).date():
-                            needs_download = False
-                            HISTORICAL_PRICES_CACHE[sym] = {
-                                'data': cached_series,
-                                'start_date': cached_series.index[0].date(),
-                                'end_date': last_cached_date
-                            }
+                if info.get('tipo') == 'INMUEBLE':
+                    ops_inm = activos.get(ticker, [])
+                    fecha_ini_str = str(start_date)[:10]
+                    rango_dias = pd.date_range(start=start_date, end=end_date, freq='B')
+                    series_inm = []
+                    pct_tit = info.get('pct_titularidad', 1.0)
+                    precio_compra_total = info.get('precio_compra_total', 0.0)
+                    comunidad = info.get('comunidad_autonoma', 'NACIONAL')
+                    coste_m = cartera.get(ticker, {}).get('coste_medio', 0.0)
                     
-                    if needs_download:
-                        try:
-                            df = yf.Ticker(sym).history(start=start_date.strftime('%Y-%m-%d'))
-                            if not df.empty:
-                                df.index = df.index.tz_localize(None).normalize()
-                                db.save_historical_prices(sym, df['Close'])
-                                cached_series = db.get_cached_historical_prices(sym, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
+                    for d in rango_dias:
+                        d_str = d.strftime('%Y-%m-%d')
+                        rev_d = ine_api.calculate_ine_revalorization(comunidad, fecha_ini_str, d_str)
+                        v_bruto_d = (precio_compra_total * pct_tit) * rev_d if precio_compra_total > 0 else (coste_m * rev_d)
+                        amort_hasta_d = sum(float(op.get('amortizacion', 0) or (float(op['precio']) - float(op.get('comisiones', 0)))) for op in ops_inm if op['tipo'] == 'HIPOTECA_CUOTA' and str(op['fecha'])[:10] <= d_str)
+                        deuda_d = max(info.get('hipoteca_inicial', 0.0) - amort_hasta_d, 0.0)
+                        series_inm.append(max(v_bruto_d - deuda_d, 0.0))
+                    historicos_precios[ticker] = pd.Series(series_inm, index=rango_dias)
+                else:
+                    sym = info.get('sym')
+                    if sym:
+                        info['tasa_cambio_actual'] = get_exchange_rate(info.get('currency', 'EUR'), 'EUR')
+                        
+                        cached_series = db.get_cached_historical_prices(sym, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
+                        needs_download = True
+                        if cached_series is not None and not cached_series.empty:
+                            last_cached_date = cached_series.index[-1].date()
+                            if last_cached_date >= (end_date - timedelta(days=2)).date():
+                                needs_download = False
                                 HISTORICAL_PRICES_CACHE[sym] = {
                                     'data': cached_series,
-                                    'start_date': start_date.date(),
-                                    'end_date': end_date.date()
+                                    'start_date': cached_series.index[0].date(),
+                                    'end_date': last_cached_date
                                 }
-                            else:
-                                if cached_series is not None:
+                        
+                        if needs_download:
+                            try:
+                                df = yf.Ticker(sym).history(start=start_date.strftime('%Y-%m-%d'))
+                                if not df.empty:
+                                    df.index = df.index.tz_localize(None).normalize()
+                                    db.save_historical_prices(sym, df['Close'])
+                                    cached_series = db.get_cached_historical_prices(sym, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
                                     HISTORICAL_PRICES_CACHE[sym] = {
                                         'data': cached_series,
                                         'start_date': start_date.date(),
                                         'end_date': end_date.date()
                                     }
                                 else:
+                                    if cached_series is not None:
+                                        HISTORICAL_PRICES_CACHE[sym] = {
+                                            'data': cached_series,
+                                            'start_date': start_date.date(),
+                                            'end_date': end_date.date()
+                                        }
+                                    else:
+                                        HISTORICAL_PRICES_CACHE[sym] = {
+                                            'data': pd.Series(dtype=float),
+                                            'start_date': start_date.date(),
+                                            'end_date': end_date.date()
+                                        }
+                            except Exception as e:
+                                log_debug(f"Error fetching historical data for {sym}: {e}", "WARNING")
+                                if sym not in HISTORICAL_PRICES_CACHE:
                                     HISTORICAL_PRICES_CACHE[sym] = {
-                                        'data': pd.Series(dtype=float),
+                                        'data': cached_series if cached_series is not None else pd.Series(dtype=float),
                                         'start_date': start_date.date(),
                                         'end_date': end_date.date()
                                     }
-                        except Exception as e:
-                            log_debug(f"Error fetching historical data for {sym}: {e}", "WARNING")
-                            if sym not in HISTORICAL_PRICES_CACHE:
-                                HISTORICAL_PRICES_CACHE[sym] = {
-                                    'data': cached_series if cached_series is not None else pd.Series(dtype=float),
-                                    'start_date': start_date.date(),
-                                    'end_date': end_date.date()
-                                }
-                    
-                    historicos_precios[sym] = HISTORICAL_PRICES_CACHE[sym]['data']
+                        
+                        historicos_precios[sym] = HISTORICAL_PRICES_CACHE[sym]['data']
             
             history = portfolio_math.calcular_historico_cartera(operaciones, historicos_precios, activos_info, start_date, end_date)
 
@@ -610,6 +728,8 @@ def add_operacion():
         precio = float(data.get('precio', 0))
         comisiones = float(data.get('comisiones', 0))
         impuestos = float(data.get('impuestos', 0))
+        amortizacion = float(data.get('amortizacion', 0) or 0)
+        intereses = float(data.get('intereses', 0) or 0)
         moneda = str(data.get('moneda') or '').upper().strip() or None
         tasa_cambio = data.get('tasa_cambio')
         
@@ -627,9 +747,9 @@ def add_operacion():
             
         with db.get_db() as conn:
             conn.execute('''
-                INSERT INTO operaciones (id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, moneda, tasa_cambio)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (op_id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, moneda, tasa_cambio))
+                INSERT INTO operaciones (id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, moneda, tasa_cambio, amortizacion, intereses)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (op_id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, moneda, tasa_cambio, amortizacion, intereses))
             conn.commit()
             
         log_debug(f"Añadida operación {tipo} de {ticker}")
@@ -659,6 +779,8 @@ def edit_operacion(op_id):
         precio = float(data.get('precio', 0))
         comisiones = float(data.get('comisiones', 0))
         impuestos = float(data.get('impuestos', 0))
+        amortizacion = float(data.get('amortizacion', 0) or 0)
+        intereses = float(data.get('intereses', 0) or 0)
         moneda = str(data.get('moneda') or '').upper().strip() or None
         tasa_cambio = data.get('tasa_cambio')
         
@@ -677,12 +799,12 @@ def edit_operacion(op_id):
         with db.get_db() as conn:
             conn.execute('''
                 UPDATE operaciones 
-                SET fecha = ?, ticker = ?, tipo = ?, cantidad = ?, precio = ?, comisiones = ?, impuestos = ?, moneda = ?, tasa_cambio = ?
+                SET fecha = ?, ticker = ?, tipo = ?, cantidad = ?, precio = ?, comisiones = ?, impuestos = ?, moneda = ?, tasa_cambio = ?, amortizacion = ?, intereses = ?
                 WHERE id = ?
-            ''', (fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, moneda, tasa_cambio, op_id))
+            ''', (fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, moneda, tasa_cambio, amortizacion, intereses, op_id))
             conn.commit()
             
-        log_debug(f"Editada operación {tipo} de {ticker} (ID: {op_id})")
+        log_debug(f"Editada operación {op_id} de {ticker}")
         return jsonify({"ok": True})
     except Exception as e:
         log_debug(f"Error editando operación: {e}", "ERROR")
