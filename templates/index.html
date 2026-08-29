@@ -5,199 +5,263 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ app_title }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-base: #09090b;
-            --bg-surface: #121214;
-            --bg-surface-hover: #1c1c21;
+            --bg-base: #090a0f;
+            --bg-surface: #11141e;
+            --bg-surface-hover: #191d2b;
             --accent: #6366f1;
             --accent-hover: #818cf8;
-            --text-primary: #f4f4f5;
-            --text-secondary: #a1a1aa;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
             --border-color: rgba(255, 255, 255, 0.08);
+            --success-color: #10b981;
+            --danger-color: #f43f5e;
         }
+        
         html, body {
             min-height: 100vh;
             width: 100%;
             margin: 0;
             padding: 0;
             background-color: var(--bg-base);
-        
             font-size: 0.85rem;
-            background-image: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.08) 0%, transparent 60%);
-}
-        body {
-            font-family: 'Inter', sans-serif;
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(168, 85, 247, 0.06) 0%, transparent 40%);
             color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             -webkit-font-smoothing: antialiased;
-            display: flex;
-            flex-direction: column;
-        
-            font-size: 0.85rem;
-            background-image: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.08) 0%, transparent 60%);
-}
-        
-        .glass-panel {
-            background: rgba(18, 18, 20, 0.65);
-            border: 1px solid var(--border-color);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border-radius: 12px;
-            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
         }
+
+        /* Glassmorphism Panels */
+        .glass-panel {
+            background: rgba(17, 20, 30, 0.75);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 14px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .hero-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.08) 100%);
+            border: 1px solid rgba(129, 140, 248, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(99, 102, 241, 0.12);
+        }
+
+        .kpi-card {
+            background: rgba(17, 20, 30, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .kpi-card:hover {
+            border-color: rgba(255, 255, 255, 0.16);
+            transform: translateY(-2px);
+        }
+
+        /* Typography & Tabular Numbers */
+        .font-monospace {
+            font-family: 'JetBrains Mono', monospace !important;
+            font-variant-numeric: tabular-nums slashed-zero;
+            letter-spacing: -0.02em;
+        }
+        
+        .brand {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 800;
+            font-size: 1.4rem;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Tables */
         .table {
             --bs-table-bg: transparent;
             --bs-table-color: var(--text-primary);
             margin-bottom: 0;
         }
         .table th {
-            border-bottom-color: var(--border-color);
+            border-bottom: 1px solid var(--border-color);
             color: var(--text-secondary);
-            font-weight: 500;
-            font-size: 0.75rem;
+            font-weight: 600;
+            font-size: 0.7rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            padding: 0.5rem;
+            letter-spacing: 0.06em;
+            padding: 0.65rem 0.5rem;
+            opacity: 0.8;
         }
         .table td {
-            border-bottom-color: var(--border-color);
+            border-bottom: 1px solid var(--border-color);
             vertical-align: middle;
-            padding: 0.4rem 0.5rem;
+            padding: 0.55rem 0.5rem;
+            font-variant-numeric: tabular-nums slashed-zero;
         }
         .table tbody tr {
-            transition: background-color 0.2s;
+            transition: background-color 0.15s ease;
         }
         .table tbody tr:hover {
             background-color: var(--bg-surface-hover);
         }
-        .form-control {
-            background-color: rgba(255,255,255,0.03);
+
+        /* Controls & Form Inputs */
+        .form-control, .form-select {
+            background-color: rgba(255, 255, 255, 0.04);
             border: 1px solid var(--border-color);
             color: var(--text-primary);
             border-radius: 8px;
+            font-size: 0.85rem;
             transition: all 0.2s;
         }
-        .form-control:focus {
-            background-color: rgba(255,255,255,0.05);
+        .form-control:focus, .form-select:focus {
+            background-color: rgba(255, 255, 255, 0.07);
             border-color: var(--accent);
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
             color: var(--text-primary);
         }
-        .form-control option {
+        .form-control option, .form-select option {
             background-color: var(--bg-surface);
             color: var(--text-primary);
         }
+
         .btn-primary {
             background-color: var(--accent);
             border: none;
             border-radius: 8px;
-            font-weight: 500;
+            font-weight: 600;
             transition: all 0.2s;
         }
         .btn-primary:hover {
             background-color: var(--accent-hover);
             transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
         }
-        .badge-status {
-            font-weight: 500;
-            padding: 0.35em 0.65em;
+
+        .time-btn {
+            font-size: 0.72rem;
+            padding: 3px 9px;
             border-radius: 6px;
-            font-size: 0.8rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: transparent;
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .time-btn:hover, .time-btn.active {
+            background: var(--accent);
+            color: #ffffff;
+            border-color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* Badges */
+        .badge-status {
+            font-weight: 600;
+            padding: 0.3em 0.6em;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
         .badge-active {
-            background-color: rgba(16, 185, 129, 0.1);
+            background-color: rgba(16, 185, 129, 0.12);
             color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.2);
         }
         .badge-alert {
-            background-color: rgba(239, 68, 68, 0.1);
-            color: #f87171;
+            background-color: rgba(244, 63, 94, 0.12);
+            color: #fb7185;
+            border: 1px solid rgba(244, 63, 94, 0.2);
             animation: pulse 2s infinite;
         }
+
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-            70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+            0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(244, 63, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
         }
+
         .action-btn {
             background: transparent;
             border: none;
             color: var(--text-secondary);
-            transition: color 0.2s;
-            padding: 4px;
+            transition: all 0.2s;
+            padding: 4px 6px;
+            border-radius: 6px;
         }
         .action-btn:hover {
             color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.08);
         }
         .action-btn.delete:hover {
-            color: #f87171;
+            color: #fb7185;
+            background: rgba(244, 63, 94, 0.1);
         }
-        /* Layout adjustments */
-        .page-header {
-            display: flex;
-            justify-content: space-between;
+
+        /* Navigation Tabs */
+        .nav-tabs .nav-link {
+            border-bottom: 2px solid transparent !important;
+            color: var(--text-secondary) !important;
+            font-weight: 500;
+            padding-bottom: 0.5rem !important;
+            transition: all 0.2s;
+        }
+        .nav-tabs .nav-link:hover {
+            color: var(--text-primary) !important;
+        }
+        .nav-tabs .nav-link.active {
+            border-bottom-color: var(--accent) !important;
+            color: var(--text-primary) !important;
+            font-weight: 600;
+        }
+
+        .last-update {
+            display: inline-flex;
             align-items: center;
-            margin-bottom: 0.5rem;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--border-color);
+            gap: 6px;
+            padding: 0.3em 0.7em;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            background: rgba(99, 102, 241, 0.1);
+            color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.2);
         }
-        .brand {
-            font-size: 1.5rem;
-            font-weight: 700;
-            letter-spacing: -0.025em;
-            background: linear-gradient(to right, #60a5fa, #a78bfa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .live-dot {
+            width: 7px;
+            height: 7px;
+            background-color: #34d399;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px #34d399;
         }
+
         .version-badge {
             font-size: 0.75rem;
             color: var(--text-secondary);
             background: rgba(255,255,255,0.05);
-            padding: 4px 8px;
+            padding: 4px 10px;
             border-radius: 99px;
-        }
-        .alerts-feed {
-            max-height: 400px;
-            overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: var(--border-color) transparent;
-        }
-        .alerts-feed::-webkit-scrollbar {
-            width: 4px;
-        }
-        .alerts-feed::-webkit-scrollbar-thumb {
-            background-color: var(--border-color);
-            border-radius: 4px;
-        }
-        .alert-item {
-            background: rgba(245, 158, 11, 0.05);
-            border-left: 3px solid #f59e0b;
-            color: #fbbf24;
-            padding: 12px;
-            border-radius: 4px;
-            margin-bottom: 8px;
-            font-size: 0.875rem;
-        }
-        
-        /* Debug panel */
-        .debug-toggle {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--bg-surface);
-            color: var(--text-secondary);
             border: 1px solid var(--border-color);
-            border-radius: 50%;
-            width: 44px;
-            height: 44px;
-            cursor: pointer;
-            z-index: 1001;
-            transition: all 0.2s;
         }
-        .debug-toggle:hover {
-            color: var(--text-primary);
-            background: var(--bg-surface-hover);
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+        /* Dialog backdrops */
+        dialog::backdrop {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(6px);
         }
+
+        /* Debug panel */
         .debug-panel {
             position: fixed;
             bottom: 70px;
@@ -205,327 +269,205 @@
             width: 450px;
             max-height: 400px;
             background: rgba(15, 17, 21, 0.95);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(16px);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 16px;
-            font-family: monospace;
-            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
             z-index: 1000;
             display: none;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.5);
         }
-        .debug-logs {
-            max-height: 320px;
-            overflow-y: auto;
-        }
-        .log-entry { margin: 4px 0; }
-        .log-timestamp { color: #6b7280; margin-right: 8px; }
-        .log-level-ERROR { color: #ef4444; }
-        .log-level-WARNING { color: #f59e0b; }
-        .log-level-INFO { color: #60a5fa; }
-        
-        /* Soporte nativo de fondo oscurecido para el elemento <dialog> */
-        dialog::backdrop {
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
-        }
-        
-        /* Fullscreen layout */
-        .container {
-            flex: 1;
-            overflow: auto;
-            padding: 1rem;
-            max-width: 100%;
-        }
-        
-        .last-update {
-            display: inline-block;
-            padding: 0.35em 0.65em;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            background: rgba(100, 165, 250, 0.1);
-            color: #64a5fa;
-            margin-left: 1rem;
-        }
-        
-        main {
-            height: 100%;
-        }
-        
-        .row.g-4 {
-            height: 100%;
-        }
-        
-        .col-xl-8, .col-xl-4 {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .col-xl-8 > .glass-panel:last-child {
-            flex: 1;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .table-responsive {
-            flex: 1;
-            overflow: auto;
-        }
-        
-        .col-xl-4 > 
-        .glass-panel {
-            background: rgba(18, 18, 20, 0.65);
-            border: 1px solid var(--border-color);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border-radius: 12px;
-            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
-        }
-        
-        .col-xl-4 > .glass-panel > div {
-            flex: 1;
-        }
-        
-    
-        .nav-tabs .nav-link {
-            border-bottom: 2px solid transparent !important;
-            color: var(--text-secondary) !important;
-        }
-        .nav-tabs .nav-link.active {
-            border-bottom-color: var(--accent) !important;
-            color: var(--text-primary) !important;
-        }
-    
-        /* -- 2026 Adjustments -- */
-        .table th { font-size: 0.65rem; letter-spacing: 0.05em; padding: 0.25rem 0.25rem; opacity: 0.7; border-bottom-color: var(--border-color); text-transform: uppercase; }
-        .table td { padding: 0.2rem 0.25rem; font-variant-numeric: tabular-nums slashed-zero; border-bottom-color: var(--border-color); vertical-align: middle; }
-        .font-monospace { font-family: 'Roboto Mono', monospace !important; font-size: 0.9em; font-variant-numeric: tabular-nums slashed-zero; }
-        .btn, .form-control { font-size: 0.85rem; border-radius: 8px; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
-        .brand { background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; letter-spacing: -0.03em;}
-        .nav-tabs .nav-link { padding-bottom: 0.4rem !important; font-size: 0.85rem; }
-        .badge { font-weight: 500; letter-spacing: 0.02em; }
-        .badge-status { font-weight: 600; padding: 0.25em 0.5em; font-size: 0.7rem; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em;}
-        .action-btn { padding: 2px; }
     </style>
 </head>
 <body>
-    <div class="container-fluid py-2 px-3 h-100 d-flex flex-column" style="min-height: 100vh;">
-        <div class="row h-100 g-2 flex-grow-1">
-            <div id="main-content-col" class="col-12 d-flex flex-column h-100">
-        <header class="page-header pb-0 mb-2 border-0" style="display: block;">
-            <div class="d-flex w-100 justify-content-between align-items-center mb-2">
-                <div>
+    <div class="container-fluid py-3 px-3 px-md-4 min-vh-100 d-flex flex-column">
+        <!-- Top Navigation Bar -->
+        <header class="mb-3 border-bottom border-secondary border-opacity-25 pb-2">
+            <div class="d-flex flex-wrap w-100 justify-content-between align-items-center gap-2 mb-2">
+                <div class="d-flex align-items-center gap-3">
                     <span class="brand">✨ <span id="brand-text">{{ app_title }}</span></span>
-                    <span class="last-update">Última actualización: <span id="last-update-time">--:--:--</span></span>
+                    <span class="last-update font-monospace">
+                        <span class="live-dot"></span>
+                        <span id="last-update-time">--:--:--</span>
+                    </span>
                 </div>
-                <div class="d-flex align-items-center gap-2 p-md-3">
-                    <button class="action-btn" onclick="abrirConfig(); syncLogs();" title="Configuración" style="font-size: 1.25rem;">⚙️</button>
-                    <div class="version-badge">v<span id="version">{{ version }}</span></div>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-1 shadow-sm" onclick="abrirModalOperacion()">
+                        <span>➕</span>
+                        <span>Añadir Operación</span>
+                    </button>
+                    <button class="action-btn" onclick="abrirConfig(); syncLogs();" title="Configuración" style="font-size: 1.15rem;">⚙️</button>
+                    <div class="version-badge font-monospace">v<span id="version">{{ version }}</span></div>
                 </div>
             </div>
             
-                        <ul class="nav nav-tabs border-bottom-0 gap-2" id="myTab" role="tablist">
-              <li class="nav-item" role="presentation">
-                <button class="nav-link active bg-transparent border-0 px-0 pb-3 fw-semibold" id="actividad-tab" data-bs-toggle="tab" data-bs-target="#nav-actividad" type="button" role="tab">Actividad Reciente</button>
-              </li>
-              <li class="nav-item ms-4" role="presentation">
-                <button class="nav-link bg-transparent border-0 px-0 pb-3 fw-semibold" id="alertas-tab" data-bs-toggle="tab" data-bs-target="#nav-alertas" type="button" role="tab">Monitores y Alertas</button>
-              </li>
-              <li class="nav-item ms-4" role="presentation">
-                <button class="nav-link bg-transparent border-0 px-0 pb-3 fw-semibold" id="operaciones-tab" data-bs-toggle="tab" data-bs-target="#nav-operaciones" type="button" role="tab" onclick="cargarOperaciones();">Operaciones y Cartera</button>
-              </li>
+            <ul class="nav nav-tabs border-bottom-0 gap-3" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active bg-transparent border-0 px-1 fw-semibold" id="operaciones-tab" data-bs-toggle="tab" data-bs-target="#nav-operaciones" type="button" role="tab" onclick="cargarOperaciones();">Operaciones y Cartera</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link bg-transparent border-0 px-1 fw-semibold" id="alertas-tab" data-bs-toggle="tab" data-bs-target="#nav-alertas" type="button" role="tab">Monitores y Alertas</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link bg-transparent border-0 px-1 fw-semibold" id="actividad-tab" data-bs-toggle="tab" data-bs-target="#nav-actividad" type="button" role="tab">Actividad Reciente</button>
+                </li>
             </ul>
         </header>
 
-        <div class="tab-content h-100" id="nav-tabContent">
-            <!-- Tab Actividad -->
-            <div class="tab-pane fade show active h-100" id="nav-actividad" role="tabpanel" aria-labelledby="actividad-tab">
-                <main class="row g-2 h-100">
-                    <div class="col-12 d-flex flex-column">
-                        <div class="glass-panel p-2 p-md-3 d-flex flex-column flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Actividad Reciente</h5>
-                                <button class="action-btn" onclick="limpiarActividad()" title="Borrar Actividad Reciente">
-                                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                </button>
-                            </div>
-                            <div id="alerts-feed" class="alerts-feed flex-grow-1 overflow-auto" style="max-height: none;">
-                                <div class="text-secondary small">Sin actividad reciente</div>
-                            </div>
-                        </div>
-                    </div>
-                </main>
-            </div>
+        <div class="tab-content flex-grow-1 d-flex flex-column" id="nav-tabContent">
             
-            <div class="tab-pane fade h-100" id="nav-alertas" role="tabpanel" aria-labelledby="alertas-tab">
-                <main class="row g-2">
-            <div class="d-flex flex-column h-100">
-                <!-- Add Form -->
-                <div class="glass-panel p-2 p-md-3 mb-2">
-                    <form id="add-form" class="row g-2 align-items-end">
-                        <div class="col-md-4">
-                            <label class="form-label text-secondary small mb-1">Activo (Ticker o ISIN)</label>
-                            <input type="text" id="ticker" name="ticker" class="form-control" placeholder="Ej. AAPL, ES0105065009" required>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label text-secondary small mb-1">Precio Objetivo</label>
-                            <input type="number" step="0.01" id="target" name="target" class="form-control" placeholder="0.00" required>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label text-secondary small mb-1">Alerta Variación Diaria (%)</label>
-                            <input type="number" step="0.1" id="target_pct" name="target_pct" class="form-control" placeholder="5.0" min="0">
-                        </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-primary w-100" id="submit-btn">
-                                Añadir Alerta
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Table -->
-                <div class="glass-panel overflow-hidden">
-                    <div class="d-flex justify-content-between align-items-center p-2 p-md-3 border-bottom border-secondary border-opacity-25">
-                        <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Mis Alertas</h5>
-                        <div>
-                            <button class="action-btn" onclick="exportExcel('monitores')" title="Exportar a CSV">
-                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            </button>
-                            <button class="action-btn" onclick="document.getElementById('import-monitores-file').click()" title="Importar de CSV">
-                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                            </button>
-                            <input type="file" id="import-monitores-file" style="display:none" accept=".csv" onchange="importExcel('monitores', this)">
-                        </div>
-                    </div>
-                        <div class="table-responsive"><table class="table table-sm table-borderless align-middle" style="min-width: 800px;">
-                            <thead class="bg-dark bg-opacity-25">
-                                <tr>
-                                    <th class="ps-4">Activo</th>
-                                    <th class="text-center">Moneda</th>
-                                    <th class="text-end">Actual</th>
-                                    <th class="text-end" title="Variación respecto al cierre del día anterior">Variación Diaria</th>
-                                    <th class="text-end">Objetivo</th>
-                                    <th class="text-end" title="Distancia porcentual desde el precio actual hasta el objetivo">Dist. Objetivo</th>
-                                    <th class="text-center">Estado</th>
-                                    <th class="pe-4 text-end">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="monitors-table">
-                                <tr><td colspan="7" class="text-center py-3 text-secondary"><div class="spinner-border spinner-border-sm"></div> Conectando con servidor...</td></tr>
-                                <tr><td colspan="8" class="text-center py-3 text-secondary"><div class="spinner-border spinner-border-sm"></div> Conectando con servidor...</td></tr>
-                            </tbody>
-                        </table></div>
-                    </div>
-                </div>
-            </div>
-
-            
-            </div>
-        </main>
-        </div>
-        
-        <!-- Tab Operaciones -->
-        <div class="tab-pane fade h-100" id="nav-operaciones" role="tabpanel" aria-labelledby="operaciones-tab">
-            <main class="row g-2 h-100">
-                <div class="col-12 d-flex flex-column">
-                    <!-- Fila Superior: Añadir Operación y Resumen Global (Tarjetas) -->
-                    <div class="row g-2 mb-2 align-items-stretch">
-                        <div class="col-md-2">
-                            <button class="btn btn-primary w-100 h-100 py-2 fw-semibold shadow-sm d-flex flex-column align-items-center justify-content-center gap-1" onclick="abrirModalOperacion()">
-                                <span style="font-size: 1.5rem; line-height: 1;">➕</span>
-                                <span style="font-size: 0.8rem; text-align: center; line-height: 1.2;">Añadir<br>Operación</span>
-                            </button>
-                        </div>
-                        <div class="col-md-10">
-                            <div class="row g-2 h-100">
-                                <div class="col-sm-6 col-md">
-                                    <div class="glass-panel p-3 d-flex flex-column justify-content-center h-100 border border-primary border-opacity-50" style="background: rgba(99, 102, 241, 0.1);">
-                                        <span class="text-secondary small d-block mb-1 text-uppercase fw-semibold" style="letter-spacing: 0.05em;">Valor Total <span style="cursor: help;" data-bs-toggle="tooltip" title="El valor total en euros de todas tus inversiones actuales valoradas a precio de mercado actual.">ℹ️</span></span>
-                                        <span class="fs-5 fw-bold text-white" id="resumen-valor-total">--</span>
-                                    </div>
-                                </div>
-                                <div class="col-sm-6 col-md">
-                                    <div class="glass-panel p-3 d-flex flex-column justify-content-center h-100">
-                                        <span class="text-secondary small d-block mb-1">TIR (Anualizada) <span style="cursor: help;" data-bs-toggle="tooltip" title="Tasa Interna de Retorno anualizada: la rentabilidad media anual de tus inversiones teniendo en cuenta las fechas y los importes de tus aportaciones y retiros.">ℹ️</span></span>
-                                        <span class="fs-5 fw-bold" id="resumen-tir">--</span>
-                                    </div>
-                                </div>
-                                <div class="col-sm-6 col-md">
-                                    <div class="glass-panel p-3 d-flex flex-column justify-content-center h-100">
-                                        <span class="text-secondary small d-block mb-1">TWR (Acumulado) <span style="cursor: help;" data-bs-toggle="tooltip" title="Time-Weighted Return (Retorno ponderado en el tiempo): Mide la rentabilidad acumulada de la cartera aislando el efecto de la entrada o salida de capital.">ℹ️</span></span>
-                                        <span class="fs-5 fw-bold" id="resumen-twr">--</span>
-                                    </div>
-                                </div>
-                                <div class="col-sm-6 col-md">
-                                    <div class="glass-panel p-3 d-flex flex-column justify-content-center h-100">
-                                        <span class="text-secondary small d-block mb-1">P&L Latente <span style="cursor: help;" data-bs-toggle="tooltip" title="Beneficio o pérdida virtual: la ganancia o pérdida acumulada de las posiciones abiertas que tienes ahora si las vendieras hoy a precio de mercado.">ℹ️</span></span>
-                                        <span class="fs-5 fw-bold" id="resumen-latente">--</span>
-                                    </div>
-                                </div>
-                                <div class="col-sm-6 col-md">
-                                    <div class="glass-panel p-3 d-flex flex-column justify-content-center h-100">
-                                        <span class="text-secondary small d-block mb-1">P&L Consolidado <span style="cursor: help;" data-bs-toggle="tooltip" title="Beneficio o pérdida real: las ganancias o pérdidas ya materializadas tras realizar ventas de activos o cobrar dividendos.">ℹ️</span></span>
-                                        <span class="fs-5 fw-bold" id="resumen-realizado">--</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <!-- TAB 1: Operaciones y Cartera -->
+            <div class="tab-pane fade show active flex-grow-1" id="nav-operaciones" role="tabpanel" aria-labelledby="operaciones-tab">
+                <div class="d-flex flex-column gap-3">
                     
-                    <!-- Nueva Fila: Gráficos de Evolución y Distribución -->
-                    <div class="row g-2 mb-2 align-items-stretch">
-                        <div class="col-md-8">
-                            <div class="glass-panel p-2 p-md-3 h-100 d-flex flex-column">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em" title="Evolución del capital y valor a lo largo del tiempo">Evolución de la Cartera</h5>
-                                    <div class="form-check form-switch" title="Comparar con el índice de referencia VWCE.DE">
-                                        <input class="form-check-input" type="checkbox" role="switch" id="toggleBenchmark" checked>
-                                        <label class="form-check-label small text-secondary" for="toggleBenchmark">Benchmark</label>
+                    <!-- Hero Bento Grid KPIs -->
+                    <div class="row g-2 align-items-stretch">
+                        <!-- Hero Card: Valor Total -->
+                        <div class="col-xl-4 col-md-6">
+                            <div class="glass-panel p-3 hero-card h-100 d-flex flex-column justify-content-between">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.08em; color: #a5b4fc;">
+                                        Valor Total Cartera 
+                                        <span style="cursor: help;" data-bs-toggle="tooltip" title="Valoración total a precio de mercado de todas tus posiciones abiertas en euros.">ℹ️</span>
+                                    </span>
+                                    <span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-25" style="font-size: 0.68rem;">● En Vivo</span>
+                                </div>
+                                <div class="my-1">
+                                    <div class="fs-3 fw-bold text-white font-monospace" id="resumen-valor-total" style="font-weight: 800; letter-spacing: -0.03em;">--</div>
+                                </div>
+                                <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+                                    <span class="badge font-monospace px-2 py-1" id="resumen-variacion-dia" style="font-size: 0.75rem;">--</span>
+                                    <span class="text-secondary small font-monospace" id="resumen-total-pnl-combined" style="font-size: 0.75rem;" title="P&L Total (Latente + Realizado)">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- KPI 2: TIR Anual -->
+                        <div class="col-xl-2 col-md-3 col-6">
+                            <div class="glass-panel p-3 kpi-card h-100 d-flex flex-column justify-content-between">
+                                <div class="text-secondary small text-uppercase fw-medium mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                    TIR (Anual) 
+                                    <span style="cursor: help;" data-bs-toggle="tooltip" title="Tasa Interna de Retorno anualizada: Rentabilidad ponderada por capital introducido o retirado.">ℹ️</span>
+                                </div>
+                                <div class="fs-4 fw-bold font-monospace my-1" id="resumen-tir">--</div>
+                                <div class="text-secondary" style="font-size: 0.68rem;">Ponderada por capital</div>
+                            </div>
+                        </div>
+
+                        <!-- KPI 3: TWR Acumulado -->
+                        <div class="col-xl-2 col-md-3 col-6">
+                            <div class="glass-panel p-3 kpi-card h-100 d-flex flex-column justify-content-between">
+                                <div class="text-secondary small text-uppercase fw-medium mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                    TWR (Acumulado) 
+                                    <span style="cursor: help;" data-bs-toggle="tooltip" title="Time-Weighted Return: Rendimiento puro de la estrategia aislando entradas/salidas de capital.">ℹ️</span>
+                                </div>
+                                <div class="fs-4 fw-bold font-monospace my-1" id="resumen-twr">--</div>
+                                <div class="text-secondary" style="font-size: 0.68rem;">Rendimiento puro</div>
+                            </div>
+                        </div>
+
+                        <!-- KPI 4: P&L Latente -->
+                        <div class="col-xl-2 col-md-3 col-6">
+                            <div class="glass-panel p-3 kpi-card h-100 d-flex flex-column justify-content-between">
+                                <div class="text-secondary small text-uppercase fw-medium mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                    P&L Latente 
+                                    <span style="cursor: help;" data-bs-toggle="tooltip" title="Ganancia o pérdida virtual en vivo si vendieras hoy las posiciones abiertas.">ℹ️</span>
+                                </div>
+                                <div class="fs-4 fw-bold font-monospace my-1" id="resumen-latente">--</div>
+                                <div class="text-secondary" style="font-size: 0.68rem;">Posiciones abiertas</div>
+                            </div>
+                        </div>
+
+                        <!-- KPI 5: P&L Realizado -->
+                        <div class="col-xl-2 col-md-3 col-6">
+                            <div class="glass-panel p-3 kpi-card h-100 d-flex flex-column justify-content-between">
+                                <div class="text-secondary small text-uppercase fw-medium mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                    P&L Realizado 
+                                    <span style="cursor: help;" data-bs-toggle="tooltip" title="Beneficios o pérdidas materializadas por ventas pasadas o dividendos cobrados.">ℹ️</span>
+                                </div>
+                                <div class="fs-4 fw-bold font-monospace my-1" id="resumen-realizado">--</div>
+                                <div class="text-secondary" style="font-size: 0.68rem;">Ventas + Dividendos</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Charts (Evolución + Distribución) -->
+                    <div class="row g-2 align-items-stretch">
+                        <!-- Chart Evolución -->
+                        <div class="col-lg-8">
+                            <div class="glass-panel p-3 h-100 d-flex flex-column">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+                                    <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Evolución de la Cartera</h5>
+                                    
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="btn-group btn-group-sm" id="time-range-selector" role="group">
+                                            <button type="button" class="btn time-btn" onclick="filtrarRangoHistorico('1M', this)">1M</button>
+                                            <button type="button" class="btn time-btn" onclick="filtrarRangoHistorico('3M', this)">3M</button>
+                                            <button type="button" class="btn time-btn" onclick="filtrarRangoHistorico('6M', this)">6M</button>
+                                            <button type="button" class="btn time-btn" onclick="filtrarRangoHistorico('1Y', this)">1Y</button>
+                                            <button type="button" class="btn time-btn" onclick="filtrarRangoHistorico('YTD', this)">YTD</button>
+                                            <button type="button" class="btn time-btn active" onclick="filtrarRangoHistorico('ALL', this)">TODOS</button>
+                                        </div>
+                                        <div class="form-check form-switch m-0 ms-1" title="Comparar con el índice de referencia VWCE">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="toggleBenchmark" checked>
+                                            <label class="form-check-label small text-secondary" for="toggleBenchmark" style="font-size:0.75rem;">Benchmark</label>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="flex-grow-1" style="min-height: 180px; max-height: 240px; position: relative;">
+
+                                <div class="flex-grow-1" style="min-height: 220px; max-height: 280px; position: relative;">
                                     <canvas id="equityCurveChart"></canvas>
                                 </div>
+
+                                <!-- Pill Bar for Risk Metrics -->
                                 <div class="d-flex flex-wrap justify-content-around align-items-center mt-2 pt-2 border-top border-secondary border-opacity-25 gap-2 text-center">
-                                     <div>
-                                         <span class="text-secondary small d-block mb-0 text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Volatilidad Anual <span style="cursor: help;" data-bs-toggle="tooltip" title="Volatilidad Anualizada: Muestra cuánto varía el rendimiento diario de la cartera. Menor volatilidad implica un crecimiento más estable.">ℹ️</span></span>
-                                         <span class="fs-6 fw-bold text-white" id="resumen-volatilidad">--</span>
-                                     </div>
-                                     <div>
-                                         <span class="text-secondary small d-block mb-0 text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Ratio de Sharpe <span style="cursor: help;" data-bs-toggle="tooltip" title="Ratio de Sharpe (Tasa libre de riesgo: 2%): Evalúa si el rendimiento de tu cartera compensa el riesgo que estás asumiendo. Superior a 1 es considerado bueno.">ℹ️</span></span>
-                                         <span class="fs-6 fw-bold text-white" id="resumen-sharpe">--</span>
-                                     </div>
-                                     <div>
-                                         <span class="text-secondary small d-block mb-0 text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Máxima Caída <span style="cursor: help;" data-bs-toggle="tooltip" title="Máxima Caída (Max Drawdown): La mayor pérdida histórica acumulada registrada de pico a valle en la valoración de la cartera.">ℹ️</span></span>
-                                         <span class="fs-6 fw-bold text-white" id="resumen-drawdown">--</span>
-                                     </div>
-                                 </div>
+                                    <div>
+                                        <span class="text-secondary small d-block mb-0 text-uppercase fw-semibold" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                            Volatilidad Anual <span style="cursor: help;" data-bs-toggle="tooltip" title="Volatilidad Anualizada: Muestra cuánto varía el rendimiento diario de la cartera.">ℹ️</span>
+                                        </span>
+                                        <span class="fs-6 fw-bold text-white font-monospace" id="resumen-volatilidad">--</span>
+                                    </div>
+                                    <div class="vr bg-secondary opacity-25 d-none d-sm-block" style="height: 24px;"></div>
+                                    <div>
+                                        <span class="text-secondary small d-block mb-0 text-uppercase fw-semibold" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                            Ratio de Sharpe <span style="cursor: help;" data-bs-toggle="tooltip" title="Ratio de Sharpe (Tasa libre de riesgo 2%): Evalúa si el rendimiento compensa el riesgo asumiendo. Superior a 1 es considerado muy bueno.">ℹ️</span>
+                                        </span>
+                                        <span class="fs-6 fw-bold text-white font-monospace" id="resumen-sharpe">--</span>
+                                    </div>
+                                    <div class="vr bg-secondary opacity-25 d-none d-sm-block" style="height: 24px;"></div>
+                                    <div>
+                                        <span class="text-secondary small d-block mb-0 text-uppercase fw-semibold" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                            Máxima Caída <span style="cursor: help;" data-bs-toggle="tooltip" title="Max Drawdown: La mayor pérdida histórica acumulada de pico a valle en la valoración.">ℹ️</span>
+                                        </span>
+                                        <span class="fs-6 fw-bold text-white font-monospace" id="resumen-drawdown">--</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="glass-panel p-2 p-md-3 h-100 d-flex flex-column">
+
+                        <!-- Chart Distribución -->
+                        <div class="col-lg-4">
+                            <div class="glass-panel p-3 h-100 d-flex flex-column">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Distribución</h5>
+                                    
+                                    <ul class="nav nav-pills nav-sm mb-0 gap-1" id="chartTabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active time-btn py-1 px-2" data-bs-toggle="tab" data-bs-target="#tab-activos" type="button" role="tab">Activos</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link time-btn py-1 px-2" data-bs-toggle="tab" data-bs-target="#tab-divisas" type="button" role="tab">Divisas</button>
+                                        </li>
+                                    </ul>
                                 </div>
-                                <ul class="nav nav-tabs nav-sm mb-2 border-bottom border-secondary border-opacity-25" id="chartTabs" role="tablist">
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link active text-secondary" data-bs-toggle="tab" data-bs-target="#tab-activos" type="button" role="tab">Activos</button>
-                                    </li>
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link text-secondary" data-bs-toggle="tab" data-bs-target="#tab-divisas" type="button" role="tab">Divisas</button>
-                                    </li>
-                                </ul>
-                                <div class="tab-content flex-grow-1" style="min-height: 180px; position: relative;">
-                                    <div class="tab-pane fade show active h-100 w-100" id="tab-activos" role="tabpanel" style="position: absolute; top:0; bottom:0; left:0; right:0;">
+
+                                <div class="tab-content flex-grow-1" style="min-height: 220px; position: relative;">
+                                    <div class="tab-pane fade show active h-100 w-100 position-absolute top-0 start-0" id="tab-activos" role="tabpanel">
                                         <canvas id="allocationChart"></canvas>
                                     </div>
-                                    <div class="tab-pane fade h-100 w-100" id="tab-divisas" role="tabpanel" style="position: absolute; top:0; bottom:0; left:0; right:0;">
+                                    <div class="tab-pane fade h-100 w-100 position-absolute top-0 start-0" id="tab-divisas" role="tabpanel">
                                         <canvas id="currencyChart"></canvas>
                                     </div>
                                 </div>
@@ -533,34 +475,37 @@
                         </div>
                     </div>
 
-                    <div class="glass-panel d-flex flex-column overflow-hidden mb-2">
-                        <div class="p-2 p-md-3 border-bottom border-secondary border-opacity-25">
+                    <!-- Row 3: Mi Cartera (Abierta) -->
+                    <div class="glass-panel d-flex flex-column overflow-hidden">
+                        <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
                             <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Mi Cartera (Abierta)</h5>
+                            <span class="text-secondary small font-monospace" id="count-cartera-activos">0 activos</span>
                         </div>
-                        <div class="table-responsive" style="max-height: 40vh;">
+                        <div class="table-responsive" style="max-height: 45vh;">
                             <table class="table table-sm table-borderless align-middle mb-0">
-                                <thead class="bg-dark bg-opacity-25" style="position: sticky; top: 0; z-index: 1;">
+                                <thead class="bg-dark bg-opacity-40 sticky-top" style="z-index: 1;">
                                     <tr>
                                         <th class="ps-4">Activo</th>
-                                        <th class="text-end">Cantidad <span style="cursor: help;" data-bs-toggle="tooltip" title="El número total de participaciones, acciones o títulos que posees actualmente.">ℹ️</span></th>
-                                        <th class="text-end">Coste Medio <span style="cursor: help;" data-bs-toggle="tooltip" title="El precio promedio por el que compraste tus activos, incluyendo comisiones.">ℹ️</span></th>
-                                        <th class="text-end">Precio Actual <span style="cursor: help;" data-bs-toggle="tooltip" title="La última cotización de mercado registrada para este activo.">ℹ️</span></th>
-                                        <th class="text-end">Valor Actual <span style="cursor: help;" data-bs-toggle="tooltip" title="La valoración actual de tu inversión (Cantidad × Precio Actual).">ℹ️</span></th>
-                                        <th class="text-end">Rentab. % <span style="cursor: help;" data-bs-toggle="tooltip" title="La ganancia o pérdida porcentual acumulada sobre este activo.">ℹ️</span></th>
-                                        <th class="text-end pe-4">Beneficio / Pérdida <span style="cursor: help;" data-bs-toggle="tooltip" title="El beneficio o pérdida total en euros (P&L Latente) si vendieras este activo hoy a precios actuales.">ℹ️</span></th>
+                                        <th class="text-end">Cantidad <span style="cursor: help;" data-bs-toggle="tooltip" title="Número total de títulos que posees actualmente.">ℹ️</span></th>
+                                        <th class="text-end">Coste Medio <span style="cursor: help;" data-bs-toggle="tooltip" title="Precio promedio de compra incluyendo comisiones.">ℹ️</span></th>
+                                        <th class="text-end">Precio Actual <span style="cursor: help;" data-bs-toggle="tooltip" title="Última cotización de mercado registrada y variación diaria.">ℹ️</span></th>
+                                        <th class="text-end">Valor Actual <span style="cursor: help;" data-bs-toggle="tooltip" title="Valoración a precio de mercado (Cantidad × Precio Actual).">ℹ️</span></th>
+                                        <th class="text-end">Rentab. % <span style="cursor: help;" data-bs-toggle="tooltip" title="Ganancia o pérdida porcentual acumulada sobre este activo.">ℹ️</span></th>
+                                        <th class="text-end pe-4">Beneficio / Pérdida <span style="cursor: help;" data-bs-toggle="tooltip" title="Ganancia o pérdida total en euros (P&L Latente) de la posición.">ℹ️</span></th>
                                     </tr>
                                 </thead>
                                 <tbody id="cartera-table">
-                                    <tr><td colspan="7" class="text-center py-3 text-secondary">Cargando...</td></tr>
+                                    <tr><td colspan="7" class="text-center py-4 text-secondary">Cargando datos de cartera...</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                    
-                    <div class="glass-panel d-flex flex-column overflow-hidden flex-grow-1">
-                        <div class="d-flex justify-content-between align-items-center p-2 p-md-3 border-bottom border-secondary border-opacity-25">
+
+                    <!-- Row 4: Historial de Operaciones -->
+                    <div class="glass-panel d-flex flex-column overflow-hidden">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center p-3 border-bottom border-secondary border-opacity-25 gap-2">
                             <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Historial de Operaciones</h5>
-                            <div>
+                            <div class="d-flex align-items-center gap-1">
                                 <button class="action-btn" id="btn-open-split" title="Aplicar Split/Contrasplit">
                                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                         <circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="8.59" y1="8.59" x2="15.41" y2="15.41"></line><line x1="8.59" y1="15.41" x2="15.41" y2="8.59"></line>
@@ -575,15 +520,15 @@
                                 <input type="file" id="import-operaciones-file" style="display:none" accept=".csv,.xls" onchange="importExcel('operaciones', this)">
                             </div>
                         </div>
-                        <div class="p-2 p-md-3 border-bottom border-secondary border-opacity-25">
+                        <div class="p-3 border-bottom border-secondary border-opacity-25">
                             <input type="text" id="filtro-operaciones" class="form-control" placeholder="🔎 Buscar por Ticker, ISIN o Nombre...">
                         </div>
-                        <div class="table-responsive flex-grow-1">
+                        <div class="table-responsive" style="max-height: 45vh;">
                             <table class="table table-sm table-borderless align-middle mb-0">
-                                <thead class="bg-dark bg-opacity-25" style="position: sticky; top: 0; z-index: 1;">
+                                <thead class="bg-dark bg-opacity-40 sticky-top" style="z-index: 1;">
                                     <tr>
                                         <th class="ps-4">Fecha</th>
-                                        <th>Ticker</th>
+                                        <th>Ticker / Activo</th>
                                         <th class="text-center">Tipo</th>
                                         <th class="text-end">Cantidad</th>
                                         <th class="text-end">Precio</th>
@@ -595,216 +540,277 @@
                                     </tr>
                                 </thead>
                                 <tbody id="operaciones-table">
-                                    <tr><td colspan="10" class="text-center py-3 text-secondary">Cargando...</td></tr>
+                                    <tr><td colspan="10" class="text-center py-4 text-secondary">Cargando operaciones...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- TAB 2: Monitores y Alertas -->
+            <div class="tab-pane fade" id="nav-alertas" role="tabpanel" aria-labelledby="alertas-tab">
+                <div class="d-flex flex-column gap-3">
+                    <div class="glass-panel p-3">
+                        <form id="add-form" class="row g-2 align-items-end">
+                            <div class="col-md-4">
+                                <label class="form-label text-secondary small mb-1">Activo (Ticker o ISIN)</label>
+                                <input type="text" id="ticker" name="ticker" class="form-control" placeholder="Ej. AAPL, ES0105065009" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label text-secondary small mb-1">Precio Objetivo</label>
+                                <input type="number" step="0.01" id="target" name="target" class="form-control" placeholder="0.00" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label text-secondary small mb-1">Alerta Variación Diaria (%)</label>
+                                <input type="number" step="0.1" id="target_pct" name="target_pct" class="form-control" placeholder="5.0" min="0">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary w-100" id="submit-btn">
+                                    Añadir Alerta
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="glass-panel overflow-hidden">
+                        <div class="d-flex justify-content-between align-items-center p-3 border-bottom border-secondary border-opacity-25">
+                            <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Mis Alertas Configuradas</h5>
+                            <div>
+                                <button class="action-btn" onclick="exportExcel('monitores')" title="Exportar a CSV">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                </button>
+                                <button class="action-btn" onclick="document.getElementById('import-monitores-file').click()" title="Importar de CSV">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                </button>
+                                <input type="file" id="import-monitores-file" style="display:none" accept=".csv" onchange="importExcel('monitores', this)">
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-borderless align-middle mb-0" style="min-width: 800px;">
+                                <thead class="bg-dark bg-opacity-40">
+                                    <tr>
+                                        <th class="ps-4">Activo</th>
+                                        <th class="text-center">Moneda</th>
+                                        <th class="text-end">Actual</th>
+                                        <th class="text-end" title="Variación respecto al cierre anterior">Variación Diaria</th>
+                                        <th class="text-end">Objetivo</th>
+                                        <th class="text-end" title="Distancia porcentual al objetivo">Dist. Objetivo</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="pe-4 text-end">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="monitors-table">
+                                    <tr><td colspan="8" class="text-center py-4 text-secondary">Cargando monitores...</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
-        </div>
-            </div> <!-- End main-content-col -->
-            
+            </div>
 
+            <!-- TAB 3: Actividad Reciente -->
+            <div class="tab-pane fade" id="nav-actividad" role="tabpanel" aria-labelledby="actividad-tab">
+                <div class="glass-panel p-3 d-flex flex-column h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Feed de Actividad y Alertas</h5>
+                        <button class="btn btn-outline-danger btn-sm" onclick="limpiarActividad()">
+                            🗑️ Limpiar Historial
+                        </button>
+                    </div>
+                    <div id="alerts-feed" class="alerts-feed flex-grow-1 overflow-auto pe-2" style="max-height: 70vh;">
+                        <div class="text-secondary small text-center py-5">Sin actividad reciente</div>
+                    </div>
+                </div>
+            </div>
 
-    
-    <!-- Operacion Modal -->
-    <dialog id="opModal" class="glass-panel border-0" style="background: var(--bg-surface); color: var(--text-primary); max-width: 500px; width: 100%; padding: 0;">
-        <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
-            <h5 class="m-0 fs-5 fw-semibold" id="opModalTitle">➕ Registrar Operación</h5>
-            <form method="dialog">
-                <button type="submit" class="btn-close btn-close-white" aria-label="Cerrar"></button>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Operación Modal -->
+    <dialog id="opModal" class="border-0 p-0 rounded-4 shadow-lg" style="max-width: 540px; width: 95%;">
+        <div class="glass-panel p-4" style="background: rgba(17, 20, 30, 0.95);">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="m-0 fs-6 fw-bold text-white" id="opModalTitle">➕ Registrar Operación</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('opModal').close()"></button>
+            </div>
+            <form id="op-form" class="row g-3">
+                <input type="hidden" id="op-id" name="id">
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small mb-1">Fecha</label>
+                    <input type="date" id="op-fecha" name="fecha" class="form-control" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small mb-1">Ticker o ISIN</label>
+                    <input type="text" id="op-ticker" name="ticker" class="form-control" placeholder="Ej. AAPL, ES0105065009" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small mb-1">Tipo de Operación</label>
+                    <select id="op-tipo" name="tipo" class="form-select" required>
+                        <option value="COMPRA">COMPRA</option>
+                        <option value="APORTACION">APORTACIÓN (Fondo)</option>
+                        <option value="VENTA">VENTA</option>
+                        <option value="DIVIDENDO">DIVIDENDO / RENDIMIENTO</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small mb-1">Moneda de la Operación</label>
+                    <select id="op-moneda" name="moneda" class="form-select">
+                        <option value="">Automático (Del activo)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="USD">USD ($)</option>
+                        <option value="GBP">GBP (£)</option>
+                        <option value="NOK">NOK (kr)</option>
+                        <option value="CHF">CHF (Fr)</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small mb-1">Cantidad de Títulos</label>
+                    <input type="number" step="any" id="op-cantidad" name="cantidad" class="form-control" placeholder="0.00" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small mb-1">Precio Unitario</label>
+                    <input type="number" step="any" id="op-precio" name="precio" class="form-control" placeholder="0.00" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-secondary small mb-1">Comisiones</label>
+                    <input type="number" step="any" id="op-comisiones" name="comisiones" class="form-control" placeholder="0.00" value="0">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-secondary small mb-1">Impuestos</label>
+                    <input type="number" step="any" id="op-impuestos" name="impuestos" class="form-control" placeholder="0.00" value="0">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-secondary small mb-1">Tasa Cambio (vs EUR)</label>
+                    <input type="number" step="any" id="op-tasa-cambio" name="tasa_cambio" class="form-control" placeholder="Opcional">
+                </div>
+                <div class="col-12 mt-4">
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" id="op-submit-btn">Guardar Operación</button>
+                </div>
             </form>
         </div>
-        <div class="p-3">
-            <form id="op-form" class="row g-2">
-                            <input type="hidden" id="op-id" name="id">
-                            <div class="col-12">
-                                <label class="form-label text-secondary small mb-1">Fecha</label>
-                                <input type="date" id="op-fecha" name="fecha" class="form-control" required>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Ticker</label>
-                                <input type="text" id="op-ticker" name="ticker" class="form-control" placeholder="AAPL" required>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Tipo</label>
-                                <select id="op-tipo" name="tipo" class="form-control" required>
-                                    <option value="COMPRA">Compra</option>
-                                    <option value="VENTA">Venta</option>
-                                    <option value="APORTACION">Aportación</option>
-                                    <option value="DIVIDENDO">Dividendo</option>
-                                </select>
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label text-secondary small mb-1">Cantidad</label>
-                                <input type="number" step="any" id="op-cantidad" name="cantidad" class="form-control" min="0" required>
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label text-secondary small mb-1">Precio Unit.</label>
-                                <input type="number" step="any" id="op-precio" name="precio" class="form-control" min="0" required>
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label text-secondary small mb-1">Moneda</label>
-                                <select id="op-moneda" name="moneda" class="form-control">
-                                    <option value="">Automático (Del activo)</option>
-                                    <option value="EUR">EUR - Euro</option>
-                                    <option value="USD">USD - Dólar Estadounidense</option>
-                                    <option value="GBP">GBP - Libra Esterlina</option>
-                                    <option value="CHF">CHF - Franco Suizo</option>
-                                    <option value="JPY">JPY - Yen Japonés</option>
-                                    <option value="CAD">CAD - Dólar Canadiense</option>
-                                    <option value="AUD">AUD - Dólar Australiano</option>
-                                    <option value="HKD">HKD - Dólar de Hong Kong</option>
-                                    <option value="CNY">CNY - Yuan Chino</option>
-                                    <option value="SGD">SGD - Dólar Singapurense</option>
-                                    <option value="MXN">MXN - Peso Mexicano</option>
-                                    <option value="BRL">BRL - Real Brasileño</option>
-                                </select>
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label text-secondary small mb-1">Comisiones</label>
-                                <input type="number" step="any" id="op-comisiones" name="comisiones" class="form-control" value="0" min="0">
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label text-secondary small mb-1">Impuestos</label>
-                                <input type="number" step="any" id="op-impuestos" name="impuestos" class="form-control" value="0" min="0">
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label text-secondary small mb-1" title="Cambio histórico a EUR">Tasa Cambio</label>
-                                <input type="number" step="any" id="op-tasa-cambio" name="tasa_cambio" class="form-control" placeholder="Auto" min="0">
-                            </div>
-                            <div class="col-12 mt-4">
-                                <button type="submit" class="btn btn-primary w-100" id="op-submit-btn">Guardar Operación</button>
-                            </div>
-                        </form></div>
     </dialog>
 
-    <!-- Config Modal -->
-    <dialog id="configModal" class="glass-panel border-0" style="background: var(--bg-surface); color: var(--text-primary); max-width: 500px; width: 100%; padding: 0;">
-        <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
-            <h5 class="m-0 fs-5 fw-semibold">⚙️ Configuración General</h5>
-            <form method="dialog">
-                <button type="submit" class="btn-close btn-close-white" aria-label="Cerrar"></button>
+    <!-- Edit Modal -->
+    <dialog id="editModal" class="border-0 p-0 rounded-4 shadow-lg" style="max-width: 420px; width: 95%;">
+        <div class="glass-panel p-4" style="background: rgba(17, 20, 30, 0.95);">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="m-0 fs-6 fw-bold text-white">✏️ Editar Alerta</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('editModal').close()"></button>
+            </div>
+            <form id="edit-form" class="row g-3">
+                <div class="col-12">
+                    <label class="form-label text-secondary small mb-1">Precio Objetivo</label>
+                    <input type="number" step="any" id="edit-target" name="target" class="form-control" required>
+                </div>
+                <div class="col-12">
+                    <label class="form-label text-secondary small mb-1">Alerta Variación Diaria (%)</label>
+                    <input type="number" step="any" id="edit-target-pct" name="target_pct" class="form-control">
+                </div>
+                <div class="col-12 mt-4">
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Guardar Cambios</button>
+                </div>
             </form>
-        </div>
-        <div class="p-3">
-            <form id="config-form">
-                        <div class="mb-2">
-                            <label class="form-label text-secondary small mb-1">Título de la Aplicación</label>
-                            <input type="text" id="cfg-app-title" name="app_title" class="form-control" placeholder="Piloto Financiero">
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label text-secondary small mb-1">Telegram Bot Token</label>
-                            <input type="password" id="cfg-telegram-token" name="telegram_token" class="form-control">
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label text-secondary small mb-1">Telegram Chat ID</label>
-                            <input type="text" id="cfg-telegram-chat-id" name="telegram_chat_id" class="form-control">
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label text-secondary small mb-1">Intervalo de Refresco (minutos)</label>
-                            <input type="number" id="cfg-refresh-interval" name="refresh_interval" class="form-control" min="1">
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label text-secondary small mb-1">Días de retención de Actividad Reciente</label>
-                            <input type="number" id="cfg-activity-retention" name="activity_retention_days" class="form-control" min="1" value="2">
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label text-secondary small mb-1">Caché de divisas (horas)</label>
-                            <input type="number" step="any" id="cfg-exchange-rate-ttl" name="exchange_rate_ttl_hours" class="form-control" min="0.1" value="12">
-                        </div>
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="cfg-check-market-hours" name="check_market_hours">
-                            <label class="form-check-label text-secondary small">Respetar horario de mercado</label>
-                        </div>
-                        <div class="form-check form-switch mb-4">
-                            <input class="form-check-input" type="checkbox" id="cfg-debug-ui" name="debug_ui">
-                            <label class="form-check-label text-secondary small">Modo Debug</label>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Guardar Configuración</button>
-                    </form>
-                    
-                    <hr class="border-secondary opacity-25 my-4">
-                    
-                    <div id="debugPanel">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-secondary small text-uppercase fw-bold">Registros del Sistema</span>
-                            <div>
-                                <button type="button" class="action-btn me-2" onclick="copyLogs()" title="Copiar logs">
-                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="me-1"><path d="M8 16H6a2 2 0 01-2-2V4a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg><span style="font-size: 0.75rem;">Copiar</span>
-                                </button>
-                                <button type="button" class="action-btn" onclick="clearLogs()" title="Limpiar logs">
-                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="me-1"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg><span style="font-size: 0.75rem;">Limpiar</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="debug-logs p-2 rounded bg-dark bg-opacity-25 border border-secondary border-opacity-25" id="debugLogs" style="max-height: 200px; overflow-y: auto;"></div>
-                    </div></div>
-    </dialog>
-
-    <!-- Edit Monitor Modal -->
-    <dialog id="editModal" class="glass-panel border-0" style="background: var(--bg-surface); color: var(--text-primary); max-width: 500px; width: 100%; padding: 0;">
-        <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
-            <h5 class="m-0 fs-5 fw-semibold">✏️ Editar Alerta</h5>
-            <form method="dialog">
-                <button type="submit" class="btn-close btn-close-white" aria-label="Cerrar"></button>
-            </form>
-        </div>
-        <div class="p-3">
-            <form id="edit-form">
-                        <div class="mb-2">
-                            <label class="form-label text-secondary small mb-1">Precio Objetivo</label>
-                            <input type="number" step="0.01" id="edit-target" name="target" class="form-control" required>
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label text-secondary small mb-1">Alerta Variación Diaria (%)</label>
-                            <input type="number" step="0.1" id="edit-target-pct" name="target_pct" class="form-control" min="0">
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Guardar cambios</button>
-                    </form>
         </div>
     </dialog>
 
     <!-- Split Modal -->
-    <dialog id="splitModal" class="glass-panel border-0" style="background: var(--bg-surface); color: var(--text-primary); max-width: 500px; width: 100%; padding: 0;">
-        <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
-            <h5 class="m-0 fs-5 fw-semibold">✂️ Aplicar Split / Contrasplit</h5>
-            <form method="dialog">
-                <button type="submit" class="btn-close btn-close-white" aria-label="Cerrar"></button>
-            </form>
-        </div>
-        <div class="p-3">
-            <form id="split-form" class="row g-2">
+    <dialog id="splitModal" class="border-0 p-0 rounded-4 shadow-lg" style="max-width: 460px; width: 95%;">
+        <div class="glass-panel p-4" style="background: rgba(17, 20, 30, 0.95);">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="m-0 fs-6 fw-bold text-white">✂️ Split / Contrasplit</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('splitModal').close()"></button>
+            </div>
+            <form id="split-form" class="row g-3">
                 <div class="col-12">
-                    <label class="form-label text-secondary small mb-1">Ticker</label>
-                    <input type="text" id="split-ticker" name="ticker" class="form-control" placeholder="AAPL" required>
+                    <label class="form-label text-secondary small mb-1">Ticker del Activo</label>
+                    <input type="text" name="ticker" class="form-control" placeholder="Ej. AAPL" required style="text-transform: uppercase;">
                 </div>
-                <div class="col-6">
-                    <label class="form-label text-secondary small mb-1">Fecha Límite (Ex-Date)</label>
+                <div class="col-12">
+                    <label class="form-label text-secondary small mb-1">Factor de Ajuste</label>
+                    <input type="number" step="any" name="factor" class="form-control" placeholder="Ej. 10 para Split 1:10, 0.1 para Reverse Split" required>
+                    <span class="text-secondary small d-block mt-1">Multiplica la cantidad y divide el precio de compra.</span>
+                </div>
+                <div class="col-12">
+                    <label class="form-label text-secondary small mb-1">Afectar operaciones anteriores a:</label>
                     <input type="date" id="split-fecha" name="fecha_limite" class="form-control" required>
                 </div>
-                <div class="col-6">
-                    <label class="form-label text-secondary small mb-1">Ratio</label>
-                    <input type="number" step="any" id="split-ratio" name="ratio" class="form-control" placeholder="Ej: 2 para un split 2:1" required>
-                </div>
-                <div class="col-12 mt-3">
-                    <p class="small text-secondary" style="line-height: 1.4;">
-                        Esto modificará <strong>todas</strong> las operaciones del ticker anteriores a la fecha límite.
-                        <br><strong>Split 2:1</strong> (2 acciones nuevas por 1 antigua) → Ratio: <strong>2</strong>
-                        <br><strong>Contrasplit 1:10</strong> (1 acción nueva por 10 antiguas) → Ratio: <strong>0.1</strong>
-                    </p>
-                </div>
-                <div class="col-12 mt-2">
-                    <button type="submit" class="btn btn-primary w-100" id="split-submit-btn">Aplicar Ajuste</button>
+                <div class="col-12 mt-4">
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" id="split-submit-btn">Aplicar Ajuste</button>
                 </div>
             </form>
         </div>
     </dialog>
 
-    <!-- Toast Container -->
-    <div class="toast-container position-fixed bottom-0 end-0 p-2 p-md-3"></div>
+    <!-- Config Modal -->
+    <dialog id="configModal" class="border-0 p-0 rounded-4 shadow-lg" style="max-width: 500px; width: 95%;">
+        <div class="glass-panel p-4" style="background: rgba(17, 20, 30, 0.95);">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="m-0 fs-6 fw-bold text-white">⚙️ Configuración del Sistema</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('configModal').close()"></button>
+            </div>
+            <form id="config-form" class="row g-3">
+                <div class="col-12">
+                    <label class="form-label text-secondary small mb-1">Nombre de la Aplicación</label>
+                    <input type="text" id="cfg-app-title" class="form-control">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small mb-1">Telegram Bot Token</label>
+                    <input type="password" id="cfg-telegram-token" class="form-control" placeholder="Opcional">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small mb-1">Telegram Chat ID</label>
+                    <input type="text" id="cfg-telegram-chat-id" class="form-control" placeholder="Opcional">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small mb-1">Intervalo Refresco (s)</label>
+                    <input type="number" id="cfg-refresh-interval" class="form-control" min="10" value="30">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small mb-1">TTL Caché Divisas (h)</label>
+                    <input type="number" id="cfg-exchange-rate-ttl" class="form-control" min="1" value="12">
+                </div>
+                <div class="col-12">
+                    <label class="form-label text-secondary small mb-1">Retención Actividad (Días)</label>
+                    <input type="number" id="cfg-activity-retention" class="form-control" min="1" value="2">
+                </div>
+                <div class="col-12">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="cfg-check-market-hours">
+                        <label class="form-check-label text-white small" for="cfg-check-market-hours">Solo actualizar durante horas de mercado</label>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="cfg-debug-ui">
+                        <label class="form-check-label text-white small" for="cfg-debug-ui">Mostrar botón de depuración (Logs)</label>
+                    </div>
+                </div>
+                <div class="col-12 mt-4">
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Guardar Configuración</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- Debug Toggle & Panel -->
+    <button class="action-btn debug-toggle shadow" onclick="toggleDebug()" title="Logs de depuración">🐞</button>
+    <div id="debugPanel" class="debug-panel shadow-lg">
+        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom border-secondary border-opacity-25">
+            <span class="fw-bold text-white">📋 System Debug Logs</span>
+            <div>
+                <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" onclick="copyLogs()" style="font-size:0.75rem;">Copiar</button>
+                <button class="btn btn-sm btn-outline-danger py-0 px-2 font-monospace" onclick="clearLogs()" style="font-size:0.75rem;">Limpiar</button>
+                <button class="btn-close btn-close-white ms-2" onclick="toggleDebug()"></button>
+            </div>
+        </div>
+        <div id="debugLogs" class="debug-logs overflow-auto pe-1"></div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1080;"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -858,11 +864,11 @@
             showToast(message, type = 'success') {
                 const container = document.querySelector('.toast-container');
                 const id = 'toast-' + Date.now();
-            const icon = type === 'success' ? '✓' : (type === 'warning' ? 'ℹ️' : '⚠️');
+                const icon = type === 'success' ? '✓' : (type === 'warning' ? 'ℹ️' : '⚠️');
                 const bg = type === 'success' ? 'text-bg-success' : 'text-bg-danger';
                 
                 const toastHtml = `
-                    <div id="${id}" class="toast align-items-center ${bg} border-0 mb-2 shadow" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div id="${id}" class="toast align-items-center ${bg} border-0 mb-2 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
                         <div class="d-flex">
                             <div class="toast-body">
                                 <strong>${icon}</strong> ${message}
@@ -880,39 +886,30 @@
 
             renderTable(monitores) {
                 const entries = Object.entries(monitores);
-                console.log(`📋 Renderizando tabla con ${entries.length} monitores`);
                 if (entries.length === 0) {
-                    document.getElementById('monitors-table').innerHTML = '<tr><td colspan="8" class="text-center py-3 text-secondary">No hay alertas configuradas</td></tr>';
+                    document.getElementById('monitors-table').innerHTML = '<tr><td colspan="8" class="text-center py-4 text-secondary">No hay alertas configuradas</td></tr>';
                     return;
                 }
 
                 const html = entries.map(([id, m]) => {
-                    // Calcular variación porcentual
                     const variacion = m.current && m.previous_close ? ((m.current - m.previous_close) / m.previous_close * 100) : 0;
                     const variacionClass = variacion >= 0 ? 'text-success' : 'text-danger';
                     const variacionSign = variacion >= 0 ? '+' : '';
                     
-                    // Calcular distancia al objetivo
                     const distObj = (m.current > 0 && m.target) ? ((m.target - m.current) / m.current * 100) : null;
                     const distObjText = distObj !== null ? `${distObj > 0 ? '+' : ''}${distObj.toFixed(2)}%` : '-';
-                    
-                    console.log(`  ⏰ ${m.ticker}: current_price_time = "${m.current_price_time}"`);
                     
                     return `
                     <tr>
                         <td class="ps-4">
-                            <div class="fw-bold text-white" style="font-size: 0.9rem;">
-                                ${m.name || m.ticker}
-                                ${m.target_pct > 0 ? '<span class="ms-1" title="Alerta de volatilidad configurada">📈</span>' : ''}
-                            </div>
-                            <div class="text-secondary" style="font-size: 0.7rem; letter-spacing: 0.03em;">${m.ticker}</div>
+                            <div class="fw-bold text-white">${m.name || m.ticker}</div>
+                            <div class="text-secondary font-monospace" style="font-size: 0.7rem;">${m.ticker}</div>
                         </td>
-                        <td class="text-center"><span class="badge bg-dark border border-secondary border-opacity-25">${m.currency || '-'}</span></td>
-                        <td class="text-end">
-                            <div class="font-monospace fs-6 fw-semibold">${UI.formatCurrency(m.current, m.currency)}</div>
-                            <div class="text-secondary font-monospace mt-1" style="font-size: 0.70rem;">${m.current_price_time || 'N/A'}</div>
+                        <td class="text-center"><span class="badge bg-dark border border-secondary border-opacity-25 font-monospace">${m.currency || '-'}</span></td>
+                        <td class="text-end" title="Actualizado: ${m.current_price_time || 'N/A'}" style="cursor: help;">
+                            <div class="font-monospace fs-6 fw-semibold text-white">${UI.formatCurrency(m.current, m.currency)}</div>
                         </td>
-                        <td class="text-end font-monospace fs-6 fw-semibold ${variacionClass}">${variacion ? `${variacionSign}${variacion.toFixed(1)}%` : '-'}</td>
+                        <td class="text-end font-monospace fs-6 fw-semibold ${variacionClass}">${variacion ? `${variacionSign}${variacion.toFixed(2)}%` : '-'}</td>
                         <td class="text-end font-monospace fs-6 fw-semibold text-white">${UI.formatCurrency(m.target, m.currency)}</td>
                         <td class="text-end font-monospace fs-6 fw-semibold text-secondary">${distObjText}</td>
                         <td class="text-center">
@@ -934,16 +931,43 @@
             },
 
             renderFeed(alertas) {
-                if (alertas.length === 0) {
-                    document.getElementById('alerts-feed').innerHTML = '<div class="text-secondary small">Sin actividad reciente</div>';
+                if (!alertas || alertas.length === 0) {
+                    document.getElementById('alerts-feed').innerHTML = '<div class="text-secondary small text-center py-5">Sin actividad reciente</div>';
                     return;
                 }
-                const html = alertas.map(a => `
-                    <div class="alert-item">
-                        <div class="opacity-75 font-monospace mb-1" style="font-size:0.75rem">[${a.time}]</div>
-                        <span>${a.msg}</span>
-                    </div>
-                `).join('');
+                const html = alertas.map(a => {
+                    const isVolatilidad = a.msg.toLowerCase().includes('volatilidad') || a.msg.includes('%');
+                    const isTarget = a.msg.toLowerCase().includes('objetivo') || a.msg.toLowerCase().includes('alerta');
+                    
+                    let borderClass = 'border-primary';
+                    let badgeBg = 'bg-primary bg-opacity-10 text-primary border-primary';
+                    let icon = 'ℹ️';
+                    let label = 'SISTEMA';
+                    
+                    if (isVolatilidad) {
+                        borderClass = 'border-warning';
+                        badgeBg = 'bg-warning bg-opacity-10 text-warning border-warning';
+                        icon = '⚡';
+                        label = 'VOLATILIDAD';
+                    } else if (isTarget) {
+                        borderClass = 'border-danger';
+                        badgeBg = 'bg-danger bg-opacity-10 text-danger border-danger';
+                        icon = '🎯';
+                        label = 'ALERTA';
+                    }
+                    
+                    return `
+                        <div class="glass-panel p-3 mb-2 border-start border-3 ${borderClass}" style="background: rgba(255,255,255,0.02);">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="badge ${badgeBg} border border-opacity-25 font-monospace" style="font-size: 0.68rem;">
+                                    ${icon} ${label}
+                                </span>
+                                <span class="text-secondary font-monospace" style="font-size: 0.72rem;">${a.time}</span>
+                            </div>
+                            <div class="text-white fw-medium mt-1" style="font-size: 0.88rem;">${a.msg}</div>
+                        </div>
+                    `;
+                }).join('');
                 document.getElementById('alerts-feed').innerHTML = html;
             },
 
@@ -956,15 +980,190 @@
             }
         };
 
+        // --- Range filtering logic for equity curve chart ---
+        let rawHistoryData = null;
+
+        window.filtrarRangoHistorico = (rango, btnEl) => {
+            if (!rawHistoryData || !rawHistoryData.labels) return;
+            
+            if (btnEl) {
+                document.querySelectorAll('#time-range-selector .time-btn').forEach(b => b.classList.remove('active'));
+                btnEl.classList.add('active');
+            }
+
+            const labels = rawHistoryData.labels;
+            if (labels.length === 0) return;
+
+            const lastDateStr = labels[labels.length - 1];
+            const lastDate = new Date(lastDateStr);
+            let minDate = new Date(0);
+
+            if (rango === '1M') {
+                minDate = new Date(lastDate); minDate.setMonth(minDate.getMonth() - 1);
+            } else if (rango === '3M') {
+                minDate = new Date(lastDate); minDate.setMonth(minDate.getMonth() - 3);
+            } else if (rango === '6M') {
+                minDate = new Date(lastDate); minDate.setMonth(minDate.getMonth() - 6);
+            } else if (rango === '1Y') {
+                minDate = new Date(lastDate); minDate.setFullYear(minDate.getFullYear() - 1);
+            } else if (rango === 'YTD') {
+                minDate = new Date(lastDate.getFullYear(), 0, 1);
+            }
+
+            const filteredIndices = [];
+            labels.forEach((dStr, idx) => {
+                if (new Date(dStr) >= minDate) filteredIndices.push(idx);
+            });
+
+            const newLabels = filteredIndices.map(i => labels[i]);
+            const newCapital = filteredIndices.map(i => rawHistoryData.capital[i]);
+            const newValues = filteredIndices.map(i => rawHistoryData.values[i]);
+            const newBench = rawHistoryData.benchmark_values ? filteredIndices.map(i => rawHistoryData.benchmark_values[i]) : null;
+
+            renderizarGraficoEvolucion({
+                labels: newLabels,
+                capital: newCapital,
+                values: newValues,
+                benchmark_values: newBench
+            });
+        };
+
+        function renderizarGraficoEvolucion(history) {
+            if (window.equityCurveChartInstance) {
+                window.equityCurveChartInstance.destroy();
+            }
+            const ctxLine = document.getElementById('equityCurveChart');
+            if (!ctxLine) return;
+
+            if (!history || history.labels.length === 0) {
+                history = { labels: [new Date().toISOString().split('T')[0]], capital: [0], values: [0] };
+            }
+
+            const ctx = ctxLine.getContext('2d');
+            const gradientValue = ctx.createLinearGradient(0, 0, 0, 240);
+            gradientValue.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
+            gradientValue.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+            const gradientCapital = ctx.createLinearGradient(0, 0, 0, 240);
+            gradientCapital.addColorStop(0, 'rgba(99, 102, 241, 0.2)');
+            gradientCapital.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
+
+            const datasets = [
+                {
+                    label: 'Capital Aportado',
+                    data: history.capital,
+                    borderColor: '#6366f1',
+                    backgroundColor: gradientCapital,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 0,
+                    pointHoverRadius: 5
+                },
+                {
+                    label: 'Valor de Mercado',
+                    data: history.values,
+                    borderColor: '#10b981',
+                    backgroundColor: gradientValue,
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 0,
+                    pointHoverRadius: 6
+                }
+            ];
+
+            if (history.benchmark_values && history.benchmark_values.length > 0) {
+                datasets.push({
+                    label: 'Benchmark (VWCE)',
+                    data: history.benchmark_values,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0.35,
+                    fill: false
+                });
+            }
+
+            window.equityCurveChartInstance = new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: history.labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            align: 'end',
+                            labels: { color: '#94a3b8', font: { size: 11, family: "'Inter', sans-serif" }, usePointStyle: true, boxWidth: 8 }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 18, 26, 0.95)',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1,
+                            titleFont: { family: "'JetBrains Mono', monospace", size: 12 },
+                            bodyFont: { family: "'Inter', sans-serif", size: 12 },
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed.y !== null) {
+                                        label += UI.formatCurrency(context.parsed.y, 'EUR');
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            grid: { color: 'rgba(255, 255, 255, 0.04)', drawBorder: false }, 
+                            ticks: { 
+                                color: '#94a3b8', 
+                                font: { size: 10, family: "'JetBrains Mono', monospace" },
+                                maxTicksLimit: 8,
+                                maxRotation: 0
+                            } 
+                        },
+                        y: {
+                            beginAtZero: false,
+                            grid: { color: 'rgba(255, 255, 255, 0.04)', drawBorder: false },
+                            ticks: { 
+                                color: '#94a3b8', 
+                                font: { size: 10, family: "'JetBrains Mono', monospace" },
+                                callback: function(value) { return new Intl.NumberFormat('es-ES', { notation: "compact", compactDisplay: "short" }).format(value); }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const toggle = document.getElementById('toggleBenchmark');
+            if (toggle && window.equityCurveChartInstance) {
+                const chart = window.equityCurveChartInstance;
+                const benchIdx = chart.data.datasets.findIndex(ds => ds.label === 'Benchmark (VWCE)');
+                if (benchIdx > -1) {
+                    chart.setDatasetVisibility(benchIdx, toggle.checked);
+                    chart.update('none');
+                }
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
-            // Inicializar Tooltips de Bootstrap (necesario para funcionamiento en móvil y escritorio)
             const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
             const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
 
-            // Configurar 'light-dismiss' nativo unificado para todos los diálogos
             document.querySelectorAll('dialog').forEach(dialog => {
                 dialog.addEventListener('click', (e) => {
-                    if (dialog.id === 'opModal') return; // Evitar que se cierre accidentalmente perdiendo datos
+                    if (dialog.id === 'opModal') return;
                     const rect = dialog.getBoundingClientRect();
                     if (e.clientY < rect.top || e.clientY > rect.bottom || e.clientX < rect.left || e.clientX > rect.right) {
                         dialog.close();
@@ -974,25 +1173,20 @@
 
             UI.loadLastRefreshTime();
             
-            // Listener para redimensionar gráficos de Chart.js al cambiar de pestaña
             const chartTabs = document.querySelectorAll('#chartTabs button[data-bs-toggle="tab"]');
             chartTabs.forEach(tab => {
-                tab.addEventListener('shown.bs.tab', event => {
+                tab.addEventListener('shown.bs.tab', () => {
                     if (window.allocationChartInstance) window.allocationChartInstance.resize();
                     if (window.currencyChartInstance) window.currencyChartInstance.resize();
                 });
             });
 
-            // Listener para el toggle del benchmark
             const toggleBenchmark = document.getElementById('toggleBenchmark');
             if (toggleBenchmark) {
                 toggleBenchmark.addEventListener('change', function() {
                     if (!window.equityCurveChartInstance) return;
-                    
                     const chart = window.equityCurveChartInstance;
-                    const benchmarkLabel = 'Benchmark (VWCE)';
-                    const datasetIndex = chart.data.datasets.findIndex(ds => ds.label === benchmarkLabel);
-
+                    const datasetIndex = chart.data.datasets.findIndex(ds => ds.label === 'Benchmark (VWCE)');
                     if (datasetIndex > -1) {
                         chart.setDatasetVisibility(datasetIndex, this.checked);
                         chart.update();
@@ -1046,7 +1240,6 @@
             }
         });
 
-        // DOM Events
         document.getElementById('add-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submit-btn');
@@ -1057,7 +1250,7 @@
             const target_pct = formData.get('target_pct');
             
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
             
             try {
                 await API.fetch('/api/add', {
@@ -1101,8 +1294,8 @@
                 UI.showToast('No se pudo borrar la actividad', 'error');
             }
         };
-        let currentEditId = null;
 
+        let currentEditId = null;
         const editForm = document.getElementById('edit-form');
         const editTargetInput = document.getElementById('edit-target');
         const editPctInput = document.getElementById('edit-target-pct');
@@ -1123,7 +1316,6 @@
             const targetPct = parseFloat(formData.get('target_pct').replace(',', '.')) || 0;
 
             if (isNaN(target) || target <= 0) return UI.showToast('Precio objetivo inválido', 'error');
-            if (isNaN(targetPct) || targetPct < 0) return UI.showToast('Porcentaje inválido', 'error');
 
             try {
                 await API.fetch(`/api/edit/${currentEditId}`, {
@@ -1140,7 +1332,7 @@
 
         document.getElementById('split-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!confirm('Esta acción es irreversible y modificará permanentemente tus operaciones. ¿Estás seguro?')) return;
+            if (!confirm('Esta acción modificará permanentemente las operaciones pasadas del activo. ¿Continuar?')) return;
             
             const btn = document.getElementById('split-submit-btn');
             btn.disabled = true;
@@ -1157,7 +1349,7 @@
                 });
                 UI.showToast(`Ajuste aplicado a ${result.affected_rows} operaciones.`);
                 document.getElementById('splitModal').close();
-                cargarOperaciones(); // Recargar datos de la cartera
+                cargarOperaciones();
             } catch (err) {
                 UI.showToast(err.message, 'error');
             } finally {
@@ -1166,38 +1358,27 @@
             }
         });
 
-        // --- SSE implementation ---
         const evtSource = new EventSource('/api/stream');
         evtSource.onmessage = function(event) {
             try {
                 const data = JSON.parse(event.data);
-                console.log("🔔 SSE recibido - Datos:", data);
-                if (data.monitores && Object.keys(data.monitores).length > 0) {
-                    const firstId = Object.keys(data.monitores)[0];
-                    const firstMonitor = data.monitores[firstId];
-                    console.log(`📊 Primer monitor: ${firstMonitor.ticker}, timestamp: ${firstMonitor.current_price_time}`);
-                }
                 UI.checkVersion(data.version);
                 UI.updateLastRefreshTime();
                 UI.renderTable(data.monitores);
                 UI.renderFeed(data.alertas);
             } catch (err) {
-                console.error("SSE parsing error:", err);
+                console.error("SSE error:", err);
             }
-        };
-        evtSource.onerror = function(err) {
-            console.error("SSE connection error:", err);
         };
 
         let logInterval = null;
-
         async function syncLogs() {
             try {
                 const data = await API.fetch('/api/logs');
                 document.getElementById('debugLogs').innerHTML = (data.logs || []).map(l => 
-                    `<div class="log-entry font-monospace">
-                        <span class="log-timestamp">${l.timestamp}</span>
-                        <span class="log-level-${l.level}">[${l.level}]</span> 
+                    `<div class="log-entry font-monospace mb-1">
+                        <span class="text-secondary me-2">${l.timestamp}</span>
+                        <span class="text-${l.level === 'ERROR' ? 'danger' : (l.level === 'WARNING' ? 'warning' : 'info')}">[${l.level}]</span> 
                         <span class="text-light">${l.message}</span>
                     </div>`
                 ).join('');
@@ -1224,23 +1405,12 @@
         };
 
         window.copyLogs = () => {
-            const logsElement = document.getElementById('debugLogs');
-            const logsText = logsElement.innerText;
-            
-            if (!logsText.trim()) {
-                UI.showToast('No hay logs para copiar', 'error');
-                return;
-            }
-            
-            navigator.clipboard.writeText(logsText).then(() => {
-                UI.showToast('Logs copiados al portapapeles');
-            }).catch(() => {
-                UI.showToast('Error al copiar logs', 'error');
-            });
+            const logsText = document.getElementById('debugLogs').innerText;
+            if (!logsText.trim()) return UI.showToast('No hay logs para copiar', 'error');
+            navigator.clipboard.writeText(logsText).then(() => UI.showToast('Logs copiados'));
         };
 
-        // --- Operaciones Logic ---
-        let operacionesData = null; // Para almacenar los datos completos y poder editar
+        let operacionesData = null;
 
         window.abrirModalOperacion = (opId = null) => {
             const form = document.getElementById('op-form');
@@ -1251,10 +1421,8 @@
             const monedaSelect = document.getElementById('op-moneda');
 
             if (opId) {
-                // --- MODO EDICIÓN ---
                 modalTitle.innerHTML = '✏️ Editar Operación';
                 idInput.value = opId;
-
                 const op = operacionesData?.operaciones.find(o => o.id === opId);
                 if (op) {
                     document.getElementById('op-fecha').value = op.fecha.split(' ')[0];
@@ -1272,19 +1440,10 @@
                     document.getElementById('op-comisiones').value = op.comisiones || 0;
                     document.getElementById('op-impuestos').value = op.impuestos || 0;
                     document.getElementById('op-tasa-cambio').value = op.tasa_cambio || '';
-
-                    const info = operacionesData?.activos_info?.[op.ticker];
-                    if (info && info.currency) {
-                        monedaSelect.options[0].text = `Automático (${info.currency})`;
-                    } else {
-                        monedaSelect.options[0].text = `Automático (Del activo)`;
-                    }
                 } else {
-                    UI.showToast('No se encontraron los datos de la operación.', 'error');
-                    return;
+                    return UI.showToast('No se encontraron los datos de la operación', 'error');
                 }
             } else {
-                // --- MODO AÑADIR ---
                 modalTitle.innerHTML = '➕ Registrar Operación';
                 idInput.value = '';
                 document.getElementById('op-fecha').valueAsDate = new Date();
@@ -1294,19 +1453,11 @@
             document.getElementById('opModal').showModal();
         };
 
-        
-        /**
-         * Configura un filtro en tiempo real para la tabla de operaciones.
-         * Escucha el evento 'input' en el input de búsqueda y muestra u oculta
-         * las filas de la tabla según el texto introducido.
-         */
         function setupOperacionesFilter() {
             const filtroInput = document.getElementById('filtro-operaciones');
             const tbody = document.getElementById('operaciones-table');
-
             if (!filtroInput || !tbody) return;
 
-            // Se cambia "onkeyup" por el evento nativo "input" que rastrea copy-paste
             filtroInput.addEventListener('input', function(e) {
                 const textoBusqueda = e.target.value.toLowerCase().trim();
                 const filas = tbody.getElementsByTagName('tr');
@@ -1314,102 +1465,95 @@
                 for (let i = 0; i < filas.length; i++) {
                     const fila = filas[i];
                     const textoFila = fila.textContent || fila.innerText;
-
-                    if (textoFila.toLowerCase().includes(textoBusqueda)) {
-                        fila.style.display = "";
-                    } else {
-                        fila.style.display = "none";
-                    }
+                    fila.style.display = textoFila.toLowerCase().includes(textoBusqueda) ? "" : "none";
                 }
             });
-        }
-
-        /**
-         * Añade un nuevo dataset de benchmark simulado a una instancia de Chart.js existente.
-         * 
-         * @param {Chart} chartInstance - La instancia de Chart.js (ej. window.equityCurveChartInstance)
-         * @param {Array<number>} benchmarkData - El array de valores generados por Python
-         * @param {string} labelName - Nombre a mostrar en la leyenda
-         */
-        function agregarDatasetBenchmark(chartInstance, benchmarkData, labelName = 'Benchmark (VWCE)') {
-            if (!chartInstance) return;
-
-            const datasetIndex = chartInstance.data.datasets.findIndex(ds => ds.label === labelName);
-            
-            const benchmarkDataset = {
-                label: labelName,
-                data: benchmarkData,
-                borderColor: '#f59e0b', // Naranja/Ámbar claro para contrastar
-                backgroundColor: 'transparent',
-                borderWidth: 2,
-                borderDash: [5, 5],     // Línea punteada característica de referencias
-                pointRadius: 0,         // Ocultar puntos por defecto
-                pointHoverRadius: 4,    // Mostrar punto al pasar el ratón
-                tension: 0.4,           // Suavizado de la curva
-                fill: false             // Sin rellenar fondo
-            };
-
-            if (datasetIndex >= 0) {
-                chartInstance.data.datasets[datasetIndex] = benchmarkDataset;
-            } else {
-                chartInstance.data.datasets.push(benchmarkDataset);
-            }
-
-            chartInstance.update();
         }
 
         window.cargarOperaciones = async () => {
             try {
                 const data = await API.fetch('/api/operaciones');
-                operacionesData = data; // Guardar datos para poder editar
+                operacionesData = data;
                 
                 if (data.warning_api_error) {
-                    UI.showToast('No se pudieron actualizar todos los precios en tiempo real desde Yahoo Finance.', 'warning');
+                    UI.showToast('No se pudieron actualizar algunos precios en tiempo real.', 'warning');
                 }
                 
-                // Renderizar Cartera
-                const carteraHtml = Object.entries(data.cartera).map(([ticker, metrics]) => {
+                // 1. Renderizar Cartera y calcular variación del día
+                let totalValor = 0;
+                let totalLatente = 0;
+                let totalVariacionDiaEur = 0;
+                let totalPrevCloseValor = 0;
+                let activosCount = 0;
+
+                const carteraEntries = Object.entries(data.cartera);
+                activosCount = carteraEntries.length;
+                document.getElementById('count-cartera-activos').textContent = `${activosCount} activo${activosCount === 1 ? '' : 's'}`;
+
+                const carteraHtml = carteraEntries.map(([ticker, metrics]) => {
                     const latenteClass = metrics.pnl_latente >= 0 ? 'text-success' : 'text-danger';
                     const latenteSign = metrics.pnl_latente >= 0 ? '+' : '';
                     const currency = metrics.currency || 'USD';
+                    const tasa = metrics.tasa_cambio || 1;
                     
+                    const valorBase = metrics.valor_actual * tasa;
+                    totalValor += valorBase;
+                    totalLatente += metrics.pnl_latente * tasa;
+
+                    if (metrics.previous_close && metrics.previous_close > 0 && metrics.cantidad > 0) {
+                        const prevValorBase = metrics.cantidad * metrics.previous_close * tasa;
+                        totalPrevCloseValor += prevValorBase;
+                        totalVariacionDiaEur += (valorBase - prevValorBase);
+                    }
+
                     const rentPctClass = metrics.rentabilidad_pct >= 0 ? 'text-success' : 'text-danger';
                     const rentPctSign = metrics.rentabilidad_pct >= 0 ? '+' : '';
                     const rentPctStr = (metrics.rentabilidad_pct * 100).toFixed(2) + '%';
-                    
-                    let pnlTooltipAttr = '';
-                    if (currency !== 'EUR' && currency !== '-') {
-                        const tooltipText = `Desglose (EUR):\nRevalorización Activo: ${UI.formatCurrency(metrics.pnl_activo_base, 'EUR')}\nImpacto Divisa: ${UI.formatCurrency(metrics.pnl_divisa_base, 'EUR')}\nTotal P&L: ${UI.formatCurrency(metrics.pnl_latente_base, 'EUR')}`;
-                        pnlTooltipAttr = `title="${tooltipText}" style="cursor: help; text-decoration: underline dotted rgba(255,255,255,0.3); text-underline-offset: 4px;"`;
+
+                    let varBadgeHtml = '';
+                    if (metrics.previous_close && metrics.previous_close > 0) {
+                        const varPct = ((metrics.precio_actual - metrics.previous_close) / metrics.previous_close) * 100;
+                        const varBadgeClass = varPct >= 0 ? 'bg-success bg-opacity-15 text-success' : 'bg-danger bg-opacity-15 text-danger';
+                        varBadgeHtml = `<span class="badge ${varBadgeClass} font-monospace ms-1" style="font-size:0.68rem;">${varPct >= 0 ? '+' : ''}${varPct.toFixed(2)}%</span>`;
                     }
                     
+                    let priceTooltip = `Actualizado: ${metrics.current_price_time || 'N/A'}`;
+                    if (metrics.max_price || metrics.min_price) {
+                        priceTooltip += `\nMáx compra: ${metrics.max_price ? UI.formatCurrency(metrics.max_price, currency) : '-'}\nMín compra: ${metrics.min_price ? UI.formatCurrency(metrics.min_price, currency) : '-'}`;
+                    }
+
                     return `
                     <tr>
                         <td class="ps-4">
-                            <div class="fw-bold text-white" style="font-size: 0.9rem;">${metrics.name || ticker}</div>
-                            <div class="text-secondary" style="font-size: 0.7rem; letter-spacing: 0.03em;">${ticker}</div>
+                            <div class="fw-bold text-white">${metrics.name || ticker}</div>
+                            <div class="text-secondary font-monospace" style="font-size: 0.7rem;">${ticker}</div>
                         </td>
-                        <td class="text-end font-monospace">${metrics.cantidad.toFixed(4)}</td>
-                        <td class="text-end font-monospace">${UI.formatCurrency(metrics.coste_medio, currency)}</td> <!-- Coste Medio -->
-                        <td class="text-end">
-                            <div class="font-monospace fs-6 fw-semibold">${UI.formatCurrency(metrics.precio_actual, currency)}</div>
-                            <div class="text-secondary font-monospace mt-1" style="font-size: 0.70rem;">${metrics.current_price_time || 'N/A'}</div>
-                            <div class="text-secondary font-monospace mt-1" style="font-size: 0.65rem;" title="Máx/Mín histórico desde primera compra">
-                                H: ${metrics.max_price ? UI.formatCurrency(metrics.max_price, currency) : '-'} | L: ${metrics.min_price ? UI.formatCurrency(metrics.min_price, currency) : '-'}
+                        <td class="text-end font-monospace text-light">${metrics.cantidad.toFixed(4)}</td>
+                        <td class="text-end font-monospace text-secondary">${UI.formatCurrency(metrics.coste_medio, currency)}</td>
+                        <td class="text-end" title="${priceTooltip}" style="cursor: help;">
+                            <div class="d-flex justify-content-end align-items-center gap-1">
+                                <span class="font-monospace fs-6 fw-semibold text-white">${UI.formatCurrency(metrics.precio_actual, currency)}</span>
+                                ${varBadgeHtml}
                             </div>
-                        </td> <!-- Precio Actual -->
-                        <td class="text-end font-monospace text-white">${UI.formatCurrency(metrics.valor_actual, currency)}</td> <!-- Valor Actual -->
+                        </td>
+                        <td class="text-end font-monospace text-white fw-bold">${UI.formatCurrency(metrics.valor_actual, currency)}</td>
                         <td class="text-end font-monospace ${rentPctClass}">${rentPctSign}${rentPctStr}</td>
-                        <td class="text-end font-monospace ${latenteClass} pe-4" ${pnlTooltipAttr}>${latenteSign}${UI.formatCurrency(metrics.pnl_latente, currency)}</td>
+                        <td class="text-end font-monospace ${latenteClass} pe-4 fw-semibold">${latenteSign}${UI.formatCurrency(metrics.pnl_latente, currency)}</td>
                     </tr>
                 `}).join('');
-                document.getElementById('cartera-table').innerHTML = carteraHtml || '<tr><td colspan="7" class="text-center py-3 text-secondary">No hay activos en cartera</td></tr>';
+                
+                document.getElementById('cartera-table').innerHTML = carteraHtml || '<tr><td colspan="7" class="text-center py-4 text-secondary">No hay activos en cartera</td></tr>';
 
-                // Renderizar Operaciones
+                // 2. Renderizar Operaciones
                 const opsHtml = data.operaciones.reverse().map(op => {
                     const isCompra = op.tipo === 'COMPRA' || op.tipo === 'APORTACION';
                     const isDividendo = op.tipo === 'DIVIDENDO';
-                    const tipoColor = isCompra ? 'text-success' : (isDividendo ? 'text-info' : 'text-danger');
+                    
+                    let badgeTipo = 'bg-success bg-opacity-15 text-success border-success';
+                    if (op.tipo === 'APORTACION') badgeTipo = 'bg-info bg-opacity-15 text-info border-info';
+                    else if (op.tipo === 'VENTA') badgeTipo = 'bg-danger bg-opacity-15 text-danger border-danger';
+                    else if (isDividendo) badgeTipo = 'bg-purple bg-opacity-15 text-warning border-warning';
+                    
                     const info = data.activos_info[op.ticker] || {};
                     const currency = op.moneda || info.currency || 'USD';
                     const name = info.name || '';
@@ -1425,18 +1569,7 @@
                             if (pctVal !== null && op.tipo !== 'DIVIDENDO') {
                                 rentabPctHtml = `<br><span style="font-size: 0.75em">(${pctVal > 0 ? '+' : ''}${(pctVal * 100).toFixed(2)}%)</span>`;
                             }
-                            
-                            let tooltipAttr = '';
-                            if (op.tipo === 'VENTA' && currency !== 'EUR' && currency !== '-' && op.pnl_base !== undefined) {
-                                const tooltipText = `Desglose (EUR):\nRevalorización Activo: ${UI.formatCurrency(op.pnl_activo_base, 'EUR')}\nImpacto Divisa: ${UI.formatCurrency(op.pnl_divisa_base, 'EUR')}\nTotal P&L: ${UI.formatCurrency(op.pnl_base, 'EUR')}`;
-                                tooltipAttr = `title="${tooltipText}" style="cursor: help; text-decoration: underline dotted rgba(255,255,255,0.3); text-underline-offset: 4px;"`;
-                            }
-                            
-                            rentabilidadHtml = `<span class="${pnlClass}" ${tooltipAttr}>${pnlSign}${UI.formatCurrency(pnlVal, currency)}${rentabPctHtml}</span>`;
-                        } else if (op.rentabilidad !== undefined || op.rentabilidad_pct !== undefined) {
-                            const pctVal = op.rentabilidad !== undefined ? op.rentabilidad : op.rentabilidad_pct;
-                            const pnlClass = pctVal >= 0 ? 'text-success' : 'text-danger';
-                            rentabilidadHtml = `<span class="${pnlClass}">${pctVal > 0 ? '+' : ''}${(pctVal * 100).toFixed(2)}%</span>`;
+                            rentabilidadHtml = `<span class="${pnlClass}">${pnlSign}${UI.formatCurrency(pnlVal, currency)}${rentabPctHtml}</span>`;
                         }
                     }
 
@@ -1448,20 +1581,22 @@
 
                     return `
                     <tr>
-                        <td class="ps-4 font-monospace text-secondary" style="font-size: 0.85rem">${op.fecha}</td>
+                        <td class="ps-4 font-monospace text-secondary" style="font-size: 0.82rem">${op.fecha}</td>
                         <td>
-                            <div class="fw-bold text-white" style="font-size: 0.9rem;">${name || op.ticker}</div>
-                            <div class="text-secondary" style="font-size: 0.7rem; letter-spacing: 0.03em;">${op.ticker}</div>
+                            <div class="fw-bold text-white">${name || op.ticker}</div>
+                            <div class="text-secondary font-monospace" style="font-size: 0.7rem;">${op.ticker} <span class="badge bg-dark border border-secondary border-opacity-25 opacity-75">${currency}</span></div>
                         </td>
-                        <td class="text-center"><span class="${tipoColor}">${op.tipo}</span></td>
-                        <td class="text-end font-monospace">${op.cantidad.toFixed(4)}</td>
+                        <td class="text-center">
+                            <span class="badge ${badgeTipo} border border-opacity-25 font-monospace" style="font-size:0.68rem;">${op.tipo}</span>
+                        </td>
+                        <td class="text-end font-monospace text-light">${op.cantidad.toFixed(4)}</td>
                         <td class="text-end font-monospace">${UI.formatCurrency(op.precio, currency)}</td>
                         <td class="text-end font-monospace text-secondary">${UI.formatCurrency(comisiones, currency)}</td>
                         <td class="text-end font-monospace text-secondary">${UI.formatCurrency(impuestos, currency)}</td>
                         <td class="text-end font-monospace text-white fw-semibold">${UI.formatCurrency(totalOperacion, currency)}</td>
                         <td class="text-end font-monospace">${rentabilidadHtml}</td>
                         <td class="text-end pe-4">
-                            <button onclick="abrirModalOperacion('${op.id}')" class="action-btn" title="Editar">
+                            <button onclick="abrirModalOperacion('${op.id}')" class="action-btn me-1" title="Editar">
                                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                             </button>
                             <button onclick="borrarOperacion('${op.id}')" class="action-btn delete" title="Eliminar">
@@ -1470,143 +1605,68 @@
                         </td>
                     </tr>
                 `}).join('');
-                document.getElementById('operaciones-table').innerHTML = opsHtml || '<tr><td colspan="10" class="text-center py-3 text-secondary">No hay operaciones registradas</td></tr>';
-
-                // Configurar el filtro para la tabla recién renderizada
+                
+                document.getElementById('operaciones-table').innerHTML = opsHtml || '<tr><td colspan="10" class="text-center py-4 text-secondary">No hay operaciones registradas</td></tr>';
                 setupOperacionesFilter();
 
-                // Renderizar Resumen Global
-                let totalLatente = 0;
-                let totalValor = 0;
+                // 3. Renderizar KPIs Resumen Global
+                document.getElementById('resumen-valor-total').textContent = UI.formatCurrency(totalValor, 'EUR');
+                
+                // Variación del Día
+                let varDiaPct = 0;
+                if (totalPrevCloseValor > 0) {
+                    varDiaPct = (totalVariacionDiaEur / totalPrevCloseValor) * 100;
+                }
+                const varBadge = document.getElementById('resumen-variacion-dia');
+                varBadge.className = `badge font-monospace px-2 py-1 ${totalVariacionDiaEur >= 0 ? 'bg-success bg-opacity-20 text-success border border-success border-opacity-25' : 'bg-danger bg-opacity-20 text-danger border border-danger border-opacity-25'}`;
+                varBadge.textContent = `${totalVariacionDiaEur >= 0 ? '▲ +' : '▼ '}${UI.formatCurrency(totalVariacionDiaEur, 'EUR')} (${varDiaPct >= 0 ? '+' : ''}${varDiaPct.toFixed(2)}%) hoy`;
+
+                // P&L Combined
+                const totalCombinedPnl = totalLatente + (data.total_pnl_realizado || 0);
+                const pnlCombinedSpan = document.getElementById('resumen-total-pnl-combined');
+                pnlCombinedSpan.className = `text-secondary small font-monospace ${totalCombinedPnl >= 0 ? 'text-success' : 'text-danger'}`;
+                pnlCombinedSpan.textContent = `P&L Total: ${totalCombinedPnl >= 0 ? '+' : ''}${UI.formatCurrency(totalCombinedPnl, 'EUR')}`;
+
+                // TIR & TWR
+                document.getElementById('resumen-tir').textContent = data.tir_anualizada ? (data.tir_anualizada * 100).toFixed(2) + '%' : 'N/A';
+                document.getElementById('resumen-tir').className = 'fs-4 fw-bold font-monospace my-1 ' + (data.tir_anualizada >= 0 ? 'text-success' : 'text-danger');
+                
+                const metricas = data.metricas_riesgo || { twr: 0, volatilidad: 0, sharpe: 0, max_drawdown: 0 };
+                document.getElementById('resumen-twr').textContent = metricas.twr !== undefined ? (metricas.twr * 100).toFixed(2) + '%' : 'N/A';
+                document.getElementById('resumen-twr').className = 'fs-4 fw-bold font-monospace my-1 ' + (metricas.twr >= 0 ? 'text-success' : 'text-danger');
+                
+                document.getElementById('resumen-latente').textContent = UI.formatCurrency(totalLatente, 'EUR');
+                document.getElementById('resumen-latente').className = 'fs-4 fw-bold font-monospace my-1 ' + (totalLatente >= 0 ? 'text-success' : 'text-danger');
+                
+                document.getElementById('resumen-realizado').textContent = UI.formatCurrency(data.total_pnl_realizado, 'EUR');
+                document.getElementById('resumen-realizado').className = 'fs-4 fw-bold font-monospace my-1 ' + (data.total_pnl_realizado >= 0 ? 'text-success' : 'text-danger');
+                
+                // Métricas de riesgo
+                document.getElementById('resumen-volatilidad').textContent = metricas.volatilidad !== undefined ? (metricas.volatilidad * 100).toFixed(2) + '%' : 'N/A';
+                document.getElementById('resumen-sharpe').textContent = metricas.sharpe !== undefined ? metricas.sharpe.toFixed(2) : 'N/A';
+                document.getElementById('resumen-drawdown').textContent = metricas.max_drawdown !== undefined ? (metricas.max_drawdown * 100).toFixed(2) + '%' : 'N/A';
+
+                // 4. Renderizar Gráfico de Líneas con Filtro de Rango
+                rawHistoryData = data.history;
+                renderizarGraficoEvolucion(rawHistoryData);
+
+                // 5. Renderizar Gráficos Donut
                 const allocationLabels = [];
                 const allocationData = [];
                 const currencyAlloc = {};
-                const bgColors = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#14b8a6', '#0ea5e9'];
+                const bgColors = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#f59e0b', '#10b981', '#0ea5e9', '#3b82f6', '#14b8a6'];
 
                 Object.entries(data.cartera).forEach(([ticker, m]) => {
                     const valorBase = m.valor_actual * (m.tasa_cambio || 1);
-                    totalLatente += m.pnl_latente * (m.tasa_cambio || 1);
-                    totalValor += valorBase;
-                    
                     if (valorBase > 0) {
                         allocationLabels.push(m.name || ticker);
                         allocationData.push(valorBase);
-                        
                         const curr = (m.currency && m.currency !== '-') ? m.currency.toUpperCase() : 'EUR';
                         currencyAlloc[curr] = (currencyAlloc[curr] || 0) + valorBase;
                     }
                 });
-                
-                document.getElementById('resumen-valor-total').textContent = UI.formatCurrency(totalValor, 'EUR');
-                
-                document.getElementById('resumen-tir').textContent = data.tir_anualizada ? (data.tir_anualizada * 100).toFixed(2) + '%' : 'N/A';
-                document.getElementById('resumen-tir').className = 'fs-5 fw-bold ' + (data.tir_anualizada >= 0 ? 'text-success' : 'text-danger');
-                
-                const metricas = data.metricas_riesgo || { twr: 0, volatilidad: 0, sharpe: 0, max_drawdown: 0 };
-                
-                document.getElementById('resumen-twr').textContent = metricas.twr !== undefined ? (metricas.twr * 100).toFixed(2) + '%' : 'N/A';
-                document.getElementById('resumen-twr').className = 'fs-5 fw-bold ' + (metricas.twr >= 0 ? 'text-success' : 'text-danger');
-                
-                document.getElementById('resumen-latente').textContent = UI.formatCurrency(totalLatente, 'EUR');
-                document.getElementById('resumen-latente').className = 'fs-5 fw-bold ' + (totalLatente >= 0 ? 'text-success' : 'text-danger');
-                
-                document.getElementById('resumen-realizado').textContent = UI.formatCurrency(data.total_pnl_realizado, 'EUR');
-                document.getElementById('resumen-realizado').className = 'fs-5 fw-bold ' + (data.total_pnl_realizado >= 0 ? 'text-success' : 'text-danger');
-                
-                // Métricas de riesgo en el footer del gráfico
-                document.getElementById('resumen-volatilidad').textContent = metricas.volatilidad !== undefined ? (metricas.volatilidad * 100).toFixed(2) + '%' : 'N/A';
-                document.getElementById('resumen-sharpe').textContent = metricas.sharpe !== undefined ? metricas.sharpe.toFixed(2) : 'N/A';
-                document.getElementById('resumen-drawdown').textContent = metricas.max_drawdown !== undefined ? (metricas.max_drawdown * 100).toFixed(2) + '%' : 'N/A';
-                
-                // Re-inicializar tooltips para los nuevos elementos
-                setTimeout(() => {
-                    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
-                    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
-                }, 100);
-                
-                console.log("Historial de la Cartera:", data.history);
-                
-                // Actualizar Gráfico Lineas (Evolución)
-                if (window.equityCurveChartInstance) {
-                    window.equityCurveChartInstance.destroy();
-                }
-                const ctxLine = document.getElementById('equityCurveChart');
-                if (ctxLine) {
-                    const history = data.history || { labels: [], capital: [], values: [] };
-                    if (history.labels.length === 0) {
-                        history.labels = [new Date().toISOString().split('T')[0]];
-                        history.capital = [0];
-                        history.values = [0];
-                    }
 
-                    window.equityCurveChartInstance = new Chart(ctxLine, {
-                        type: 'line',
-                        data: {
-                            labels: history.labels,
-                            datasets: [
-                                {
-                                    label: 'Capital Aportado',
-                                    data: history.capital,
-                                    borderColor: '#6366f1',
-                                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                                    borderWidth: 2,
-                                    fill: true,
-                                    tension: 0.4
-                                },
-                                {
-                                    label: 'Valor de Mercado',
-                                    data: history.values,
-                                    borderColor: '#10b981',
-                                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                    borderWidth: 2,
-                                    fill: true,
-                                    tension: 0.4
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            interaction: { mode: 'index', intersect: false },
-                            plugins: {
-                                legend: {
-                                    position: 'top',
-                                    labels: { color: '#a1a1aa', font: { size: 11, family: "'Inter', sans-serif" }, usePointStyle: true, boxWidth: 8 }
-                                }
-                            },
-                            scales: {
-                                x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#a1a1aa', font: { size: 10 } } },
-                                y: {
-                                    beginAtZero: false,
-                                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                                    ticks: { 
-                                        color: '#a1a1aa', font: { size: 10 },
-                                        callback: function(value) { return new Intl.NumberFormat('es-ES', { notation: "compact", compactDisplay: "short" }).format(value); }
-                                    }
-                                }
-                            }
-                        }
-                    });
-
-                    // --- AÑADIR BENCHMARK ---
-                    if (history.benchmark_values && history.benchmark_values.length > 0) {
-                        agregarDatasetBenchmark(window.equityCurveChartInstance, history.benchmark_values);
-                        
-                        // Sincronizar visibilidad inicial con el toggle
-                        const toggle = document.getElementById('toggleBenchmark');
-                        const chart = window.equityCurveChartInstance;
-                        const datasetIndex = chart.data.datasets.findIndex(ds => ds.label === 'Benchmark (VWCE)');
-
-                        if (datasetIndex > -1) chart.setDatasetVisibility(datasetIndex, toggle.checked);
-                        chart.update('none'); // Actualizar sin animación
-                    }
-                }
-
-                // Actualizar Gráfico Distribución Activos
-                if (window.allocationChartInstance) {
-                    window.allocationChartInstance.destroy();
-                }
-                
+                if (window.allocationChartInstance) window.allocationChartInstance.destroy();
                 if (allocationLabels.length > 0) {
                     const ctx = document.getElementById('allocationChart');
                     if (ctx) {
@@ -1616,9 +1676,10 @@
                                 labels: allocationLabels,
                                 datasets: [{
                                     data: allocationData,
-                                    backgroundColor: bgColors.slice(0, allocationLabels.length).concat(Array(Math.max(0, allocationLabels.length - bgColors.length)).fill('#475569')),
-                                    borderWidth: 0,
-                                    hoverOffset: 4
+                                    backgroundColor: bgColors.slice(0, allocationLabels.length),
+                                    borderWidth: 2,
+                                    borderColor: '#11141e',
+                                    hoverOffset: 6
                                 }]
                             },
                             options: {
@@ -1627,11 +1688,7 @@
                                 plugins: {
                                     legend: {
                                         position: 'right',
-                                        labels: {
-                                            color: '#a1a1aa',
-                                            font: { size: 10, family: "'Inter', sans-serif" },
-                                            boxWidth: 12
-                                        }
+                                        labels: { color: '#94a3b8', font: { size: 10, family: "'Inter', sans-serif" }, boxWidth: 10 }
                                     },
                                     tooltip: {
                                         callbacks: {
@@ -1646,16 +1703,13 @@
                                         }
                                     }
                                 },
-                                cutout: '70%'
+                                cutout: '72%'
                             }
                         });
                     }
                 }
 
-                // Actualizar Gráfico Distribución Divisas
-                if (window.currencyChartInstance) {
-                    window.currencyChartInstance.destroy();
-                }
+                if (window.currencyChartInstance) window.currencyChartInstance.destroy();
                 const currencyLabels = Object.keys(currencyAlloc);
                 const currencyData = Object.values(currencyAlloc);
                 if (currencyLabels.length > 0) {
@@ -1668,15 +1722,16 @@
                                 datasets: [{
                                     data: currencyData,
                                     backgroundColor: bgColors.slice(0, currencyLabels.length),
-                                    borderWidth: 0,
-                                    hoverOffset: 4
+                                    borderWidth: 2,
+                                    borderColor: '#11141e',
+                                    hoverOffset: 6
                                 }]
                             },
                             options: {
                                 responsive: true,
                                 maintainAspectRatio: false,
                                 plugins: {
-                                    legend: { position: 'right', labels: { color: '#a1a1aa', font: { size: 10, family: "'Inter', sans-serif" }, boxWidth: 12 } },
+                                    legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10, family: "'Inter', sans-serif" }, boxWidth: 10 } },
                                     tooltip: {
                                         callbacks: {
                                             label: function(context) {
@@ -1686,15 +1741,15 @@
                                         }
                                     }
                                 },
-                                cutout: '70%'
+                                cutout: '72%'
                             }
                         });
                     }
                 }
-                
+
             } catch (err) {
                 console.error('Error cargando operaciones:', err);
-                UI.showToast(`Error cargando operaciones: ${err.message || err}`, 'error');
+                UI.showToast(`Error cargando cartera: ${err.message || err}`, 'error');
             }
         };
 
@@ -1708,30 +1763,27 @@
                 const formData = new FormData(e.target);
                 const opId = formData.get('id');
                 const isEdit = !!opId;
-                
                 const tasaVal = formData.get('tasa_cambio');
                 
                 const getSafeFloat = (name) => {
                     const val = formData.get(name);
                     if (val === null || val === undefined) return 0;
-                    const str = String(val).trim().replace(',', '.');
-                    const parsed = parseFloat(str);
+                    const parsed = parseFloat(String(val).trim().replace(',', '.'));
                     return isNaN(parsed) ? 0 : parsed;
                 };
 
                 const getSafeString = (name) => {
                     const val = formData.get(name);
-                    if (val === null || val === undefined) return '';
-                    return String(val);
+                    return val ? String(val).trim() : '';
                 };
 
                 const payload = {
                     fecha: getSafeString('fecha'),
-                    ticker: getSafeString('ticker').toUpperCase().trim(),
+                    ticker: getSafeString('ticker').toUpperCase(),
                     tipo: getSafeString('tipo'),
                     cantidad: getSafeFloat('cantidad'),
                     precio: getSafeFloat('precio'),
-                    moneda: getSafeString('moneda').trim() || null,
+                    moneda: getSafeString('moneda') || null,
                     comisiones: getSafeFloat('comisiones'),
                     impuestos: getSafeFloat('impuestos'),
                     tasa_cambio: tasaVal ? getSafeFloat('tasa_cambio') : null
@@ -1750,7 +1802,6 @@
                 document.getElementById('opModal').close();
                 cargarOperaciones();
             } catch (err) {
-                console.error(err);
                 UI.showToast(err.message || err, 'error');
             } finally {
                 btn.disabled = false;
@@ -1759,7 +1810,7 @@
         });
 
         window.borrarOperacion = async (id) => {
-            if (!confirm('¿Seguro que deseas eliminar esta operación? Esto recalculará toda la cartera.')) return;
+            if (!confirm('¿Seguro que deseas eliminar esta operación?')) return;
             try {
                 await API.fetch(`/api/operaciones/${id}`, { method: 'DELETE' });
                 UI.showToast('Operación eliminada');
@@ -1769,9 +1820,7 @@
             }
         };
 
-        window.exportExcel = (type) => {
-            window.location.href = `/api/export/${type}`;
-        };
+        window.exportExcel = (type) => window.location.href = `/api/export/${type}`;
 
         window.importExcel = async (type, inputElement) => {
             const file = inputElement.files[0];
@@ -1781,48 +1830,25 @@
             formData.append('file', file);
 
             try {
-                const res = await fetch(`/api/import/${type}`, {
-                    method: 'POST',
-                    body: formData
-                });
-                
+                const res = await fetch(`/api/import/${type}`, { method: 'POST', body: formData });
                 if (!res.ok) {
                     const data = await res.json().catch(() => ({}));
                     throw new Error(data.error || 'Error al importar');
                 }
-                
-                if (res.warnings && res.warnings.length > 0) {
-                    UI.showToast(`Importadas: ${res.procesadas} | Ignoradas (duplicadas): ${res.ignoradas}`, 'success');
-                    // Agregamos las advertencias al feed de debug por si el usuario quiere leerlas
-                    res.warnings.forEach(w => console.warn("Revisión manual requerida:", w));
-                    // Mostramos un modal ligero o toast con el aviso
-                    setTimeout(() => UI.showToast(`¡Aviso! Se han cargado operaciones de Inversis sin volumen de participaciones. Revisa el log o tu cartera.`, 'warning'), 500);
-                } else if (res.procesadas !== undefined) {
-                    UI.showToast(`Importación exitosa. Nuevas: ${res.procesadas} | Ignoradas: ${res.ignoradas}`);
-                } else {
-                    UI.showToast('Datos importados correctamente');
-                }
-                
-                if (type === 'operaciones') {
-                    cargarOperaciones();
-                } else {
-                    // Esperar a que llegue el SSE o forzar recarga (el SSE actualizará automáticamente)
-                }
+                UI.showToast('Datos importados correctamente');
+                if (type === 'operaciones') cargarOperaciones();
             } catch (err) {
                 UI.showToast(err.message, 'error');
             } finally {
-                inputElement.value = ''; // Reset input
+                inputElement.value = '';
             }
         };
 
-        
-                // Initialize defaults
         document.addEventListener('DOMContentLoaded', () => {
-            const today = new Date();
             const fechaInput = document.getElementById('op-fecha');
-            if(fechaInput) fechaInput.valueAsDate = today;
+            if (fechaInput) fechaInput.valueAsDate = new Date();
+            cargarOperaciones();
         });
-
     </script>
 </body>
 </html>

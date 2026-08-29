@@ -403,9 +403,10 @@ def get_operaciones():
                 # Intentar obtener precio actual
                 precio_actual = 0.0
                 current_price_time = 'N/A'
+                prev_close = None
                 if info['sym']:
                     try:
-                        precio_actual, _ = finance_api.fetch_price(info['sym'])
+                        precio_actual, prev_close = finance_api.fetch_price(info['sym'])
                         current_price_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
                     except Exception as e:
                         warning_api_error = True
@@ -430,6 +431,7 @@ def get_operaciones():
                     'cantidad': resultado['cantidad_actual'],
                     'coste_medio': resultado['coste_medio'],
                     'precio_actual': precio_actual,
+                    'previous_close': prev_close,
                     'current_price_time': current_price_time,
                     'valor_actual': valor_actual,
                     'pnl_latente': pnl_latente,
