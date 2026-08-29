@@ -112,6 +112,7 @@ def get_historical_exchange_rate(from_currency, date_str, to_currency="EUR"):
     return get_exchange_rate(from_currency, to_currency)
 
 def get_asset_info_cached(ticker):
+    pref_currency = None
     try:
         with db.get_db() as conn:
             row_inm = conn.execute("SELECT name, tipo, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial FROM monitores WHERE ticker = ?", (ticker,)).fetchone()
