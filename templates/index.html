@@ -939,32 +939,29 @@
                     const isVolatilidad = a.msg.toLowerCase().includes('volatilidad') || a.msg.includes('%');
                     const isTarget = a.msg.toLowerCase().includes('objetivo') || a.msg.toLowerCase().includes('alerta');
                     
-                    let borderClass = 'border-primary';
-                    let badgeBg = 'bg-primary bg-opacity-10 text-primary border-primary';
+                    let accentColor = '#6366f1';
                     let icon = 'ℹ️';
                     let label = 'SISTEMA';
                     
                     if (isVolatilidad) {
-                        borderClass = 'border-warning';
-                        badgeBg = 'bg-warning bg-opacity-10 text-warning border-warning';
+                        accentColor = '#f59e0b';
                         icon = '⚡';
                         label = 'VOLATILIDAD';
                     } else if (isTarget) {
-                        borderClass = 'border-danger';
-                        badgeBg = 'bg-danger bg-opacity-10 text-danger border-danger';
+                        accentColor = '#f43f5e';
                         icon = '🎯';
                         label = 'ALERTA';
                     }
                     
                     return `
-                        <div class="glass-panel p-3 mb-2 border-start border-3 ${borderClass}" style="background: rgba(255,255,255,0.02);">
+                        <div class="p-3 mb-2 rounded-3" style="background: rgba(17, 20, 30, 0.7); border: 1px solid rgba(255,255,255,0.06); border-left: 4px solid ${accentColor};">
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="badge ${badgeBg} border border-opacity-25 font-monospace" style="font-size: 0.68rem;">
+                                <span class="badge font-monospace px-2 py-1" style="background: ${accentColor}20; color: ${accentColor}; border: 1px solid ${accentColor}40; font-size: 0.68rem;">
                                     ${icon} ${label}
                                 </span>
                                 <span class="text-secondary font-monospace" style="font-size: 0.72rem;">${a.time}</span>
                             </div>
-                            <div class="text-white fw-medium mt-1" style="font-size: 0.88rem;">${a.msg}</div>
+                            <div class="text-white fw-medium mt-1" style="font-size: 0.88rem; font-family: 'Inter', sans-serif;">${a.msg}</div>
                         </div>
                     `;
                 }).join('');
@@ -1513,8 +1510,11 @@
                     let varBadgeHtml = '';
                     if (metrics.previous_close && metrics.previous_close > 0) {
                         const varPct = ((metrics.precio_actual - metrics.previous_close) / metrics.previous_close) * 100;
-                        const varBadgeClass = varPct >= 0 ? 'bg-success bg-opacity-15 text-success' : 'bg-danger bg-opacity-15 text-danger';
-                        varBadgeHtml = `<span class="badge ${varBadgeClass} font-monospace ms-1" style="font-size:0.68rem;">${varPct >= 0 ? '+' : ''}${varPct.toFixed(2)}%</span>`;
+                        const isUp = varPct >= 0;
+                        const badgeStyle = isUp 
+                            ? 'background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);' 
+                            : 'background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3);';
+                        varBadgeHtml = `<span class="badge font-monospace ms-1 px-2 py-1" style="${badgeStyle} font-size:0.72rem;">${isUp ? '+' : ''}${varPct.toFixed(2)}%</span>`;
                     }
                     
                     let priceTooltip = `Actualizado: ${metrics.current_price_time || 'N/A'}`;
@@ -1549,10 +1549,14 @@
                     const isCompra = op.tipo === 'COMPRA' || op.tipo === 'APORTACION';
                     const isDividendo = op.tipo === 'DIVIDENDO';
                     
-                    let badgeTipo = 'bg-success bg-opacity-15 text-success border-success';
-                    if (op.tipo === 'APORTACION') badgeTipo = 'bg-info bg-opacity-15 text-info border-info';
-                    else if (op.tipo === 'VENTA') badgeTipo = 'bg-danger bg-opacity-15 text-danger border-danger';
-                    else if (isDividendo) badgeTipo = 'bg-purple bg-opacity-15 text-warning border-warning';
+                    let badgeStyle = 'background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);';
+                    if (op.tipo === 'APORTACION') {
+                        badgeStyle = 'background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);';
+                    } else if (op.tipo === 'VENTA') {
+                        badgeStyle = 'background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3);';
+                    } else if (isDividendo) {
+                        badgeStyle = 'background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);';
+                    }
                     
                     const info = data.activos_info[op.ticker] || {};
                     const currency = op.moneda || info.currency || 'USD';
@@ -1587,7 +1591,7 @@
                             <div class="text-secondary font-monospace" style="font-size: 0.7rem;">${op.ticker} <span class="badge bg-dark border border-secondary border-opacity-25 opacity-75">${currency}</span></div>
                         </td>
                         <td class="text-center">
-                            <span class="badge ${badgeTipo} border border-opacity-25 font-monospace" style="font-size:0.68rem;">${op.tipo}</span>
+                            <span class="badge font-monospace px-2 py-1" style="${badgeStyle} font-size:0.72rem;">${op.tipo}</span>
                         </td>
                         <td class="text-end font-monospace text-light">${op.cantidad.toFixed(4)}</td>
                         <td class="text-end font-monospace">${UI.formatCurrency(op.precio, currency)}</td>
@@ -1618,8 +1622,15 @@
                     varDiaPct = (totalVariacionDiaEur / totalPrevCloseValor) * 100;
                 }
                 const varBadge = document.getElementById('resumen-variacion-dia');
-                varBadge.className = `badge font-monospace px-2 py-1 ${totalVariacionDiaEur >= 0 ? 'bg-success bg-opacity-20 text-success border border-success border-opacity-25' : 'bg-danger bg-opacity-20 text-danger border border-danger border-opacity-25'}`;
-                varBadge.textContent = `${totalVariacionDiaEur >= 0 ? '▲ +' : '▼ '}${UI.formatCurrency(totalVariacionDiaEur, 'EUR')} (${varDiaPct >= 0 ? '+' : ''}${varDiaPct.toFixed(2)}%) hoy`;
+                if (totalPrevCloseValor > 0 && totalVariacionDiaEur !== 0) {
+                    varBadge.style.display = 'inline-block';
+                    varBadge.style.cssText = totalVariacionDiaEur >= 0 
+                        ? 'background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.75rem;'
+                        : 'background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); font-size: 0.75rem;';
+                    varBadge.textContent = `${totalVariacionDiaEur >= 0 ? '▲ +' : '▼ '}${UI.formatCurrency(totalVariacionDiaEur, 'EUR')} (${varDiaPct >= 0 ? '+' : ''}${varDiaPct.toFixed(2)}%) hoy`;
+                } else {
+                    varBadge.style.display = 'none';
+                }
 
                 // P&L Combined
                 const totalCombinedPnl = totalLatente + (data.total_pnl_realizado || 0);
