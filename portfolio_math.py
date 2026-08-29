@@ -315,12 +315,17 @@ def simular_benchmark_cartera(fechas, flujos_caja, ticker="VWCE.DE", cache=None)
     
     # 3. Crear una serie diaria continua (incluyendo findes) para no perder ningún flujo
     rango_diario = pd.date_range(start=start_date, end=end_date, freq='D')
-    precios_diarios = hist_close.reindex(rango_diario, method='ffill').bfill()
+    hist_close_clean = hist_close.dropna()
+    if hist_close_clean.empty:
+        return [0.0] * len(fechas)
+        
+    precios_diarios = hist_close_clean.reindex(rango_diario, method='ffill').bfill()
     
     flujos_normalizados = {pd.to_datetime(k).normalize(): v for k, v in flujos_caja.items()}
 
     participaciones = 0.0
     historico_diario = {}
+    ultimo_valor_valido = 0.0
 
     # 4. Simulación DÍA A DÍA
     for fecha, precio in precios_diarios.items():
@@ -331,20 +336,20 @@ def simular_benchmark_cartera(fechas, flujos_caja, ticker="VWCE.DE", cache=None)
             participaciones += flujo_diario / precio
             
         if pd.notna(precio) and precio > 0:
-            historico_diario[fecha] = participaciones * precio
+            ultimo_valor_valido = participaciones * precio
+            historico_diario[fecha] = ultimo_valor_valido
         else:
-            historico_diario[fecha] = 0.0
+            historico_diario[fecha] = ultimo_valor_valido
 
     # 5. Extraer solo los puntos que pide el gráfico original
     valores_simulados = []
     for fecha in fechas_dt:
         valor = historico_diario.get(fecha)
-        # Si la fecha exacta falla por algún motivo, buscamos el valor más reciente
-        if pd.isna(valor):
-            fechas_previas = [f for f in historico_diario.keys() if f <= fecha]
-            valor = historico_diario[fechas_previas[-1]] if fechas_previas else 0.0
+        if pd.isna(valor) or valor is None or (valor == 0.0 and participaciones > 0):
+            fechas_previas = [f for f in historico_diario.keys() if f <= fecha and historico_diario[f] > 0]
+            valor = historico_diario[fechas_previas[-1]] if fechas_previas else ultimo_valor_valido
             
-        valores_simulados.append(round(valor, 2))
+        valores_simulados.append(round(float(valor), 2))
 
     return valores_simulados
 
