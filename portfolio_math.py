@@ -347,3 +347,87 @@ def simular_benchmark_cartera(fechas, flujos_caja, ticker="VWCE.DE", cache=None)
         valores_simulados.append(round(valor, 2))
 
     return valores_simulados
+
+def calcular_metricas_avanzadas(history):
+    import math
+    from datetime import datetime
+    
+    values = history.get("values", [])
+    capital = history.get("capital", [])
+    
+    if len(values) < 2:
+        return {
+            "twr": 0.0,
+            "volatilidad": 0.0,
+            "sharpe": 0.0,
+            "max_drawdown": 0.0
+        }
+        
+    returns = []
+    for i in range(1, len(values)):
+        val_prev = values[i-1]
+        val_curr = values[i]
+        cap_prev = capital[i-1]
+        cap_curr = capital[i]
+        cf = cap_curr - cap_prev # Flujo de caja neto ese día
+        
+        denom = val_prev + cf
+        if denom > 0:
+            r = (val_curr - denom) / denom
+        else:
+            r = 0.0
+        returns.append(r)
+        
+    # Calcular TWR acumulada
+    twr_cum = 1.0
+    for r in returns:
+        twr_cum *= (1.0 + r)
+    twr_cum = twr_cum - 1.0
+    
+    # Calcular volatilidad anualizada (asumiendo frecuencia de retorno diaria y 252 días comerciales)
+    if len(returns) > 1:
+        mean_r = sum(returns) / len(returns)
+        variance = sum((r - mean_r) ** 2 for r in returns) / (len(returns) - 1)
+        stdev = math.sqrt(variance)
+        vol_anual = stdev * math.sqrt(252)
+    else:
+        vol_anual = 0.0
+        
+    # Calcular rentabilidad anualizada para el Sharpe Ratio
+    try:
+        d1 = datetime.strptime(history["labels"][0], '%Y-%m-%d')
+        d2 = datetime.strptime(history["labels"][-1], '%Y-%m-%d')
+        days = max((d2 - d1).days, 1)
+    except Exception:
+        days = 365
+        
+    years = days / 365.0
+    if years > 0 and twr_cum > -1.0:
+        twr_anual = (1.0 + twr_cum) ** (1.0 / years) - 1.0
+    else:
+        twr_anual = twr_cum
+        
+    # Sharpe Ratio (tasa libre de riesgo = 2%)
+    risk_free = 0.02
+    if vol_anual > 0:
+        sharpe = (twr_anual - risk_free) / vol_anual
+    else:
+        sharpe = 0.0
+        
+    # Calcular Max Drawdown (Máxima caída de pico a valle)
+    max_dd = 0.0
+    peak = -1.0
+    for val in values:
+        if val > peak:
+            peak = val
+        if peak > 0:
+            dd = (peak - val) / peak
+            if dd > max_dd:
+                max_dd = dd
+                
+    return {
+        "twr": twr_cum,
+        "volatilidad": vol_anual,
+        "sharpe": sharpe,
+        "max_drawdown": max_dd
+    }

@@ -444,27 +444,33 @@
                         </div>
                         <div class="col-md-10">
                             <div class="row g-2 h-100">
-                                <div class="col-md-3">
+                                <div class="col-sm-6 col-md">
                                     <div class="glass-panel p-3 d-flex flex-column justify-content-center h-100 border border-primary border-opacity-50" style="background: rgba(99, 102, 241, 0.1);">
-                                        <span class="text-secondary small d-block mb-1 text-uppercase fw-semibold" style="letter-spacing: 0.05em;" title="Valor Total Actual de la Cartera">Valor Total Cartera</span>
-                                        <span class="fs-4 fw-bold text-white" id="resumen-valor-total">--</span>
+                                        <span class="text-secondary small d-block mb-1 text-uppercase fw-semibold" style="letter-spacing: 0.05em;">Valor Total <span style="cursor: help;" data-bs-toggle="tooltip" title="El valor total en euros de todas tus inversiones actuales valoradas a precio de mercado actual.">ℹ️</span></span>
+                                        <span class="fs-5 fw-bold text-white" id="resumen-valor-total">--</span>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-sm-6 col-md">
                                     <div class="glass-panel p-3 d-flex flex-column justify-content-center h-100">
-                                        <span class="text-secondary small d-block mb-1" title="Rentabilidad media anual de tus inversiones teniendo en cuenta cuándo compraste (TIR)">TIR (Anualizada)</span>
+                                        <span class="text-secondary small d-block mb-1">TIR (Anualizada) <span style="cursor: help;" data-bs-toggle="tooltip" title="Tasa Interna de Retorno anualizada: la rentabilidad media anual de tus inversiones teniendo en cuenta las fechas y los importes de tus aportaciones y retiros.">ℹ️</span></span>
                                         <span class="fs-5 fw-bold" id="resumen-tir">--</span>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-sm-6 col-md">
                                     <div class="glass-panel p-3 d-flex flex-column justify-content-center h-100">
-                                        <span class="text-secondary small d-block mb-1" title="Dinero que ganarías o perderías si vendieras hoy toda tu cartera (P&L Latente)">P&L Latente</span>
+                                        <span class="text-secondary small d-block mb-1">TWR (Acumulado) <span style="cursor: help;" data-bs-toggle="tooltip" title="Time-Weighted Return (Retorno ponderado en el tiempo): Mide la rentabilidad acumulada de la cartera aislando el efecto de la entrada o salida de capital.">ℹ️</span></span>
+                                        <span class="fs-5 fw-bold" id="resumen-twr">--</span>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6 col-md">
+                                    <div class="glass-panel p-3 d-flex flex-column justify-content-center h-100">
+                                        <span class="text-secondary small d-block mb-1">P&L Latente <span style="cursor: help;" data-bs-toggle="tooltip" title="Beneficio o pérdida virtual: la ganancia o pérdida acumulada de las posiciones abiertas que tienes ahora si las vendieras hoy a precio de mercado.">ℹ️</span></span>
                                         <span class="fs-5 fw-bold" id="resumen-latente">--</span>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-sm-6 col-md">
                                     <div class="glass-panel p-3 d-flex flex-column justify-content-center h-100">
-                                        <span class="text-secondary small d-block mb-1" title="Ganancias o pérdidas reales ya consolidadas de activos que has vendido (P&L Realizado)">P&L Consolidado</span>
+                                        <span class="text-secondary small d-block mb-1">P&L Consolidado <span style="cursor: help;" data-bs-toggle="tooltip" title="Beneficio o pérdida real: las ganancias o pérdidas ya materializadas tras realizar ventas de activos o cobrar dividendos.">ℹ️</span></span>
                                         <span class="fs-5 fw-bold" id="resumen-realizado">--</span>
                                     </div>
                                 </div>
@@ -486,6 +492,20 @@
                                 <div class="flex-grow-1" style="min-height: 180px; max-height: 240px; position: relative;">
                                     <canvas id="equityCurveChart"></canvas>
                                 </div>
+                                <div class="d-flex flex-wrap justify-content-around align-items-center mt-2 pt-2 border-top border-secondary border-opacity-25 gap-2 text-center">
+                                     <div>
+                                         <span class="text-secondary small d-block mb-0 text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Volatilidad Anual <span style="cursor: help;" data-bs-toggle="tooltip" title="Volatilidad Anualizada: Muestra cuánto varía el rendimiento diario de la cartera. Menor volatilidad implica un crecimiento más estable.">ℹ️</span></span>
+                                         <span class="fs-6 fw-bold text-white" id="resumen-volatilidad">--</span>
+                                     </div>
+                                     <div>
+                                         <span class="text-secondary small d-block mb-0 text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Ratio de Sharpe <span style="cursor: help;" data-bs-toggle="tooltip" title="Ratio de Sharpe (Tasa libre de riesgo: 2%): Evalúa si el rendimiento de tu cartera compensa el riesgo que estás asumiendo. Superior a 1 es considerado bueno.">ℹ️</span></span>
+                                         <span class="fs-6 fw-bold text-white" id="resumen-sharpe">--</span>
+                                     </div>
+                                     <div>
+                                         <span class="text-secondary small d-block mb-0 text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Máxima Caída <span style="cursor: help;" data-bs-toggle="tooltip" title="Máxima Caída (Max Drawdown): La mayor pérdida histórica acumulada registrada de pico a valle en la valoración de la cartera.">ℹ️</span></span>
+                                         <span class="fs-6 fw-bold text-white" id="resumen-drawdown">--</span>
+                                     </div>
+                                 </div>
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -522,12 +542,12 @@
                                 <thead class="bg-dark bg-opacity-25" style="position: sticky; top: 0; z-index: 1;">
                                     <tr>
                                         <th class="ps-4">Activo</th>
-                                        <th class="text-end">Cantidad</th>
-                                        <th class="text-end">Coste Medio</th>
-                                        <th class="text-end">Precio Actual</th>
-                                        <th class="text-end">Valor Actual</th>
-                                        <th class="text-end">Rentab. %</th>
-                                        <th class="text-end pe-4" title="Dinero que ganarías o perderías si vendieras este activo hoy (P&L Latente)">Beneficio / Pérdida</th>
+                                        <th class="text-end">Cantidad <span style="cursor: help;" data-bs-toggle="tooltip" title="El número total de participaciones, acciones o títulos que posees actualmente.">ℹ️</span></th>
+                                        <th class="text-end">Coste Medio <span style="cursor: help;" data-bs-toggle="tooltip" title="El precio promedio por el que compraste tus activos, incluyendo comisiones.">ℹ️</span></th>
+                                        <th class="text-end">Precio Actual <span style="cursor: help;" data-bs-toggle="tooltip" title="La última cotización de mercado registrada para este activo.">ℹ️</span></th>
+                                        <th class="text-end">Valor Actual <span style="cursor: help;" data-bs-toggle="tooltip" title="La valoración actual de tu inversión (Cantidad × Precio Actual).">ℹ️</span></th>
+                                        <th class="text-end">Rentab. % <span style="cursor: help;" data-bs-toggle="tooltip" title="La ganancia o pérdida porcentual acumulada sobre este activo.">ℹ️</span></th>
+                                        <th class="text-end pe-4">Beneficio / Pérdida <span style="cursor: help;" data-bs-toggle="tooltip" title="El beneficio o pérdida total en euros (P&L Latente) si vendieras este activo hoy a precios actuales.">ℹ️</span></th>
                                     </tr>
                                 </thead>
                                 <tbody id="cartera-table">
@@ -937,6 +957,10 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Inicializar Tooltips de Bootstrap (necesario para funcionamiento en móvil y escritorio)
+            const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+            const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+
             // Configurar 'light-dismiss' nativo unificado para todos los diálogos
             document.querySelectorAll('dialog').forEach(dialog => {
                 dialog.addEventListener('click', (e) => {
@@ -1478,11 +1502,27 @@
                 document.getElementById('resumen-tir').textContent = data.tir_anualizada ? (data.tir_anualizada * 100).toFixed(2) + '%' : 'N/A';
                 document.getElementById('resumen-tir').className = 'fs-5 fw-bold ' + (data.tir_anualizada >= 0 ? 'text-success' : 'text-danger');
                 
+                const metricas = data.metricas_riesgo || { twr: 0, volatilidad: 0, sharpe: 0, max_drawdown: 0 };
+                
+                document.getElementById('resumen-twr').textContent = metricas.twr !== undefined ? (metricas.twr * 100).toFixed(2) + '%' : 'N/A';
+                document.getElementById('resumen-twr').className = 'fs-5 fw-bold ' + (metricas.twr >= 0 ? 'text-success' : 'text-danger');
+                
                 document.getElementById('resumen-latente').textContent = UI.formatCurrency(totalLatente, 'EUR');
                 document.getElementById('resumen-latente').className = 'fs-5 fw-bold ' + (totalLatente >= 0 ? 'text-success' : 'text-danger');
                 
                 document.getElementById('resumen-realizado').textContent = UI.formatCurrency(data.total_pnl_realizado, 'EUR');
                 document.getElementById('resumen-realizado').className = 'fs-5 fw-bold ' + (data.total_pnl_realizado >= 0 ? 'text-success' : 'text-danger');
+                
+                // Métricas de riesgo en el footer del gráfico
+                document.getElementById('resumen-volatilidad').textContent = metricas.volatilidad !== undefined ? (metricas.volatilidad * 100).toFixed(2) + '%' : 'N/A';
+                document.getElementById('resumen-sharpe').textContent = metricas.sharpe !== undefined ? metricas.sharpe.toFixed(2) : 'N/A';
+                document.getElementById('resumen-drawdown').textContent = metricas.max_drawdown !== undefined ? (metricas.max_drawdown * 100).toFixed(2) + '%' : 'N/A';
+                
+                // Re-inicializar tooltips para los nuevos elementos
+                setTimeout(() => {
+                    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+                    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+                }, 100);
                 
                 console.log("Historial de la Cartera:", data.history);
                 

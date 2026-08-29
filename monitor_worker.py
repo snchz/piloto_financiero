@@ -6,6 +6,7 @@ import uuid
 import queue
 from flask import Response
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import db
 import finance_api
@@ -44,6 +45,101 @@ class SSESubscriptions:
 
 sse_subs = SSESubscriptions()
 
+def update_single_monitor(m, cfg, today_date):
+    m_id = m['id']
+    sym = m['symbol']
+    ticker = m['ticker']
+    try:
+        if cfg.get("check_market_hours", True) and not finance_api.is_market_open(sym):
+            log_debug(f"El mercado está cerrado para {sym}, omitiendo actualización.", "INFO")
+            if not m['current_price_time']:
+                current_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+                with db.get_db() as conn:
+                    conn.execute("UPDATE monitores SET current_price_time = ? WHERE id = ?", (current_time, m_id))
+                    conn.commit()
+                return True
+            return False
+            
+        current_price, previous_close = finance_api.fetch_price(sym)
+        current = round(current_price, 2)
+        current_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+        log_debug(f"Precio obtenido para {ticker}: {current} @ {current_time}", "INFO")
+        
+        # Lógica de alertas de precio objetivo (existente)
+        is_above_target = m['tipo'] == 'superior' and current_price >= m['target']
+        is_below_target = m['tipo'] == 'inferior' and current_price <= m['target']
+        
+        # Lógica de alertas porcentuales (nueva)
+        pct_alert_triggered = False
+        if m['target_pct'] and m['target_pct'] > 0 and previous_close:
+            variacion_pct = ((current_price - previous_close) / previous_close) * 100
+            if abs(variacion_pct) >= m['target_pct']:
+                if m['pct_triggered_date'] != today_date:
+                    pct_alert_triggered = True
+                    
+        changes_made = False
+        with db.get_db() as conn:
+            if is_above_target or is_below_target:
+                msg = f"🔔 {ticker} alcanzó {m['target']} (Actual: {current_price:.2f})"
+                log_debug(f"Actualizando alerta objetivo para {ticker} - timestamp: {current_time}", "INFO")
+                conn.execute("UPDATE monitores SET current = ?, triggered = 1, current_price_time = ? WHERE id = ?", (current, current_time, m_id))
+                conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
+                             (str(uuid.uuid4()), msg, time.strftime('%d/%m/%Y %H:%M:%S')))
+                conn.commit()
+                changes_made = True
+                
+                telegram_msg = f"🔔 *ALERTA DE MERCADO*\nEl activo *{ticker}* ha alcanzado tu objetivo de *{m['target']}*.\nPrecio actual: *{current_price:.2f}*"
+                notifications.enviar_mensaje_telegram(telegram_msg)
+            
+            elif pct_alert_triggered and previous_close:
+                variacion_pct = ((current_price - previous_close) / previous_close) * 100
+                msg = f"📈 Volatilidad: {ticker} se ha movido un {variacion_pct:.1f}% hoy"
+                log_debug(f"Actualizando alerta volatilidad para {ticker} - timestamp: {current_time}", "INFO")
+                conn.execute("UPDATE monitores SET pct_triggered_date = ?, current = ?, current_price_time = ? WHERE id = ?", (today_date, current, current_time, m_id))
+                conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
+                             (str(uuid.uuid4()), msg, time.strftime('%d/%m/%Y %H:%M:%S')))
+                conn.commit()
+                changes_made = True
+                
+                telegram_msg = f"📈 *ALERTA DE VOLATILIDAD*\nEl activo *{ticker}* se ha movido un *{variacion_pct:.1f}%* hoy.\nPrecio anterior: *{previous_close:.2f}*\nPrecio actual: *{current_price:.2f}*"
+                notifications.enviar_mensaje_telegram(telegram_msg)
+            
+            elif m['current'] != current or not m['current_price_time']:
+                log_debug(f"Actualizando precio para {ticker}: {m['current']} -> {current}, timestamp: {current_time}", "INFO")
+                conn.execute("UPDATE monitores SET current = ?, previous_close = ?, current_price_time = ? WHERE id = ?", (current, m['current'], current_time, m_id))
+                conn.commit()
+                changes_made = True
+            else:
+                # El precio no ha cambiado, pero actualizamos la hora de última revisión
+                conn.execute("UPDATE monitores SET current_price_time = ? WHERE id = ?", (current_time, m_id))
+                conn.commit()
+                changes_made = True
+                
+        # Integrar última noticia en la actividad reciente
+        try:
+            noticias = finance_api.fetch_news(sym, limit=1)
+            for noticia in noticias:
+                title = noticia.get('title')
+                publisher = noticia.get('publisher')
+                link = noticia.get('link')
+                if title and link:
+                    title_safe = title.replace('"', '&quot;').replace('<', '&lt;').replace('>', '&gt;')
+                    msg_noticia = f"📰 <b>{ticker}</b>: <a href='{link}' target='_blank' style='color: inherit; text-decoration: underline;'>{title_safe}</a> <small class='opacity-75'>({publisher})</small>"
+                    with db.get_db() as conn:
+                        existe = conn.execute("SELECT 1 FROM alertas WHERE msg = ?", (msg_noticia,)).fetchone()
+                        if not existe:
+                            conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
+                                         (str(uuid.uuid4()), msg_noticia, time.strftime('%d/%m/%Y %H:%M:%S')))
+                            conn.commit()
+                            changes_made = True
+        except Exception as e:
+            log_debug(f"Error fetching news for {ticker}: {e}", "WARNING")
+            
+        return changes_made
+    except Exception as e:
+        log_debug(f"Monitor update failed for {ticker}: {e}", "WARNING")
+        return False
+
 # --- Background Worker ---
 def background_monitor():
     while True:
@@ -52,103 +148,17 @@ def background_monitor():
         
         try:
             with db.get_db() as conn:
-                monitores = conn.execute("SELECT * FROM monitores").fetchall()  # Cambiado para incluir todos los monitores
+                monitores = conn.execute("SELECT * FROM monitores").fetchall()
             
             changes_made = False
             today_date = time.strftime('%Y-%m-%d')
             
-            for m in monitores:
-                try:
-                    m_id = m['id']
-                    sym = m['symbol']
-                    
-                    if cfg.get("check_market_hours", True) and not finance_api.is_market_open(sym):
-                        log_debug(f"El mercado está cerrado para {sym}, omitiendo actualización.", "INFO")
-                        if not m['current_price_time']:
-                            current_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-                            with db.get_db() as conn:
-                                conn.execute("UPDATE monitores SET current_price_time = ? WHERE id = ?", (current_time, m_id))
-                                conn.commit()
-                            changes_made = True
-                        continue
-                        
-                    current_price, previous_close = finance_api.fetch_price(sym)
-                    current = round(current_price, 2)
-                    current_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-                    log_debug(f"Precio obtenido para {m['ticker']}: {current} @ {current_time}", "INFO")
-                    
-                    # Lógica de alertas de precio objetivo (existente)
-                    is_above_target = m['tipo'] == 'superior' and current_price >= m['target']
-                    is_below_target = m['tipo'] == 'inferior' and current_price <= m['target']
-                    
-                    # Lógica de alertas porcentuales (nueva)
-                    pct_alert_triggered = False
-                    if m['target_pct'] and m['target_pct'] > 0 and previous_close:
-                        variacion_pct = ((current_price - previous_close) / previous_close) * 100
-                        if abs(variacion_pct) >= m['target_pct']:
-                            if m['pct_triggered_date'] != today_date:
-                                pct_alert_triggered = True
-                    with db.get_db() as conn:
-                        if is_above_target or is_below_target:
-                            msg = f"🔔 {m['ticker']} alcanzó {m['target']} (Actual: {current_price:.2f})"
-                            log_debug(f"Actualizando alerta objetivo para {m['ticker']} - timestamp: {current_time}", "INFO")
-                            conn.execute("UPDATE monitores SET current = ?, triggered = 1, current_price_time = ? WHERE id = ?", (current, current_time, m_id))
-                            conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
-                                         (str(uuid.uuid4()), msg, time.strftime('%d/%m/%Y %H:%M:%S')))
-                            conn.commit()
-                            changes_made = True
-                            
-                            telegram_msg = f"🔔 *ALERTA DE MERCADO*\nEl activo *{m['ticker']}* ha alcanzado tu objetivo de *{m['target']}*.\nPrecio actual: *{current_price:.2f}*"
-                            notifications.enviar_mensaje_telegram(telegram_msg)
-                        
-                        elif pct_alert_triggered and previous_close:
-                            variacion_pct = ((current_price - previous_close) / previous_close) * 100
-                            msg = f"📈 Volatilidad: {m['ticker']} se ha movido un {variacion_pct:.1f}% hoy"
-                            log_debug(f"Actualizando alerta volatilidad para {m['ticker']} - timestamp: {current_time}", "INFO")
-                            conn.execute("UPDATE monitores SET pct_triggered_date = ?, current = ?, current_price_time = ? WHERE id = ?", (today_date, current, current_time, m_id))
-                            conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
-                                         (str(uuid.uuid4()), msg, time.strftime('%d/%m/%Y %H:%M:%S')))
-                            conn.commit()
-                            changes_made = True
-                            
-                            telegram_msg = f"📈 *ALERTA DE VOLATILIDAD*\nEl activo *{m['ticker']}* se ha movido un *{variacion_pct:.1f}%* hoy.\nPrecio anterior: *{previous_close:.2f}*\nPrecio actual: *{current_price:.2f}*"
-                            notifications.enviar_mensaje_telegram(telegram_msg)
-                        
-                        elif m['current'] != current or not m['current_price_time']:
-                            log_debug(f"Actualizando precio para {m['ticker']}: {m['current']} -> {current}, timestamp: {current_time}", "INFO")
-                            conn.execute("UPDATE monitores SET current = ?, previous_close = ?, current_price_time = ? WHERE id = ?", (current, m['current'], current_time, m_id))
-                            conn.commit()
-                            changes_made = True
-                        else:
-                            # El precio no ha cambiado, pero actualizamos la hora de última revisión
-                            conn.execute("UPDATE monitores SET current_price_time = ? WHERE id = ?", (current_time, m_id))
-                            conn.commit()
-                            changes_made = True
-                            
-                    # Integrar última noticia en la actividad reciente
-                    try:
-                        noticias = finance_api.fetch_news(sym, limit=1)
-                        for noticia in noticias:
-                            title = noticia.get('title')
-                            publisher = noticia.get('publisher')
-                            link = noticia.get('link')
-                            if title and link:
-                                # Reemplazar caracteres especiales para evitar romper el HTML
-                                title_safe = title.replace('"', '&quot;').replace('<', '&lt;').replace('>', '&gt;')
-                                msg_noticia = f"📰 <b>{m['ticker']}</b>: <a href='{link}' target='_blank' style='color: inherit; text-decoration: underline;'>{title_safe}</a> <small class='opacity-75'>({publisher})</small>"
-                                with db.get_db() as conn:
-                                    existe = conn.execute("SELECT 1 FROM alertas WHERE msg = ?", (msg_noticia,)).fetchone()
-                                    if not existe:
-                                        conn.execute("INSERT INTO alertas (id, msg, time) VALUES (?, ?, ?)", 
-                                                     (str(uuid.uuid4()), msg_noticia, time.strftime('%d/%m/%Y %H:%M:%S')))
-                                        conn.commit()
-                                        changes_made = True
-                    except Exception as e:
-                        log_debug(f"Error fetching news for {m['ticker']}: {e}", "WARNING")
-                except Exception as e:
-                    log_debug(f"Monitor update failed for {m['ticker']}: {e}", "WARNING")
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = {executor.submit(update_single_monitor, m, cfg, today_date): m for m in monitores}
+                for future in as_completed(futures):
+                    if future.result():
+                        changes_made = True
             
-            # Notificar siempre para actualizar "Última actualización" en la UI
             sse_subs.notify()
                 
         except Exception as e:
@@ -231,7 +241,7 @@ def log_debug(msg, level="INFO"):
     except Exception:
         debug_enabled = False
         
-    if not debug_enabled:
+    if not debug_enabled and level not in ("WARNING", "ERROR"):
         return
         
     entry = {

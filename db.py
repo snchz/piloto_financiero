@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import time
 
 DATA_DIR = 'data'
 DATA_FILE = os.path.join(DATA_DIR, 'monitores.json')
@@ -94,6 +95,38 @@ def init_db():
         except sqlite3.OperationalError:
             pass  # Columna ya existe
         
+        # Crear tablas para la caché persistente
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS cache_activos (
+                ticker TEXT PRIMARY KEY,
+                sym TEXT,
+                name TEXT,
+                currency TEXT,
+                timestamp REAL
+            )
+        ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS cache_tasas_cambio (
+                pair TEXT PRIMARY KEY,
+                price REAL,
+                timestamp REAL
+            )
+        ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS cache_tasas_historicas (
+                cache_key TEXT PRIMARY KEY,
+                price REAL
+            )
+        ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS cache_precios_historicos (
+                ticker TEXT,
+                fecha TEXT,
+                precio REAL,
+                PRIMARY KEY (ticker, fecha)
+            )
+        ''')
+        
         if c.execute("SELECT COUNT(*) FROM config").fetchone()[0] == 0:
             defaults = [
                 ("telegram_token", ""),
@@ -132,3 +165,105 @@ def get_config():
             "telegram_token": "", "telegram_chat_id": "",
             "refresh_interval": 30, "check_market_hours": True, "debug_ui": False, "app_title": "Piloto Financiero", "activity_retention_days": 2, "exchange_rate_ttl_hours": 12.0
         }
+
+# --- Cache Helpers ---
+def get_cached_asset(ticker):
+    try:
+        with get_db() as conn:
+            row = conn.execute("SELECT sym, name, currency, timestamp FROM cache_activos WHERE ticker = ?", (ticker,)).fetchone()
+            if row:
+                return {
+                    'sym': row['sym'],
+                    'name': row['name'],
+                    'currency': row['currency'],
+                    'timestamp': row['timestamp']
+                }
+    except Exception:
+        pass
+    return None
+
+def set_cached_asset(ticker, sym, name, currency):
+    try:
+        with get_db() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO cache_activos (ticker, sym, name, currency, timestamp) VALUES (?, ?, ?, ?, ?)",
+                (ticker, sym, name, currency, time.time())
+            )
+            conn.commit()
+    except Exception:
+        pass
+
+def get_cached_rate(pair):
+    try:
+        with get_db() as conn:
+            row = conn.execute("SELECT price, timestamp FROM cache_tasas_cambio WHERE pair = ?", (pair,)).fetchone()
+            if row:
+                return {'price': row['price'], 'timestamp': row['timestamp']}
+    except Exception:
+        pass
+    return None
+
+def set_cached_rate(pair, price):
+    try:
+        with get_db() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO cache_tasas_cambio (pair, price, timestamp) VALUES (?, ?, ?)",
+                (pair, price, time.time())
+            )
+            conn.commit()
+    except Exception:
+        pass
+
+def get_cached_historical_rate(cache_key):
+    try:
+        with get_db() as conn:
+            row = conn.execute("SELECT price FROM cache_tasas_historicas WHERE cache_key = ?", (cache_key,)).fetchone()
+            if row:
+                return row['price']
+    except Exception:
+        pass
+    return None
+
+def set_cached_historical_rate(cache_key, price):
+    try:
+        with get_db() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO cache_tasas_historicas (cache_key, price) VALUES (?, ?)",
+                (cache_key, price)
+            )
+            conn.commit()
+    except Exception:
+        pass
+
+def get_cached_historical_prices(ticker, start_date_str, end_date_str):
+    import pandas as pd
+    try:
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT fecha, precio FROM cache_precios_historicos WHERE ticker = ? AND fecha >= ? AND fecha <= ? ORDER BY fecha ASC",
+                (ticker, start_date_str, end_date_str)
+            ).fetchall()
+            if not rows:
+                return None
+            index = pd.to_datetime([r['fecha'] for r in rows])
+            series = pd.Series([r['precio'] for r in rows], index=index)
+            return series
+    except Exception:
+        pass
+    return None
+
+def save_historical_prices(ticker, prices_series):
+    import pandas as pd
+    try:
+        with get_db() as conn:
+            data = []
+            for date, price in prices_series.items():
+                if pd.isna(price):
+                    continue
+                date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)[:10]
+                data.append((ticker, date_str, float(price)))
+            if data:
+                conn.executemany("INSERT OR REPLACE INTO cache_precios_historicos (ticker, fecha, precio) VALUES (?, ?, ?)", data)
+                conn.commit()
+    except Exception:
+        pass

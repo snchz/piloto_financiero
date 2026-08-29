@@ -63,12 +63,21 @@ def get_exchange_rate(from_currency, to_currency="EUR"):
         cached_data = EXCHANGE_RATES_CACHE[pair]
         if time.time() - cached_data['timestamp'] < ttl_seconds:
             return cached_data['price']
+            
+    db_cached = db.get_cached_rate(pair)
+    if db_cached:
+        if time.time() - db_cached['timestamp'] < ttl_seconds:
+            EXCHANGE_RATES_CACHE[pair] = db_cached
+            return db_cached['price']
         
     try:
         price, _ = finance_api.fetch_price(pair)
+        db.set_cached_rate(pair, price)
         EXCHANGE_RATES_CACHE[pair] = {'price': price, 'timestamp': time.time()}
         return price
     except Exception:
+        if db_cached:
+            return db_cached['price']
         if pair in EXCHANGE_RATES_CACHE:
             return EXCHANGE_RATES_CACHE[pair]['price']
         return 1.0  # Fallback si no encuentra la divisa
@@ -83,9 +92,14 @@ def get_historical_exchange_rate(from_currency, date_str, to_currency="EUR"):
     if cache_key in HISTORICAL_RATES_CACHE:
         return HISTORICAL_RATES_CACHE[cache_key]
         
+    db_price = db.get_cached_historical_rate(cache_key)
+    if db_price is not None:
+        HISTORICAL_RATES_CACHE[cache_key] = db_price
+        return db_price
+        
     price = finance_api.fetch_historical_price(pair, date_str)
     if price:
-        # Limitar la caché a 1000 entradas eliminando la más antigua
+        db.set_cached_historical_rate(cache_key, price)
         if len(HISTORICAL_RATES_CACHE) >= 1000:
             try:
                 HISTORICAL_RATES_CACHE.pop(next(iter(HISTORICAL_RATES_CACHE)))
@@ -97,18 +111,53 @@ def get_historical_exchange_rate(from_currency, date_str, to_currency="EUR"):
     return get_exchange_rate(from_currency, to_currency)
 
 def get_asset_info_cached(ticker):
+    pref_currency = None
+    try:
+        with db.get_db() as conn:
+            row = conn.execute("SELECT DISTINCT moneda FROM operaciones WHERE ticker = ? AND moneda IS NOT NULL AND moneda != ''", (ticker,)).fetchone()
+            if row:
+                pref_currency = row['moneda']
+    except Exception:
+        pass
+
     if ticker in ASSET_INFO_CACHE:
-        return ASSET_INFO_CACHE[ticker]
+        cached_info = ASSET_INFO_CACHE[ticker]
+        if not pref_currency or cached_info.get('currency') == pref_currency:
+            return cached_info
+        
+    cached = db.get_cached_asset(ticker)
+    if cached:
+        if not pref_currency or cached['currency'] == pref_currency:
+            if time.time() - cached['timestamp'] < 7 * 86400:
+                res = {'sym': cached['sym'], 'name': cached['name'], 'currency': cached['currency']}
+                ASSET_INFO_CACHE[ticker] = res
+                return res
+            
     try:
         sym = finance_api.resolve_ticker(ticker)
         if sym:
-            name, currency = finance_api.fetch_asset_info(sym)
+            name, currency = finance_api.fetch_asset_info(sym, isin=ticker)
+            if pref_currency and currency != pref_currency:
+                better_sym = finance_api.find_symbol_by_name_and_currency(name or ticker, pref_currency)
+                if better_sym:
+                    better_name, better_currency = finance_api.fetch_asset_info(better_sym, isin=ticker)
+                    if better_currency == pref_currency:
+                        sym = better_sym
+                        name = better_name or name
+                        currency = better_currency
+
             if not currency:
                 currency = 'EUR'
+            db.set_cached_asset(ticker, sym, name, currency)
             ASSET_INFO_CACHE[ticker] = {'sym': sym, 'name': name, 'currency': currency}
             return ASSET_INFO_CACHE[ticker]
     except Exception as e:
         log_debug(f"Error fetching info for {ticker}: {e}", "WARNING")
+        
+    if cached:
+        res = {'sym': cached['sym'], 'name': cached['name'], 'currency': cached['currency']}
+        ASSET_INFO_CACHE[ticker] = res
+        return res
     
     return {'sym': ticker, 'name': ticker, 'currency': 'EUR'}
 
@@ -213,7 +262,7 @@ def add_monitor():
             raise ValueError(f"No se encontró el activo para {raw_input}")
             
         current_price, previous_close = finance_api.fetch_price(sym)
-        name, currency = finance_api.fetch_asset_info(sym)
+        name, currency = finance_api.fetch_asset_info(sym, isin=raw_input)
         
         m_id = str(uuid.uuid4())
         ticker_display = f"{raw_input} ({sym})" if raw_input != sym else raw_input
@@ -434,26 +483,51 @@ def get_operaciones():
                 if sym:
                     info['tasa_cambio_actual'] = get_exchange_rate(info.get('currency', 'EUR'), 'EUR')
                     
-                    if sym not in HISTORICAL_PRICES_CACHE or HISTORICAL_PRICES_CACHE[sym]['end_date'] < end_date.date() - timedelta(days=1) or HISTORICAL_PRICES_CACHE[sym]['start_date'] > start_date.date():
+                    cached_series = db.get_cached_historical_prices(sym, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
+                    needs_download = True
+                    if cached_series is not None and not cached_series.empty:
+                        last_cached_date = cached_series.index[-1].date()
+                        if last_cached_date >= (end_date - timedelta(days=2)).date():
+                            needs_download = False
+                            HISTORICAL_PRICES_CACHE[sym] = {
+                                'data': cached_series,
+                                'start_date': cached_series.index[0].date(),
+                                'end_date': last_cached_date
+                            }
+                    
+                    if needs_download:
                         try:
                             df = yf.Ticker(sym).history(start=start_date.strftime('%Y-%m-%d'))
                             if not df.empty:
                                 df.index = df.index.tz_localize(None).normalize()
+                                db.save_historical_prices(sym, df['Close'])
+                                cached_series = db.get_cached_historical_prices(sym, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
                                 HISTORICAL_PRICES_CACHE[sym] = {
-                                    'data': df['Close'],
+                                    'data': cached_series,
                                     'start_date': start_date.date(),
                                     'end_date': end_date.date()
                                 }
                             else:
-                                HISTORICAL_PRICES_CACHE[sym] = {
-                                    'data': pd.Series(dtype=float),
-                                    'start_date': start_date.date(),
-                                    'end_date': end_date.date()
-                                }
+                                if cached_series is not None:
+                                    HISTORICAL_PRICES_CACHE[sym] = {
+                                        'data': cached_series,
+                                        'start_date': start_date.date(),
+                                        'end_date': end_date.date()
+                                    }
+                                else:
+                                    HISTORICAL_PRICES_CACHE[sym] = {
+                                        'data': pd.Series(dtype=float),
+                                        'start_date': start_date.date(),
+                                        'end_date': end_date.date()
+                                    }
                         except Exception as e:
                             log_debug(f"Error fetching historical data for {sym}: {e}", "WARNING")
                             if sym not in HISTORICAL_PRICES_CACHE:
-                                HISTORICAL_PRICES_CACHE[sym] = {'data': pd.Series(dtype=float), 'start_date': start_date.date(), 'end_date': end_date.date()}
+                                HISTORICAL_PRICES_CACHE[sym] = {
+                                    'data': cached_series if cached_series is not None else pd.Series(dtype=float),
+                                    'start_date': start_date.date(),
+                                    'end_date': end_date.date()
+                                }
                     
                     historicos_precios[sym] = HISTORICAL_PRICES_CACHE[sym]['data']
             
@@ -488,6 +562,7 @@ def get_operaciones():
                     c_data['min_price'] = c_data['precio_actual']
 
             # --- Simular Benchmark ---
+            metricas_riesgo = {"volatilidad": 0.0, "sharpe": 0.0, "max_drawdown": 0.0, "twr": 0.0}
             if history and history.get("labels"):
                 benchmark_values = portfolio_math.simular_benchmark_cartera(
                     fechas=history["labels"],
@@ -496,6 +571,7 @@ def get_operaciones():
                     cache=HISTORICAL_PRICES_CACHE
                 )
                 history["benchmark_values"] = benchmark_values
+                metricas_riesgo = portfolio_math.calcular_metricas_avanzadas(history)
         else:
             dt_now = datetime.now()
             history = {
@@ -503,6 +579,7 @@ def get_operaciones():
                 "capital": [0],
                 "values": [0]
             }
+            metricas_riesgo = {"volatilidad": 0.0, "sharpe": 0.0, "max_drawdown": 0.0, "twr": 0.0}
 
         return jsonify({
             "operaciones": operaciones,
@@ -511,6 +588,7 @@ def get_operaciones():
             "tir_anualizada": tir,
             "total_pnl_realizado": total_pnl_realizado,
             "history": history,
+            "metricas_riesgo": metricas_riesgo,
             "warning_api_error": warning_api_error
         })
     except Exception as e:
@@ -677,7 +755,7 @@ def import_monitores():
                     continue
                 
                 current_price, previous_close = finance_api.fetch_price(sym)
-                name, currency = finance_api.fetch_asset_info(sym)
+                name, currency = finance_api.fetch_asset_info(sym, isin=ticker)
                 tipo = 'superior' if target > current_price else 'inferior'
                 
                 m_id = str(row.get('id', ''))
