@@ -9,7 +9,6 @@ services:
       - TZ=Europe/Madrid  # Zona horaria (ajustar si es diferente)
     volumes:
       - /home/leif/docker/configs/piloto_financiero:/app/data
-      - /opt/stacks/piloto_financiero:/app
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:5000/health"]
