@@ -9,7 +9,7 @@ COPY app.py db.py finance_api.py monitor_worker.py notifications.py portfolio_ma
 COPY templates templates
 RUN mkdir -p data
 # ARG para invalidar caché con cada cambio
-ARG BUILD_VERSION=1.0.8
+ARG BUILD_VERSION=1.1.0
 LABEL version=${BUILD_VERSION}
 EXPOSE 5000
 CMD ["python", "-u", "app.py"]

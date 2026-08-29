@@ -1,4 +1,4 @@
-# 📈 Piloto Financiero (v1.0.9)
+# 📈 Piloto Financiero (v1.1.0)
 
 ## Descripción del Proyecto
 
