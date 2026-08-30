@@ -7,7 +7,9 @@ DATA_FILE = os.path.join(DATA_DIR, 'monitores.json')
 DB_FILE = os.path.join(DATA_DIR, 'piloto.db')
 
 def get_db():
-    conn = sqlite3.connect(DB_FILE, timeout=10)
+    conn = sqlite3.connect(DB_FILE, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -396,30 +398,39 @@ def get_ine_ipv_latest(series_code):
     return None
 
 # --- Inmuebles Config Helpers ---
-def get_inmueble_config(ticker):
+def get_inmueble_config(ticker, conn=None):
     try:
-        with get_db() as conn:
+        if conn is not None:
             row = conn.execute("SELECT name, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial FROM inmuebles_config WHERE ticker = ?", (ticker,)).fetchone()
-            if row:
-                return {
-                    'name': row['name'],
-                    'comunidad_autonoma': row['comunidad_autonoma'],
-                    'pct_titularidad': row['pct_titularidad'],
-                    'precio_compra_total': row['precio_compra_total'],
-                    'hipoteca_inicial': row['hipoteca_inicial']
-                }
+        else:
+            with get_db() as local_conn:
+                row = local_conn.execute("SELECT name, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial FROM inmuebles_config WHERE ticker = ?", (ticker,)).fetchone()
+        if row:
+            return {
+                'name': row['name'],
+                'comunidad_autonoma': row['comunidad_autonoma'],
+                'pct_titularidad': row['pct_titularidad'],
+                'precio_compra_total': row['precio_compra_total'],
+                'hipoteca_inicial': row['hipoteca_inicial']
+            }
     except Exception:
         pass
     return None
 
-def save_inmueble_config(ticker, name, comunidad, pct_tit, precio_compra, hipoteca_ini):
+def save_inmueble_config(ticker, name, comunidad, pct_tit, precio_compra, hipoteca_ini, conn=None):
     try:
-        with get_db() as conn:
+        if conn is not None:
             conn.execute('''
                 INSERT OR REPLACE INTO inmuebles_config (ticker, name, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial)
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (ticker, name, comunidad, pct_tit, precio_compra, hipoteca_ini))
-            conn.commit()
+        else:
+            with get_db() as local_conn:
+                local_conn.execute('''
+                    INSERT OR REPLACE INTO inmuebles_config (ticker, name, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (ticker, name, comunidad, pct_tit, precio_compra, hipoteca_ini))
+                local_conn.commit()
     except Exception as e:
         print(f"Error saving inmueble config: {e}")
 
