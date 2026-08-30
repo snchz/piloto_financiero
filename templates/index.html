@@ -1836,7 +1836,8 @@
                 document.getElementById('cartera-table').innerHTML = carteraHtml || '<tr><td colspan="7" class="text-center py-4 text-secondary">No hay activos en cartera</td></tr>';
 
                 // 2. Renderizar Operaciones
-                const opsHtml = data.operaciones.reverse().map(op => {
+                const sortedOps = [...data.operaciones].reverse();
+                const opsHtml = sortedOps.map(op => {
                     const isCompra = op.tipo === 'COMPRA' || op.tipo === 'APORTACION' || op.tipo === 'ENTRADA_INMUEBLE' || op.tipo === 'HIPOTECA_CUOTA' || op.tipo === 'REFORMA_MEJORA';
                     const isDividendo = op.tipo === 'DIVIDENDO';
                     
