@@ -695,7 +695,7 @@ def get_operaciones():
                     cache=HISTORICAL_PRICES_CACHE
                 )
                 history["benchmark_values"] = benchmark_values
-                metricas_riesgo = portfolio_math.calcular_metricas_avanzadas(history)
+                metricas_riesgo = portfolio_math.calcular_metricas_avanzadas(history, tir_anualizada=tir)
         else:
             dt_now = datetime.now()
             history = {

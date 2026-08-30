@@ -411,7 +411,7 @@ def simular_benchmark_cartera(fechas, flujos_caja, ticker="VWCE.DE", cache=None)
 
     return valores_simulados
 
-def calcular_metricas_avanzadas(history):
+def calcular_metricas_avanzadas(history, tir_anualizada=None):
     import math
     from datetime import datetime
     
@@ -447,22 +447,29 @@ def calcular_metricas_avanzadas(history):
         twr_cum *= (1.0 + r)
     twr_cum = twr_cum - 1.0
     
-    # Calcular volatilidad anualizada (asumiendo frecuencia de retorno diaria y 252 días comerciales)
-    if len(returns) > 1:
-        mean_r = sum(returns) / len(returns)
-        variance = sum((r - mean_r) ** 2 for r in returns) / (len(returns) - 1)
-        stdev = math.sqrt(variance)
-        vol_anual = stdev * math.sqrt(252)
-    else:
-        vol_anual = 0.0
-        
-    # Calcular rentabilidad anualizada para el Sharpe Ratio
+    # Determinar la frecuencia real de los datos en history para calcular la volatilidad anualizada
     try:
         d1 = datetime.strptime(history["labels"][0], '%Y-%m-%d')
         d2 = datetime.strptime(history["labels"][-1], '%Y-%m-%d')
         days = max((d2 - d1).days, 1)
     except Exception:
         days = 365
+        
+    if days > 365 * 2:
+        periods_per_year = 12 # Frecuencia mensual (ME)
+    elif days > 180:
+        periods_per_year = 52 # Frecuencia semanal (W-FRI)
+    else:
+        periods_per_year = 252 # Frecuencia diaria (B)
+        
+    # Calcular volatilidad anualizada ajustada a la frecuencia real
+    if len(returns) > 1:
+        mean_r = sum(returns) / len(returns)
+        variance = sum((r - mean_r) ** 2 for r in returns) / (len(returns) - 1)
+        stdev = math.sqrt(variance)
+        vol_anual = stdev * math.sqrt(periods_per_year)
+    else:
+        vol_anual = 0.0
         
     years = days / 365.0
     if years > 0 and twr_cum > -1.0:
@@ -471,9 +478,10 @@ def calcular_metricas_avanzadas(history):
         twr_anual = twr_cum
         
     # Sharpe Ratio (tasa libre de riesgo = 2%)
+    rentabilidad_ref = tir_anualizada if (tir_anualizada is not None and tir_anualizada > 0) else twr_anual
     risk_free = 0.02
     if vol_anual > 0:
-        sharpe = (twr_anual - risk_free) / vol_anual
+        sharpe = (rentabilidad_ref - risk_free) / vol_anual
     else:
         sharpe = 0.0
         
