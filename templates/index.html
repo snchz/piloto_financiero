@@ -1720,6 +1720,8 @@
                     document.getElementById('op-comisiones').value = op.comisiones || 0;
                     document.getElementById('op-impuestos').value = op.impuestos || 0;
                     document.getElementById('op-tasa-cambio').value = op.tasa_cambio || '';
+                    document.getElementById('op-amortizacion').value = op.amortizacion || 0;
+                    document.getElementById('op-intereses').value = op.intereses || 0;
                 } else {
                     return UI.showToast('No se encontraron los datos de la operación', 'error');
                 }
@@ -1876,6 +1878,11 @@
                         ? (op.cantidad * op.precio) + comisiones + impuestos
                         : (op.cantidad * op.precio) - comisiones - impuestos;
 
+                    const isHipoteca = op.tipo === 'HIPOTECA_CUOTA';
+                    const hipoSubtext = isHipoteca && (op.amortizacion || op.intereses)
+                        ? `<br><span class="text-info opacity-75" style="font-size:0.7rem;">Cap: ${UI.formatCurrency(op.amortizacion || 0, currency)}</span> <span class="text-warning opacity-75" style="font-size:0.7rem;">Int: ${UI.formatCurrency(op.intereses || 0, currency)}</span>`
+                        : '';
+
                     return `
                     <tr>
                         <td class="ps-4 font-monospace text-secondary" style="font-size: 0.82rem">${op.fecha}</td>
@@ -1887,7 +1894,7 @@
                             <span class="badge font-monospace px-2 py-1" style="${badgeStyle} font-size:0.72rem;">${op.tipo}</span>
                         </td>
                         <td class="text-end font-monospace text-light">${op.cantidad.toFixed(4)}</td>
-                        <td class="text-end font-monospace">${UI.formatCurrency(op.precio, currency)}</td>
+                        <td class="text-end font-monospace">${UI.formatCurrency(op.precio, currency)}${hipoSubtext}</td>
                         <td class="text-end font-monospace text-secondary">${UI.formatCurrency(comisiones, currency)}</td>
                         <td class="text-end font-monospace text-secondary">${UI.formatCurrency(impuestos, currency)}</td>
                         <td class="text-end font-monospace text-white fw-semibold">${UI.formatCurrency(totalOperacion, currency)}</td>
