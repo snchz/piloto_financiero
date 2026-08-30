@@ -78,7 +78,7 @@ def calcular_fifo(operaciones_activo):
         impuestos = float(op.get('impuestos', 0) or 0)
         tasa_cambio = float(op.get('tasa_cambio', 1.0))
         
-        if tipo in ('COMPRA', 'APORTACION', 'ENTRADA_INMUEBLE', 'REFORMA_MEJORA'):
+        if tipo in ('COMPRA', 'APORTACION'):
             # El coste real de la compra incluye las comisiones
             precio_unitario_real = (cantidad * precio + comisiones) / cantidad if cantidad > 0 else 0
             compras_abiertas.append({
@@ -89,18 +89,47 @@ def calcular_fifo(operaciones_activo):
             })
             cantidad_total += cantidad
 
-        elif tipo == 'HIPOTECA_CUOTA':
-            amortizacion = float(op.get('amortizacion', 0) or 0)
-            if amortizacion <= 0:
-                amortizacion = max(precio - comisiones, 0.0)
-            precio_unitario_real = amortizacion / cantidad if cantidad > 0 else 0
+        elif tipo == 'ENTRADA_INMUEBLE':
+            precio_unitario_real = (cantidad * precio + comisiones) / cantidad if cantidad > 0 else 0
             compras_abiertas.append({
                 'cantidad': cantidad,
                 'precio_unitario': precio_unitario_real,
                 'tasa_cambio': tasa_cambio,
                 'fecha': op['fecha']
             })
-            cantidad_total += cantidad
+            if cantidad_total == 0:
+                cantidad_total = cantidad
+
+        elif tipo == 'HIPOTECA_CUOTA':
+            amortizacion = float(op.get('amortizacion', 0) or 0)
+            if amortizacion <= 0:
+                amortizacion = max(precio - comisiones, 0.0)
+            
+            if compras_abiertas:
+                compras_abiertas[0]['precio_unitario'] += (amortizacion / compras_abiertas[0]['cantidad'])
+            else:
+                compras_abiertas.append({
+                    'cantidad': 1.0,
+                    'precio_unitario': amortizacion,
+                    'tasa_cambio': tasa_cambio,
+                    'fecha': op['fecha']
+                })
+                if cantidad_total == 0:
+                    cantidad_total = 1.0
+
+        elif tipo == 'REFORMA_MEJORA':
+            coste_reforma = (cantidad * precio + comisiones)
+            if compras_abiertas:
+                compras_abiertas[0]['precio_unitario'] += (coste_reforma / compras_abiertas[0]['cantidad'])
+            else:
+                compras_abiertas.append({
+                    'cantidad': 1.0,
+                    'precio_unitario': coste_reforma,
+                    'tasa_cambio': tasa_cambio,
+                    'fecha': op['fecha']
+                })
+                if cantidad_total == 0:
+                    cantidad_total = 1.0
             
         elif tipo == 'DIVIDENDO':
             # El ingreso neto del dividendo es tras comisiones e impuestos
@@ -229,16 +258,26 @@ def calcular_historico_cartera(operaciones, historicos_precios, activos_info, st
                 if ticker not in inventario:
                     inventario[ticker] = {'cantidad': 0.0, 'precio_compra': 0.0}
                     
-                if tipo in ('COMPRA', 'APORTACION', 'ENTRADA_INMUEBLE', 'REFORMA_MEJORA'):
+                if tipo in ('COMPRA', 'APORTACION'):
                     inventario[ticker]['cantidad'] += cantidad
                     inventario[ticker]['precio_compra'] = precio
                     capital_acumulado += (cantidad * precio + comisiones) * tasa_cambio
+                elif tipo == 'ENTRADA_INMUEBLE':
+                    if inventario[ticker]['cantidad'] == 0:
+                        inventario[ticker]['cantidad'] = cantidad
+                    inventario[ticker]['precio_compra'] = precio
+                    capital_acumulado += (cantidad * precio + comisiones) * tasa_cambio
                 elif tipo == 'HIPOTECA_CUOTA':
-                    inventario[ticker]['cantidad'] += cantidad
-                    amortización_cap = float(op.get('amortizacion', 0) or 0)
-                    if amortización_cap <= 0:
-                        amortización_cap = max(precio - comisiones, 0.0)
-                    capital_acumulado += amortización_cap * tasa_cambio
+                    if inventario[ticker]['cantidad'] == 0:
+                        inventario[ticker]['cantidad'] = 1.0
+                    amortizacion_cap = float(op.get('amortizacion', 0) or 0)
+                    if amortizacion_cap <= 0:
+                        amortizacion_cap = max(precio - comisiones, 0.0)
+                    capital_acumulado += amortizacion_cap * tasa_cambio
+                elif tipo == 'REFORMA_MEJORA':
+                    if inventario[ticker]['cantidad'] == 0:
+                        inventario[ticker]['cantidad'] = 1.0
+                    capital_acumulado += (cantidad * precio + comisiones) * tasa_cambio
                 elif tipo == 'VENTA':
                     inventario[ticker]['cantidad'] -= cantidad
                     if inventario[ticker]['cantidad'] < 1e-8:
