@@ -114,16 +114,16 @@ def get_historical_exchange_rate(from_currency, date_str, to_currency="EUR"):
 def get_asset_info_cached(ticker):
     pref_currency = None
     try:
+        inm_cfg = db.get_inmueble_config(ticker)
         with db.get_db() as conn:
-            row_inm = conn.execute("SELECT name, tipo, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial FROM monitores WHERE ticker = ?", (ticker,)).fetchone()
             row_op_inm = conn.execute("SELECT tipo FROM operaciones WHERE ticker = ? AND tipo IN ('ENTRADA_INMUEBLE', 'HIPOTECA_CUOTA', 'REFORMA_MEJORA')", (ticker,)).fetchone()
             
-            if (row_inm and row_inm['tipo'] == 'INMUEBLE') or row_op_inm:
-                name_val = (row_inm['name'] if row_inm and row_inm['name'] else None) or ticker
-                comunidad_val = (row_inm['comunidad_autonoma'] if row_inm and row_inm['comunidad_autonoma'] else None) or 'NACIONAL'
-                pct_val = float(row_inm['pct_titularidad']) if row_inm and row_inm['pct_titularidad'] else 1.0
-                precio_compra_val = float(row_inm['precio_compra_total']) if row_inm and row_inm['precio_compra_total'] else 0.0
-                hipoteca_ini_val = float(row_inm['hipoteca_inicial']) if row_inm and row_inm['hipoteca_inicial'] else 0.0
+            if inm_cfg or row_op_inm:
+                name_val = (inm_cfg.get('name') if inm_cfg else None) or ticker
+                comunidad_val = (inm_cfg.get('comunidad_autonoma') if inm_cfg else None) or 'NACIONAL'
+                pct_val = float(inm_cfg.get('pct_titularidad', 1.0)) if inm_cfg else 1.0
+                precio_compra_val = float(inm_cfg.get('precio_compra_total', 0.0)) if inm_cfg else 0.0
+                hipoteca_ini_val = float(inm_cfg.get('hipoteca_inicial', 0.0)) if inm_cfg else 0.0
                 
                 info_inm = {
                     'sym': None,
@@ -283,25 +283,19 @@ def add_monitor():
 
     if tipo_activo == 'INMUEBLE':
         try:
-            m_id = str(uuid.uuid4())
             name_input = data.get('name') or raw_input
             comunidad = (data.get('comunidad_autonoma') or 'NACIONAL').upper().strip()
             pct_tit = float(data.get('pct_titularidad') or 1.0)
             precio_total = float(data.get('precio_compra_total') or 0.0)
             hipoteca_ini = float(data.get('hipoteca_inicial') or 0.0)
 
-            with db.get_db() as conn:
-                conn.execute('''
-                    INSERT INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered, target_pct, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial)
-                    VALUES (?, ?, NULL, ?, 'EUR', 0, 0, 'INMUEBLE', 0, 0, ?, ?, ?, ?)
-                ''', (m_id, raw_input, name_input, comunidad, pct_tit, precio_total, hipoteca_ini))
-                conn.commit()
+            db.save_inmueble_config(raw_input, name_input, comunidad, pct_tit, precio_total, hipoteca_ini)
+            ASSET_INFO_CACHE.pop(raw_input, None)
 
-            log_debug(f"Añadido inmueble {raw_input} en {comunidad}")
-            monitor_worker.sse_subs.notify()
+            log_debug(f"Configurado inmueble {raw_input} en {comunidad}")
             return jsonify({"ok": True})
         except Exception as e:
-            log_debug(f"Error añadiendo inmueble: {e}", "ERROR")
+            log_debug(f"Error registrando inmueble: {e}", "ERROR")
             return jsonify({"error": str(e)}), 400
         
     if target <= 0:
@@ -762,13 +756,8 @@ def add_operacion():
             ''', (op_id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, moneda, tasa_cambio, amortizacion, intereses))
             
             if tipo in ('ENTRADA_INMUEBLE', 'HIPOTECA_CUOTA', 'REFORMA_MEJORA'):
-                m_check = conn.execute("SELECT id FROM monitores WHERE ticker = ?", (ticker,)).fetchone()
-                if not m_check:
-                    m_id_inm = str(uuid.uuid4())
-                    conn.execute('''
-                        INSERT INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered, target_pct, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial)
-                        VALUES (?, ?, NULL, ?, 'EUR', 0, 0, 'INMUEBLE', 0, 0, 'NACIONAL', 1.0, 0.0, 0.0)
-                    ''', (m_id_inm, ticker, ticker))
+                if not db.get_inmueble_config(ticker):
+                    db.save_inmueble_config(ticker, ticker, 'NACIONAL', 1.0, 0.0, 0.0)
             conn.commit()
             
         ASSET_INFO_CACHE.pop(ticker, None)

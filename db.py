@@ -161,6 +161,17 @@ def init_db():
                 last_sync REAL
             )
         ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS inmuebles_config (
+                ticker TEXT PRIMARY KEY,
+                name TEXT,
+                comunidad_autonoma TEXT DEFAULT 'NACIONAL',
+                pct_titularidad REAL DEFAULT 1.0,
+                precio_compra_total REAL DEFAULT 0.0,
+                hipoteca_inicial REAL DEFAULT 0.0
+            )
+        ''')
+        c.execute("DELETE FROM monitores WHERE tipo = 'INMUEBLE'")
         
         if c.execute("SELECT COUNT(*) FROM config").fetchone()[0] == 0:
             defaults = [
@@ -382,4 +393,33 @@ def get_ine_ipv_latest(series_code):
                 return row['valor']
     except Exception:
         pass
-    return None
+    return None
+
+# --- Inmuebles Config Helpers ---
+def get_inmueble_config(ticker):
+    try:
+        with get_db() as conn:
+            row = conn.execute("SELECT name, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial FROM inmuebles_config WHERE ticker = ?", (ticker,)).fetchone()
+            if row:
+                return {
+                    'name': row['name'],
+                    'comunidad_autonoma': row['comunidad_autonoma'],
+                    'pct_titularidad': row['pct_titularidad'],
+                    'precio_compra_total': row['precio_compra_total'],
+                    'hipoteca_inicial': row['hipoteca_inicial']
+                }
+    except Exception:
+        pass
+    return None
+
+def save_inmueble_config(ticker, name, comunidad, pct_tit, precio_compra, hipoteca_ini):
+    try:
+        with get_db() as conn:
+            conn.execute('''
+                INSERT OR REPLACE INTO inmuebles_config (ticker, name, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (ticker, name, comunidad, pct_tit, precio_compra, hipoteca_ini))
+            conn.commit()
+    except Exception as e:
+        print(f"Error saving inmueble config: {e}")
+

@@ -49,6 +49,8 @@ def update_single_monitor(m, cfg, today_date):
     m_id = m['id']
     sym = m['symbol']
     ticker = m['ticker']
+    if m.get('tipo') == 'INMUEBLE' or not sym:
+        return False
     try:
         if cfg.get("check_market_hours", True) and not finance_api.is_market_open(sym):
             log_debug(f"El mercado está cerrado para {sym}, omitiendo actualización.", "INFO")
@@ -189,7 +191,7 @@ def create_sse_stream():
 def get_all_data():
     try:
         with db.get_db() as conn:
-            monitores_rows = conn.execute("SELECT * FROM monitores").fetchall()
+            monitores_rows = conn.execute("SELECT * FROM monitores WHERE tipo IS NULL OR tipo != 'INMUEBLE'").fetchall()
             alertas_rows = conn.execute("SELECT * FROM alertas ORDER BY timestamp DESC LIMIT 50").fetchall()
             
         monitores = {}
