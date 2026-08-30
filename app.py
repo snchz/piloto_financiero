@@ -920,14 +920,24 @@ def export_operaciones():
             ops_list = []
             for row in rows:
                 op = dict(row)
+                ticker = op['ticker']
                 if not op.get('moneda'):
-                    info = get_asset_info_cached(op['ticker'])
+                    info = get_asset_info_cached(ticker)
                     op['moneda'] = info.get('currency', 'EUR')
                 if not op.get('tasa_cambio'):
-                    info = get_asset_info_cached(op['ticker'])
+                    info = get_asset_info_cached(ticker)
                     fecha_str = str(op['fecha']).strip().split(' ')[0]
                     op_currency = op.get('moneda') or info.get('currency', 'EUR')
                     op['tasa_cambio'] = get_historical_exchange_rate(op_currency, fecha_str, 'EUR')
+                
+                # Adjuntar metadatos de inmueble en el CSV exportado
+                inm_cfg = db.get_inmueble_config(ticker)
+                if inm_cfg:
+                    op['comunidad_autonoma'] = inm_cfg.get('comunidad_autonoma', 'NACIONAL')
+                    op['pct_titularidad'] = inm_cfg.get('pct_titularidad', 1.0)
+                    op['precio_compra_total'] = inm_cfg.get('precio_compra_total', 0.0)
+                    op['hipoteca_inicial'] = inm_cfg.get('hipoteca_inicial', 0.0)
+                    
                 ops_list.append(op)
             df = pd.DataFrame(ops_list)
         
@@ -973,6 +983,8 @@ def import_operaciones():
                     moneda = str(row.get('moneda', '')).strip().upper() if 'moneda' in df.columns and pd.notna(row['moneda']) else None
                     if moneda in ['NAN', '']: moneda = None
                     tasa_cambio = float(row['tasa_cambio']) if 'tasa_cambio' in df.columns and pd.notna(row['tasa_cambio']) else None
+                    amortizacion = float(row.get('amortizacion', 0)) if 'amortizacion' in df.columns and pd.notna(row.get('amortizacion')) else 0.0
+                    intereses = float(row.get('intereses', 0)) if 'intereses' in df.columns and pd.notna(row.get('intereses')) else 0.0
                     
                     if moneda:
                         info = get_asset_info_cached(ticker)
@@ -987,13 +999,33 @@ def import_operaciones():
                             
                     external_id = str(row.get('external_id', '')).strip() if 'external_id' in df.columns and pd.notna(row['external_id']) else None
                     
-                    if not ticker or cantidad <= 0 or precio < 0 or tipo not in ['COMPRA', 'VENTA', 'APORTACION', 'DIVIDENDO']:
+                    allowed_tipos = ['COMPRA', 'VENTA', 'APORTACION', 'DIVIDENDO', 'ENTRADA_INMUEBLE', 'HIPOTECA_CUOTA', 'REFORMA_MEJORA']
+                    if not ticker or cantidad <= 0 or precio < 0 or tipo not in allowed_tipos:
                         continue
                         
                     conn.execute('''
-                        INSERT OR REPLACE INTO operaciones (id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, external_id, moneda, tasa_cambio)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (op_id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, external_id, moneda, tasa_cambio))
+                        INSERT OR REPLACE INTO operaciones (id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, external_id, moneda, tasa_cambio, amortizacion, intereses)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (op_id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, external_id, moneda, tasa_cambio, amortizacion, intereses))
+                    
+                    # Si el CSV trae columnas de configuración de inmueble, restaurarlas en inmuebles_config
+                    if tipo in ('ENTRADA_INMUEBLE', 'HIPOTECA_CUOTA', 'REFORMA_MEJORA') or 'comunidad_autonoma' in df.columns:
+                        comunidad = str(row.get('comunidad_autonoma', '')).strip().upper() if 'comunidad_autonoma' in df.columns and pd.notna(row.get('comunidad_autonoma')) else None
+                        pct_tit = float(row.get('pct_titularidad', 0)) if 'pct_titularidad' in df.columns and pd.notna(row.get('pct_titularidad')) else None
+                        precio_compra = float(row.get('precio_compra_total', 0)) if 'precio_compra_total' in df.columns and pd.notna(row.get('precio_compra_total')) else None
+                        hipoteca_ini = float(row.get('hipoteca_inicial', 0)) if 'hipoteca_inicial' in df.columns and pd.notna(row.get('hipoteca_inicial')) else None
+                        
+                        if comunidad or (pct_tit is not None and pct_tit > 0) or (precio_compra is not None and precio_compra > 0) or (hipoteca_ini is not None and hipoteca_ini > 0):
+                            cur_cfg = db.get_inmueble_config(ticker) or {}
+                            name_val = cur_cfg.get('name') or ticker
+                            comunidad_val = comunidad or cur_cfg.get('comunidad_autonoma') or 'NACIONAL'
+                            pct_val = (pct_tit if (pct_tit is not None and pct_tit > 0) else cur_cfg.get('pct_titularidad', 1.0))
+                            if pct_val > 1.0: pct_val = pct_val / 100.0
+                            precio_compra_val = (precio_compra if (precio_compra is not None and precio_compra > 0) else cur_cfg.get('precio_compra_total', 0.0))
+                            hipoteca_ini_val = (hipoteca_ini if (hipoteca_ini is not None and hipoteca_ini > 0) else cur_cfg.get('hipoteca_inicial', 0.0))
+                            db.save_inmueble_config(ticker, name_val, comunidad_val, pct_val, precio_compra_val, hipoteca_ini_val)
+
+                    ASSET_INFO_CACHE.pop(ticker, None)
                 except Exception as row_e:
                     log_debug(f"Row import error: {row_e}", "WARNING")
             conn.commit()

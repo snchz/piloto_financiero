@@ -172,6 +172,10 @@ def init_db():
             )
         ''')
         c.execute("DELETE FROM monitores WHERE tipo = 'INMUEBLE'")
+        c.execute('''
+            INSERT OR IGNORE INTO inmuebles_config (ticker, name, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial)
+            VALUES ('MONEGRO 10 9 2A', 'MONEGRO 10 9 2A', 'MADRID', 0.64, 326000.0, 64500.0)
+        ''')
         
         if c.execute("SELECT COUNT(*) FROM config").fetchone()[0] == 0:
             defaults = [
