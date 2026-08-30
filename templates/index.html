@@ -687,35 +687,54 @@
 
     <!-- Modals -->
     <!-- Operación Modal -->
-    <dialog id="opModal" class="border-0 p-0 rounded-4 shadow-lg" style="max-width: 540px; width: 95%;">
+    <!-- Operation Modal -->
+    <dialog id="opModal" class="border-0 p-0 rounded-4 shadow-lg" style="max-width: 580px; width: 95%;">
         <div class="glass-panel p-4" style="background: rgba(17, 20, 30, 0.95);">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="m-0 fs-6 fw-bold text-white" id="opModalTitle">➕ Registrar Operación</h5>
                 <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('opModal').close()"></button>
             </div>
+
+            <!-- Switcher de Categoría -->
+            <div class="btn-group w-100 mb-3" role="group">
+                <input type="radio" class="btn-check" name="op-category" id="op-cat-financial" value="FINANCIERO" checked onchange="switchOpCategory('FINANCIERO')">
+                <label class="btn btn-outline-primary text-white" for="op-cat-financial">📈 Cotizado / Fondo</label>
+
+                <input type="radio" class="btn-check" name="op-category" id="op-cat-inmueble" value="INMUEBLE" onchange="switchOpCategory('INMUEBLE')">
+                <label class="btn btn-outline-primary text-white" for="op-cat-inmueble">🏠 Vivienda / Bien Raíz</label>
+            </div>
+
             <form id="op-form" class="row g-3">
                 <input type="hidden" id="op-id" name="id">
+
                 <div class="col-md-6">
                     <label class="form-label text-secondary small mb-1">Fecha</label>
                     <input type="date" id="op-fecha" name="fecha" class="form-control" required>
                 </div>
+
                 <div class="col-md-6">
-                    <label class="form-label text-secondary small mb-1">Ticker o ISIN</label>
+                    <label class="form-label text-secondary small mb-1" id="lbl-op-ticker">Ticker o ISIN</label>
                     <input type="text" id="op-ticker" name="ticker" class="form-control" placeholder="Ej. AAPL, ES0105065009" required>
                 </div>
+
                 <div class="col-md-6">
                     <label class="form-label text-secondary small mb-1">Tipo de Operación</label>
                     <select id="op-tipo" name="tipo" class="form-select" required onchange="toggleOpTypeFields(this.value)">
-                        <option value="COMPRA">COMPRA</option>
-                        <option value="APORTACION">APORTACIÓN (Fondo)</option>
-                        <option value="VENTA">VENTA</option>
-                        <option value="DIVIDENDO">DIVIDENDO / RENDIMIENTO</option>
-                        <option value="ENTRADA_INMUEBLE">🏠 ENTRADA / ARRAS (Solo tu parte)</option>
-                        <option value="HIPOTECA_CUOTA">🏠 CUOTA HIPOTECA (Solo tu parte)</option>
-                        <option value="REFORMA_MEJORA">🏠 REFORMA / MEJORA (Solo tu parte)</option>
+                        <!-- Opciones Financieras -->
+                        <option value="COMPRA" class="opt-fin">COMPRA</option>
+                        <option value="APORTACION" class="opt-fin">APORTACIÓN (Fondo)</option>
+                        <option value="VENTA" class="opt-fin">VENTA</option>
+                        <option value="DIVIDENDO" class="opt-fin">DIVIDENDO / RENDIMIENTO</option>
+
+                        <!-- Opciones Inmobiliarias -->
+                        <option value="ENTRADA_INMUEBLE" class="opt-inm d-none">🔑 ENTRADA / ARRAS (Tu Aportación Inicial)</option>
+                        <option value="HIPOTECA_CUOTA" class="opt-inm d-none">🏦 CUOTA HIPOTECA (Tu Pago Mensual)</option>
+                        <option value="REFORMA_MEJORA" class="opt-inm d-none">🛠️ REFORMA / MEJORA (Tu Inversión)</option>
                     </select>
                 </div>
-                <div class="col-md-6">
+
+                <!-- Campos de Moneda/Tasa Cambio sólo para Cotizados -->
+                <div class="col-md-6 field-fin-only">
                     <label class="form-label text-secondary small mb-1">Moneda de la Operación</label>
                     <select id="op-moneda" name="moneda" class="form-select">
                         <option value="">Automático (Del activo)</option>
@@ -726,37 +745,83 @@
                         <option value="CHF">CHF (Fr)</option>
                     </select>
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label text-secondary small mb-1" id="lbl-op-cantidad">Cantidad (Títulos o Propiedad)</label>
-                    <input type="number" step="any" id="op-cantidad" name="cantidad" class="form-control" placeholder="1.00" value="1" required>
+
+                <div class="col-md-6 field-fin-only" id="container-op-cantidad">
+                    <label class="form-label text-secondary small mb-1">Cantidad de Títulos</label>
+                    <input type="number" step="any" id="op-cantidad" name="cantidad" class="form-control" placeholder="1.00" value="1">
                 </div>
+
                 <div class="col-md-6">
-                    <label class="form-label text-secondary small mb-1" id="lbl-op-precio">Importe / Cuota Total (€)</label>
+                    <label class="form-label text-secondary small mb-1" id="lbl-op-precio">Precio Unitario (€)</label>
                     <input type="number" step="any" id="op-precio" name="precio" class="form-control" placeholder="0.00" required>
                 </div>
 
-                <!-- Campos opcionales para Desglose Hipotecario -->
+                <!-- Campos Específicos para Configuración de Inmueble -->
+                <div class="col-md-6 field-inm-only d-none">
+                    <label class="form-label text-secondary small mb-1">Comunidad Autónoma (INE)</label>
+                    <select id="op-inm-comunidad" name="comunidad_autonoma" class="form-select">
+                        <option value="NACIONAL">España (Nacional)</option>
+                        <option value="ANDALUCIA">Andalucía</option>
+                        <option value="ARAGON">Aragón</option>
+                        <option value="ASTURIAS">Asturias, Principado de</option>
+                        <option value="BALEARES">Balears, Illes</option>
+                        <option value="CANARIAS">Canarias</option>
+                        <option value="CANTABRIA">Cantabria</option>
+                        <option value="CASTILLA_LEON">Castilla y León</option>
+                        <option value="CASTILLA_MANCHA">Castilla - La Mancha</option>
+                        <option value="CATALUNA">Cataluña</option>
+                        <option value="VALENCIA">Comunitat Valenciana</option>
+                        <option value="EXTREMADURA">Extremadura</option>
+                        <option value="GALICIA">Galicia</option>
+                        <option value="MADRID" selected>Madrid, Comunidad de</option>
+                        <option value="MURCIA">Murcia, Región de</option>
+                        <option value="NAVARRA">Navarra, Comunidad Foral de</option>
+                        <option value="PAIS_VASCO">País Vasco</option>
+                        <option value="LA_RIOJA">Rioja, La</option>
+                        <option value="CEUTA">Ceuta</option>
+                        <option value="MELILLA">Melilla</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 field-inm-only d-none">
+                    <label class="form-label text-secondary small mb-1">% Tu Titularidad</label>
+                    <input type="number" step="0.01" id="op-inm-pct" name="pct_titularidad" class="form-control" placeholder="50.0" value="50">
+                </div>
+
+                <div class="col-md-6 field-inm-only d-none">
+                    <label class="form-label text-secondary small mb-1">Precio Compra Total Vivienda (€)</label>
+                    <input type="number" step="any" id="op-inm-precio-compra" name="precio_compra_total" class="form-control" placeholder="Ej. 200000">
+                </div>
+
+                <div class="col-md-6 field-inm-only d-none">
+                    <label class="form-label text-secondary small mb-1">Hipoteca Inicial Tuya (€)</label>
+                    <input type="number" step="any" id="op-inm-hipoteca-ini" name="hipoteca_inicial" class="form-control" placeholder="Ej. 75000">
+                </div>
+
+                <!-- Desglose Hipotecario -->
                 <div class="col-md-6 fields-hipoteca d-none">
                     <label class="form-label text-secondary small mb-1 text-info">Amortización Capital (€)</label>
                     <input type="number" step="any" id="op-amortizacion" name="amortizacion" class="form-control" placeholder="Solo tu parte amortizada">
                 </div>
+
                 <div class="col-md-6 fields-hipoteca d-none">
                     <label class="form-label text-secondary small mb-1 text-warning">Intereses / Gastos (€)</label>
                     <input type="number" step="any" id="op-intereses" name="intereses" class="form-control" placeholder="Solo tu parte de intereses">
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label text-secondary small mb-1">Comisiones</label>
+                    <label class="form-label text-secondary small mb-1" id="lbl-op-comisiones">Comisiones</label>
                     <input type="number" step="any" id="op-comisiones" name="comisiones" class="form-control" placeholder="0.00" value="0">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label text-secondary small mb-1">Impuestos</label>
+                    <label class="form-label text-secondary small mb-1" id="lbl-op-impuestos">Impuestos</label>
                     <input type="number" step="any" id="op-impuestos" name="impuestos" class="form-control" placeholder="0.00" value="0">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4 field-fin-only">
                     <label class="form-label text-secondary small mb-1">Tasa Cambio (vs EUR)</label>
                     <input type="number" step="any" id="op-tasa-cambio" name="tasa_cambio" class="form-control" placeholder="Opcional">
                 </div>
+
                 <div class="col-12 mt-4">
                     <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" id="op-submit-btn">Guardar Operación</button>
                 </div>
@@ -1317,18 +1382,112 @@
             if (targetEl) targetEl.required = !isInmueble;
         };
 
+        window.switchOpCategory = (cat) => {
+            const isInmueble = cat === 'INMUEBLE';
+            
+            document.querySelectorAll('#op-tipo .opt-fin').forEach(el => el.classList.toggle('d-none', isInmueble));
+            document.querySelectorAll('#op-tipo .opt-inm').forEach(el => el.classList.toggle('d-none', !isInmueble));
+            
+            document.querySelectorAll('.field-fin-only').forEach(el => el.classList.toggle('d-none', isInmueble));
+            document.querySelectorAll('.field-inm-only').forEach(el => el.classList.toggle('d-none', !isInmueble));
+            
+            const lblTicker = document.getElementById('lbl-op-ticker');
+            const inputTicker = document.getElementById('op-ticker');
+            const selectTipo = document.getElementById('op-tipo');
+            
+            if (isInmueble) {
+                if (lblTicker) lblTicker.textContent = 'Nombre / Identificador Inmueble';
+                if (inputTicker) inputTicker.placeholder = 'Ej. Vivienda Habitual, MONEGRO 10';
+                if (!['ENTRADA_INMUEBLE', 'HIPOTECA_CUOTA', 'REFORMA_MEJORA'].includes(selectTipo.value)) {
+                    selectTipo.value = 'ENTRADA_INMUEBLE';
+                }
+            } else {
+                if (lblTicker) lblTicker.textContent = 'Ticker o ISIN';
+                if (inputTicker) inputTicker.placeholder = 'Ej. AAPL, ES0105065009';
+                if (['ENTRADA_INMUEBLE', 'HIPOTECA_CUOTA', 'REFORMA_MEJORA'].includes(selectTipo.value)) {
+                    selectTipo.value = 'COMPRA';
+                }
+            }
+            
+            toggleOpTypeFields(selectTipo.value);
+        };
+
         window.toggleOpTypeFields = (tipo) => {
             const isHipoteca = tipo === 'HIPOTECA_CUOTA';
-            document.querySelectorAll('.fields-hipoteca').forEach(el => el.classList.toggle('d-none', !isHipoteca));
             const isRealEstateOp = tipo === 'ENTRADA_INMUEBLE' || tipo === 'HIPOTECA_CUOTA' || tipo === 'REFORMA_MEJORA';
+            
+            document.querySelectorAll('.fields-hipoteca').forEach(el => el.classList.toggle('d-none', !isHipoteca));
+            document.querySelectorAll('.field-inm-only').forEach(el => el.classList.toggle('d-none', !isRealEstateOp));
+            
             const lblPrecio = document.getElementById('lbl-op-precio');
-            const lblCant = document.getElementById('lbl-op-cantidad');
-            if (lblPrecio) {
-                lblPrecio.textContent = isHipoteca ? 'Cuota Total Pagada (€)' : (isRealEstateOp ? 'Importe Pagado por ti (€)' : 'Precio Unitario');
+            const lblComisiones = document.getElementById('lbl-op-comisiones');
+            const lblImpuestos = document.getElementById('lbl-op-impuestos');
+            
+            if (isRealEstateOp) {
+                if (lblPrecio) lblPrecio.textContent = isHipoteca ? 'Cuota Total Pagada por ti (€)' : 'Tu Aportación en Dinero (€)';
+                if (lblComisiones) lblComisiones.textContent = 'Notaría / Gestión (€)';
+                if (lblImpuestos) lblImpuestos.textContent = 'Impuestos / ITP (€)';
+            } else {
+                if (lblPrecio) lblPrecio.textContent = 'Precio Unitario (€)';
+                if (lblComisiones) lblComisiones.textContent = 'Comisiones';
+                if (lblImpuestos) lblImpuestos.textContent = 'Impuestos';
             }
-            if (lblCant) {
-                lblCant.textContent = isRealEstateOp ? 'Participación / Títulos (1)' : 'Cantidad de Títulos';
+        };
+
+        window.abrirModalOperacion = (opId = null) => {
+            const form = document.getElementById('op-form');
+            form.reset();
+            
+            const modalTitle = document.getElementById('opModalTitle');
+            const idInput = document.getElementById('op-id');
+            const monedaSelect = document.getElementById('op-moneda');
+
+            if (opId) {
+                modalTitle.innerHTML = '✏️ Editar Operación';
+                idInput.value = opId;
+                const op = operacionesData?.operaciones.find(o => o.id === opId);
+                if (op) {
+                    const isRealEstate = ['ENTRADA_INMUEBLE', 'HIPOTECA_CUOTA', 'REFORMA_MEJORA'].includes(op.tipo);
+                    if (isRealEstate) {
+                        document.getElementById('op-cat-inmueble').checked = true;
+                        switchOpCategory('INMUEBLE');
+                    } else {
+                        document.getElementById('op-cat-financial').checked = true;
+                        switchOpCategory('FINANCIERO');
+                    }
+
+                    document.getElementById('op-fecha').value = op.fecha.split(' ')[0];
+                    document.getElementById('op-ticker').value = op.ticker;
+                    document.getElementById('op-tipo').value = op.tipo;
+                    document.getElementById('op-cantidad').value = op.cantidad || 1;
+                    document.getElementById('op-precio').value = op.precio;
+                    
+                    const opMoneda = op.moneda || '';
+                    if (opMoneda && !Array.from(monedaSelect.options).some(opt => opt.value === opMoneda)) {
+                        monedaSelect.add(new Option(opMoneda + ' (Importada)', opMoneda));
+                    }
+                    monedaSelect.value = opMoneda;
+                    
+                    document.getElementById('op-comisiones').value = op.comisiones || 0;
+                    document.getElementById('op-impuestos').value = op.impuestos || 0;
+                    document.getElementById('op-tasa-cambio').value = op.tasa_cambio || '';
+                    document.getElementById('op-amortizacion').value = op.amortizacion || '';
+                    document.getElementById('op-intereses').value = op.intereses || '';
+
+                    toggleOpTypeFields(op.tipo);
+                } else {
+                    return UI.showToast('No se encontraron los datos de la operación', 'error');
+                }
+            } else {
+                modalTitle.innerHTML = '➕ Registrar Operación';
+                idInput.value = '';
+                document.getElementById('op-cat-financial').checked = true;
+                switchOpCategory('FINANCIERO');
+                document.getElementById('op-fecha').valueAsDate = new Date();
+                document.getElementById('op-moneda').value = '';
             }
+            
+            document.getElementById('opModal').showModal();
         };
 
         document.getElementById('add-form').addEventListener('submit', async (e) => {
@@ -1917,12 +2076,18 @@
                     fecha: getSafeString('fecha'),
                     ticker: getSafeString('ticker').toUpperCase(),
                     tipo: getSafeString('tipo'),
-                    cantidad: getSafeFloat('cantidad'),
+                    cantidad: getSafeFloat('cantidad') || 1,
                     precio: getSafeFloat('precio'),
                     moneda: getSafeString('moneda') || null,
                     comisiones: getSafeFloat('comisiones'),
                     impuestos: getSafeFloat('impuestos'),
-                    tasa_cambio: tasaVal ? getSafeFloat('tasa_cambio') : null
+                    tasa_cambio: tasaVal ? getSafeFloat('tasa_cambio') : null,
+                    amortizacion: getSafeFloat('amortizacion'),
+                    intereses: getSafeFloat('intereses'),
+                    comunidad_autonoma: getSafeString('comunidad_autonoma'),
+                    pct_titularidad: getSafeFloat('pct_titularidad') ? getSafeFloat('pct_titularidad') / 100.0 : null,
+                    precio_compra_total: getSafeFloat('precio_compra_total'),
+                    hipoteca_inicial: getSafeFloat('hipoteca_inicial')
                 };
                 
                 const url = isEdit ? `/api/operaciones/edit/${opId}` : '/api/operaciones/add';

@@ -756,8 +756,14 @@ def add_operacion():
             ''', (op_id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, moneda, tasa_cambio, amortizacion, intereses))
             
             if tipo in ('ENTRADA_INMUEBLE', 'HIPOTECA_CUOTA', 'REFORMA_MEJORA'):
-                if not db.get_inmueble_config(ticker):
-                    db.save_inmueble_config(ticker, ticker, 'NACIONAL', 1.0, 0.0, 0.0)
+                cur_cfg = db.get_inmueble_config(ticker) or {}
+                name_val = data.get('name') or cur_cfg.get('name') or ticker
+                comunidad_val = data.get('comunidad_autonoma') or cur_cfg.get('comunidad_autonoma') or 'NACIONAL'
+                pct_val = float(data.get('pct_titularidad') if data.get('pct_titularidad') is not None else cur_cfg.get('pct_titularidad', 1.0))
+                if pct_val > 1.0: pct_val = pct_val / 100.0
+                precio_compra_val = float(data.get('precio_compra_total') if data.get('precio_compra_total') is not None else cur_cfg.get('precio_compra_total', 0.0))
+                hipoteca_ini_val = float(data.get('hipoteca_inicial') if data.get('hipoteca_inicial') is not None else cur_cfg.get('hipoteca_inicial', 0.0))
+                db.save_inmueble_config(ticker, name_val, comunidad_val, pct_val, precio_compra_val, hipoteca_ini_val)
             conn.commit()
             
         ASSET_INFO_CACHE.pop(ticker, None)
