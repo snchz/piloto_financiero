@@ -116,19 +116,28 @@ def get_asset_info_cached(ticker):
     try:
         with db.get_db() as conn:
             row_inm = conn.execute("SELECT name, tipo, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial FROM monitores WHERE ticker = ?", (ticker,)).fetchone()
-            if row_inm and row_inm['tipo'] == 'INMUEBLE':
+            row_op_inm = conn.execute("SELECT tipo FROM operaciones WHERE ticker = ? AND tipo IN ('ENTRADA_INMUEBLE', 'HIPOTECA_CUOTA', 'REFORMA_MEJORA')", (ticker,)).fetchone()
+            
+            if (row_inm and row_inm['tipo'] == 'INMUEBLE') or row_op_inm:
+                name_val = (row_inm['name'] if row_inm and row_inm['name'] else None) or ticker
+                comunidad_val = (row_inm['comunidad_autonoma'] if row_inm and row_inm['comunidad_autonoma'] else None) or 'NACIONAL'
+                pct_val = float(row_inm['pct_titularidad']) if row_inm and row_inm['pct_titularidad'] else 1.0
+                precio_compra_val = float(row_inm['precio_compra_total']) if row_inm and row_inm['precio_compra_total'] else 0.0
+                hipoteca_ini_val = float(row_inm['hipoteca_inicial']) if row_inm and row_inm['hipoteca_inicial'] else 0.0
+                
                 info_inm = {
                     'sym': None,
-                    'name': row_inm['name'] or ticker,
+                    'name': name_val,
                     'currency': 'EUR',
                     'tipo': 'INMUEBLE',
-                    'comunidad_autonoma': row_inm['comunidad_autonoma'] or 'NACIONAL',
-                    'pct_titularidad': float(row_inm['pct_titularidad'] or 1.0),
-                    'precio_compra_total': float(row_inm['precio_compra_total'] or 0.0),
-                    'hipoteca_inicial': float(row_inm['hipoteca_inicial'] or 0.0)
+                    'comunidad_autonoma': comunidad_val,
+                    'pct_titularidad': pct_val,
+                    'precio_compra_total': precio_compra_val,
+                    'hipoteca_inicial': hipoteca_ini_val
                 }
                 ASSET_INFO_CACHE[ticker] = info_inm
                 return info_inm
+                
             row = conn.execute("SELECT DISTINCT moneda FROM operaciones WHERE ticker = ? AND moneda IS NOT NULL AND moneda != ''", (ticker,)).fetchone()
             if row:
                 pref_currency = row['moneda']
@@ -751,8 +760,18 @@ def add_operacion():
                 INSERT INTO operaciones (id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, moneda, tasa_cambio, amortizacion, intereses)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (op_id, fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, moneda, tasa_cambio, amortizacion, intereses))
+            
+            if tipo in ('ENTRADA_INMUEBLE', 'HIPOTECA_CUOTA', 'REFORMA_MEJORA'):
+                m_check = conn.execute("SELECT id FROM monitores WHERE ticker = ?", (ticker,)).fetchone()
+                if not m_check:
+                    m_id_inm = str(uuid.uuid4())
+                    conn.execute('''
+                        INSERT INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered, target_pct, comunidad_autonoma, pct_titularidad, precio_compra_total, hipoteca_inicial)
+                        VALUES (?, ?, NULL, ?, 'EUR', 0, 0, 'INMUEBLE', 0, 0, 'NACIONAL', 1.0, 0.0, 0.0)
+                    ''', (m_id_inm, ticker, ticker))
             conn.commit()
             
+        ASSET_INFO_CACHE.pop(ticker, None)
         log_debug(f"Añadida operación {tipo} de {ticker}")
         return jsonify({"ok": True})
     except Exception as e:
