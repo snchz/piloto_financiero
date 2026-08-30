@@ -784,18 +784,21 @@
                 </div>
 
                 <div class="col-md-6 field-inm-only d-none">
-                    <label class="form-label text-secondary small mb-1">% Tu Titularidad</label>
-                    <input type="number" step="0.01" id="op-inm-pct" name="pct_titularidad" class="form-control" placeholder="50.0" value="50">
+                    <label class="form-label text-secondary small mb-1">% Tu Titularidad en Escritura</label>
+                    <input type="number" step="0.01" id="op-inm-pct" name="pct_titularidad" class="form-control" placeholder="64.0" value="50">
+                    <div class="form-text text-secondary" style="font-size: 0.7rem;">Porcentaje de propiedad tuyo (ej. 64%)</div>
                 </div>
 
                 <div class="col-md-6 field-inm-only d-none">
-                    <label class="form-label text-secondary small mb-1">Precio Compra Total Vivienda (€)</label>
-                    <input type="number" step="any" id="op-inm-precio-compra" name="precio_compra_total" class="form-control" placeholder="Ej. 200000">
+                    <label class="form-label text-secondary small mb-1">Precio Compra Total (Ambos) (€)</label>
+                    <input type="number" step="any" id="op-inm-precio-compra" name="precio_compra_total" class="form-control" placeholder="Ej. 326000">
+                    <div class="form-text text-secondary" style="font-size: 0.7rem;">Valor total firmado en la compra de la casa</div>
                 </div>
 
                 <div class="col-md-6 field-inm-only d-none">
-                    <label class="form-label text-secondary small mb-1">Hipoteca Inicial Tuya (€)</label>
-                    <input type="number" step="any" id="op-inm-hipoteca-ini" name="hipoteca_inicial" class="form-control" placeholder="Ej. 75000">
+                    <label class="form-label text-secondary small mb-1">Hipoteca Inicial (Solo Tu Parte) (€)</label>
+                    <input type="number" step="any" id="op-inm-hipoteca-ini" name="hipoteca_inicial" class="form-control" placeholder="Ej. 64500">
+                    <div class="form-text text-secondary" style="font-size: 0.7rem;">Deuda inicial que te corresponde a ti (ej. 50% de hipoteca)</div>
                 </div>
 
                 <!-- Desglose Hipotecario -->
@@ -1451,6 +1454,12 @@
                     if (isRealEstate) {
                         document.getElementById('op-cat-inmueble').checked = true;
                         switchOpCategory('INMUEBLE');
+                        
+                        const infoInm = operacionesData?.activos_info?.[op.ticker] || {};
+                        if (infoInm.comunidad_autonoma) document.getElementById('op-inm-comunidad').value = infoInm.comunidad_autonoma;
+                        if (infoInm.pct_titularidad !== undefined) document.getElementById('op-inm-pct').value = (infoInm.pct_titularidad * 100);
+                        if (infoInm.precio_compra_total !== undefined) document.getElementById('op-inm-precio-compra').value = infoInm.precio_compra_total;
+                        if (infoInm.hipoteca_inicial !== undefined) document.getElementById('op-inm-hipoteca-ini').value = infoInm.hipoteca_inicial;
                     } else {
                         document.getElementById('op-cat-financial').checked = true;
                         switchOpCategory('FINANCIERO');
