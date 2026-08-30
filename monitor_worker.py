@@ -49,7 +49,8 @@ def update_single_monitor(m, cfg, today_date):
     m_id = m['id']
     sym = m['symbol']
     ticker = m['ticker']
-    if m.get('tipo') == 'INMUEBLE' or not sym:
+    m_tipo = m['tipo'] if 'tipo' in m.keys() else None
+    if m_tipo == 'INMUEBLE' or not sym:
         return False
     try:
         if cfg.get("check_market_hours", True) and not finance_api.is_market_open(sym):
