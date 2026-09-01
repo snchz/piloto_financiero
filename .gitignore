@@ -25,3 +25,7 @@ Thumbs.db
 .idea/
 .aider*
 skills-lock.json
+
+# Core dumps
+core
+core.*
