@@ -7,7 +7,7 @@ import traceback
 import io
 import pandas as pd
 
-from flask import Flask, jsonify, render_template, request, send_file
+from flask import Flask, jsonify, render_template, request, send_file, send_from_directory
 
 import db
 import finance_api
@@ -16,7 +16,7 @@ import monitor_worker
 import portfolio_math
 import ine_api
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 # --- Configuration & Setup ---
 
@@ -399,7 +399,7 @@ def get_info(ticker):
 @app.route('/api/operaciones', methods=['GET'])
 def get_operaciones():
     try:
-        include_real_estate = request.args.get('include_real_estate', '1') == '1'
+        include_real_estate = request.args.get('include_real_estate', '0') == '1'
 
         with db.get_db() as conn:
             rows = conn.execute("SELECT * FROM operaciones ORDER BY fecha ASC").fetchall()
@@ -1035,7 +1035,10 @@ def import_operaciones():
         log_debug(f"Error importing operaciones: {e}\nTraceback:\n{tb}", "ERROR")
         return jsonify({"error": str(e)}), 400
 
-# --- UI Template ---
+# --- UI Template & Static Assets ---
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 @app.route('/')
 def index():

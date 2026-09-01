@@ -7,9 +7,10 @@ RUN apt-get update && \
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py db.py finance_api.py ine_api.py monitor_worker.py notifications.py portfolio_math.py version.txt ./
 COPY templates templates
+COPY static static
 RUN mkdir -p data
 # ARG para invalidar caché con cada cambio
-ARG BUILD_VERSION=1.1.0
+ARG BUILD_VERSION=1.2.0
 LABEL version=${BUILD_VERSION}
 EXPOSE 5000
 CMD ["python", "-u", "app.py"]
