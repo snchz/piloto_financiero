@@ -175,6 +175,48 @@ def init_db():
         ''')
         c.execute("DELETE FROM monitores WHERE tipo = 'INMUEBLE'")
         
+        # Tablas para Estrategia y Rebalanceo por Etiquetas
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS portfolio_tags (
+                tag_id TEXT PRIMARY KEY,
+                nombre TEXT NOT NULL,
+                target_pct REAL NOT NULL,
+                color TEXT DEFAULT '#3b82f6',
+                descripcion TEXT
+            )
+        ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS asset_tags (
+                ticker TEXT PRIMARY KEY,
+                tag_id TEXT NOT NULL,
+                FOREIGN KEY (tag_id) REFERENCES portfolio_tags(tag_id)
+            )
+        ''')
+
+        # Insertar etiquetas por defecto si la tabla está vacía
+        if c.execute("SELECT COUNT(*) FROM portfolio_tags").fetchone()[0] == 0:
+            default_tags = [
+                ('core_usa', 'Motor EE.UU.', 60.0, '#3b82f6', 'Capturar el mercado estadounidense (S&P 500 / Total US)'),
+                ('core_europe', 'Selección Europa', 18.0, '#10b981', 'Selección y valor en empresas europeas'),
+                ('core_emerging', 'Mercados Emergentes', 10.0, '#f59e0b', 'Crecimiento y dinamismo en mercados emergentes'),
+                ('hedge_gold', 'Protección Oro', 5.0, '#eab308', 'Cobertura frente a inflación y riesgo sistémico'),
+                ('tactical', 'Capital Táctico', 5.0, '#8b5cf6', 'Movimientos tácticos o especulativos en acciones y ETFs'),
+                ('crypto_btc', 'Apuesta Asimétrica', 2.0, '#f97316', 'Exposición asimétrica de alta volatilidad (Bitcoin)')
+            ]
+            c.executemany("INSERT OR IGNORE INTO portfolio_tags (tag_id, nombre, target_pct, color, descripcion) VALUES (?, ?, ?, ?, ?)", default_tags)
+
+        # Mapeos iniciales de activos si asset_tags está vacía
+        if c.execute("SELECT COUNT(*) FROM asset_tags").fetchone()[0] == 0:
+            default_asset_tags = [
+                ('IE000N4ZYX28', 'core_usa'),
+                ('ES0159259011', 'core_europe'),
+                ('IE000QAZP7L2', 'core_emerging'),
+                ('IE00B4ND3602', 'hedge_gold'),
+                ('IE00B579F325', 'hedge_gold'),
+                ('FBTC.MI', 'crypto_btc')
+            ]
+            c.executemany("INSERT OR IGNORE INTO asset_tags (ticker, tag_id) VALUES (?, ?)", default_asset_tags)
+        
         if c.execute("SELECT COUNT(*) FROM config").fetchone()[0] == 0:
             defaults = [
                 ("telegram_token", ""),
@@ -433,4 +475,90 @@ def save_inmueble_config(ticker, name, comunidad, pct_tit, precio_compra, hipote
                 local_conn.commit()
     except Exception as e:
         print(f"Error saving inmueble config: {e}")
+
+# --- Portfolio Tags & Asset Tags Helpers ---
+def get_portfolio_tags(conn=None):
+    try:
+        if conn is not None:
+            rows = conn.execute("SELECT tag_id, nombre, target_pct, color, descripcion FROM portfolio_tags ORDER BY target_pct DESC").fetchall()
+        else:
+            with get_db() as local_conn:
+                rows = local_conn.execute("SELECT tag_id, nombre, target_pct, color, descripcion FROM portfolio_tags ORDER BY target_pct DESC").fetchall()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        print(f"Error fetching portfolio tags: {e}")
+        return []
+
+def save_portfolio_tag(tag_id, nombre, target_pct, color='#3b82f6', descripcion='', conn=None):
+    try:
+        if conn is not None:
+            conn.execute('''
+                INSERT OR REPLACE INTO portfolio_tags (tag_id, nombre, target_pct, color, descripcion)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (tag_id, nombre, float(target_pct), color, descripcion))
+        else:
+            with get_db() as local_conn:
+                local_conn.execute('''
+                    INSERT OR REPLACE INTO portfolio_tags (tag_id, nombre, target_pct, color, descripcion)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (tag_id, nombre, float(target_pct), color, descripcion))
+                local_conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error saving portfolio tag: {e}")
+        return False
+
+def delete_portfolio_tag(tag_id, conn=None):
+    try:
+        if conn is not None:
+            conn.execute("DELETE FROM portfolio_tags WHERE tag_id = ?", (tag_id,))
+            conn.execute("DELETE FROM asset_tags WHERE tag_id = ?", (tag_id,))
+        else:
+            with get_db() as local_conn:
+                local_conn.execute("DELETE FROM portfolio_tags WHERE tag_id = ?", (tag_id,))
+                local_conn.execute("DELETE FROM asset_tags WHERE tag_id = ?", (tag_id,))
+                local_conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error deleting portfolio tag: {e}")
+        return False
+
+def get_asset_tags(conn=None):
+    try:
+        if conn is not None:
+            rows = conn.execute("SELECT ticker, tag_id FROM asset_tags").fetchall()
+        else:
+            with get_db() as local_conn:
+                rows = local_conn.execute("SELECT ticker, tag_id FROM asset_tags").fetchall()
+        return {r['ticker']: r['tag_id'] for r in rows}
+    except Exception as e:
+        print(f"Error fetching asset tags: {e}")
+        return {}
+
+def set_asset_tag(ticker, tag_id, conn=None):
+    try:
+        if conn is not None:
+            conn.execute("INSERT OR REPLACE INTO asset_tags (ticker, tag_id) VALUES (?, ?)", (ticker, tag_id))
+        else:
+            with get_db() as local_conn:
+                local_conn.execute("INSERT OR REPLACE INTO asset_tags (ticker, tag_id) VALUES (?, ?)", (ticker, tag_id))
+                local_conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error setting asset tag: {e}")
+        return False
+
+def delete_asset_tag(ticker, conn=None):
+    try:
+        if conn is not None:
+            conn.execute("DELETE FROM asset_tags WHERE ticker = ?", (ticker,))
+        else:
+            with get_db() as local_conn:
+                local_conn.execute("DELETE FROM asset_tags WHERE ticker = ?", (ticker,))
+                local_conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error deleting asset tag: {e}")
+        return False
+
 

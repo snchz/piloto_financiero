@@ -502,3 +502,181 @@ def calcular_metricas_avanzadas(history, tir_anualizada=None):
         "sharpe": sharpe,
         "max_drawdown": max_dd
     }
+
+def calcular_rebalanceo(cartera, tags_config, asset_tags, aportacion_disponible=0.0):
+    """
+    Calcula el desglose de la cartera según las categorías y objetivos de asignación (tags),
+    junto con la distribución óptima de una aportación de efectivo mensual (Cash-Flow Rebalancing).
+    
+    Excluye inmuebles y activos con saldo cero.
+    """
+    aportacion_disponible = max(0.0, float(aportacion_disponible or 0.0))
+    
+    tags_by_id = {t['tag_id']: dict(t) for t in tags_config}
+    tag_order = [t['tag_id'] for t in tags_config]
+    
+    # Estructura para agrupar activos por tag
+    holdings_by_tag = {t_id: [] for t_id in tag_order}
+    unassigned_holdings = []
+    
+    total_liquido = 0.0
+    
+    for ticker, metrics in cartera.items():
+        if metrics.get('tipo') == 'INMUEBLE':
+            continue
+        cantidad = float(metrics.get('cantidad', 0) or 0)
+        if cantidad <= 0.0001:
+            continue
+            
+        tasa = float(metrics.get('tasa_cambio', 1.0) or 1.0)
+        valor_actual = float(metrics.get('valor_actual', 0) or 0)
+        valor_eur = valor_actual * tasa
+        
+        asset_info = {
+            'ticker': ticker,
+            'name': metrics.get('name') or ticker,
+            'currency': metrics.get('currency', 'EUR'),
+            'cantidad': cantidad,
+            'precio_actual': float(metrics.get('precio_actual', 0) or 0),
+            'valor_actual': valor_actual,
+            'valor_eur': valor_eur,
+            'rentabilidad_pct': float(metrics.get('rentabilidad_pct', 0) or 0)
+        }
+        
+        tag_id = asset_tags.get(ticker)
+        if tag_id and tag_id in holdings_by_tag:
+            holdings_by_tag[tag_id].append(asset_info)
+        else:
+            if 'tactical' in holdings_by_tag:
+                holdings_by_tag['tactical'].append(asset_info)
+            else:
+                unassigned_holdings.append(asset_info)
+                
+        total_liquido += valor_eur
+        
+    total_nuevo = total_liquido + aportacion_disponible
+    
+    tags_resultado = []
+    brechas = {}
+    
+    for t_id in tag_order:
+        t_meta = tags_by_id[t_id]
+        activos = holdings_by_tag[t_id]
+        valor_tag_eur = sum(a['valor_eur'] for a in activos)
+        target_pct = float(t_meta.get('target_pct', 0.0))
+        target_ratio = target_pct / 100.0
+        
+        pct_actual = (valor_tag_eur / total_liquido * 100.0) if total_liquido > 0 else 0.0
+        valor_target_actual = total_liquido * target_ratio
+        desviacion_eur = valor_tag_eur - valor_target_actual
+        desviacion_pct = pct_actual - target_pct
+        
+        valor_target_nuevo = total_nuevo * target_ratio
+        brecha = max(0.0, valor_target_nuevo - valor_tag_eur)
+        brechas[t_id] = brecha
+        
+        if desviacion_eur > 50.0:
+            estado = 'SOBREPONDERADO'
+        elif desviacion_eur < -50.0:
+            estado = 'DISPONIBLE' if valor_tag_eur == 0 else 'DÉFICIT'
+        else:
+            estado = 'EQUILIBRADO'
+            
+        tags_resultado.append({
+            'tag_id': t_id,
+            'nombre': t_meta.get('nombre', t_id),
+            'target_pct': target_pct,
+            'color': t_meta.get('color', '#3b82f6'),
+            'descripcion': t_meta.get('descripcion', ''),
+            'valor_actual_eur': round(valor_tag_eur, 2),
+            'pct_actual': round(pct_actual, 2),
+            'valor_target_actual': round(valor_target_actual, 2),
+            'desviacion_eur': round(desviacion_eur, 2),
+            'desviacion_pct': round(desviacion_pct, 2),
+            'estado': estado,
+            'brecha_eur': round(brecha, 2),
+            'activos': activos
+        })
+        
+    # Calcular asignación sugerida de la aportación (Cash-Flow Rebalancing)
+    sugerencias_compra = []
+    if aportacion_disponible > 0:
+        # Priorizar tags que tengan vehículos en la cartera o asignados en asset_tags
+        tags_con_activos_o_asignados = [
+            t for t in tags_resultado if len(t['activos']) > 0 or any(tid == t['tag_id'] for tid in asset_tags.values())
+        ]
+        
+        brechas_activos = {t['tag_id']: brechas[t['tag_id']] for t in tags_con_activos_o_asignados}
+        total_brecha_activos = sum(brechas_activos.values())
+        
+        distribucion = {}
+        if total_brecha_activos > 0:
+            for t_id, b in brechas_activos.items():
+                distribucion[t_id] = aportacion_disponible * (b / total_brecha_activos)
+        else:
+            total_target_activos = sum(tags_by_id[t_id]['target_pct'] for t_id in brechas_activos)
+            for t_id in brechas_activos:
+                t_ratio = (tags_by_id[t_id]['target_pct'] / total_target_activos) if total_target_activos > 0 else 0
+                distribucion[t_id] = aportacion_disponible * t_ratio
+                
+        for t in tags_resultado:
+            t_id = t['tag_id']
+            asignado = distribucion.get(t_id, 0.0)
+            t['aportacion_sugerida'] = round(asignado, 2)
+            
+            if asignado >= 5.0:
+                activos_tag = t['activos']
+                if len(activos_tag) == 1:
+                    a = activos_tag[0]
+                    sugerencias_compra.append({
+                        'ticker': a['ticker'],
+                        'name': a['name'],
+                        'tag_id': t_id,
+                        'tag_nombre': t['nombre'],
+                        'color': t['color'],
+                        'importe': round(asignado, 2),
+                        'brecha_eur': t['brecha_eur'],
+                        'prioridad': 'MÁXIMA' if t['brecha_eur'] / max(total_nuevo, 1) > 0.04 else ('ALTA' if t['brecha_eur'] / max(total_nuevo, 1) > 0.015 else 'MEDIA')
+                    })
+                elif len(activos_tag) > 1:
+                    sub_imp = asignado / len(activos_tag)
+                    for a in activos_tag:
+                        sugerencias_compra.append({
+                            'ticker': a['ticker'],
+                            'name': a['name'],
+                            'tag_id': t_id,
+                            'tag_nombre': t['nombre'],
+                            'color': t['color'],
+                            'importe': round(sub_imp, 2),
+                            'brecha_eur': t['brecha_eur'],
+                            'prioridad': 'ALTA'
+                        })
+                else:
+                    sugerencias_compra.append({
+                        'ticker': None,
+                        'name': f'Reserva ({t["nombre"]})',
+                        'tag_id': t_id,
+                        'tag_nombre': t['nombre'],
+                        'color': t['color'],
+                        'importe': round(asignado, 2),
+                        'brecha_eur': t['brecha_eur'],
+                        'prioridad': 'DISPONIBLE'
+                    })
+                    
+        if sugerencias_compra:
+            sugerencias_compra.sort(key=lambda x: x['brecha_eur'], reverse=True)
+            diff = round(aportacion_disponible - sum(s['importe'] for s in sugerencias_compra), 2)
+            if abs(diff) > 0.001:
+                sugerencias_compra[0]['importe'] = round(sugerencias_compra[0]['importe'] + diff, 2)
+    else:
+        for t in tags_resultado:
+            t['aportacion_sugerida'] = 0.0
+            
+    return {
+        'total_cartera_liquida': round(total_liquido, 2),
+        'aportacion': aportacion_disponible,
+        'total_nuevo': round(total_nuevo, 2),
+        'tags': tags_resultado,
+        'sugerencias_compra': sugerencias_compra,
+        'unassigned': unassigned_holdings
+    }

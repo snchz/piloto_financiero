@@ -1,4 +1,4 @@
-# 📈 Piloto Financiero (v1.1.0)
+# 📈 Piloto Financiero (v1.3.0)
 
 ## Descripción del Proyecto
 
@@ -8,17 +8,22 @@ La aplicación combina una interfaz web intuitiva, fluida (responsive) y "dummy-
 
 ## ✨ Características Principales
 
+- **Estrategia y Rebalanceo por Aportaciones (*Cash-Flow Rebalancing*)**:
+  - Definición de categorías objetivo (ej. Motor EE.UU. 60%, Europa 18%, Emergentes 10%, Oro 5%, Táctico 5%, Bitcoin 2%).
+  - Mapeo configurable de activos a categorías.
+  - Seguimiento visual de desviaciones actuales y estado de sobreponderación / déficit.
+  - Calculadora de aportación mensual: sugiere automáticamente a qué activos dirigir el nuevo ahorro para cerrar la brecha sin necesidad de vender ganadores ni generar eventos fiscales.
 - **Interfaz en Tiempo Real**: Utiliza Server-Sent Events (SSE) para actualizaciones automáticas de precios sin necesidad de recargar la página.
 - **Gestión de Cartera Completa**: 
-  - Registro de operaciones (compras, ventas, aportaciones a fondos).
-  - Cálculo automático del precio medio de compra (coste medio).
+  - Registro de operaciones (compras, ventas, aportaciones a fondos, inmuebles e hipotecas).
+  - Cálculo automático del precio medio de compra (coste medio FIFO).
   - Seguimiento del Beneficio / Pérdida latente (sin vender) y consolidado (realizado).
-  - Cálculo de la Rentabilidad Anualizada (TIR - XIRR) global de tu cartera.
+  - Cálculo de la Rentabilidad Anualizada (TIR - XIRR) global de tu cartera, TWR y métricas avanzadas (Volatilidad, Sharpe, Drawdown).
 - **Actividad Reciente y Noticias**: Feed centralizado que recopila alertas disparadas, movimientos diarios, e integra las últimas **noticias de Yahoo Finance** relacionadas con tus activos.
 - **Diseño Responsivo y Limpio**: Interfaz organizada en pestañas ("Actividad Reciente", "Monitores y Alertas", "Operaciones y Cartera") totalmente adaptada a dispositivos móviles, tablets y monitores grandes. Terminología simplificada para todo tipo de usuarios.
-- **Panel de Configuración Dinámica**: Modal integrado que permite gestionar el Token y Chat ID de Telegram, el intervalo de refresco y **los días de retención del feed de Actividad Reciente**.
+- **Panel de Configuración Dinámica**: Modales integrados para configurar alertas, parámetros del sistema y la estrategia de asignación por etiquetas.
 - **Alertas de Telegram**: Notificaciones automáticas enviadas a través de bots de Telegram cuando se alcanzan precios objetivo.
-- **Persistencia en SQLite**: Base de datos local que almacena monitores, alertas, operaciones de cartera y configuraciones de forma persistente.
+- **Persistencia en SQLite**: Base de datos local que almacena monitores, alertas, operaciones de cartera, etiquetas y configuraciones de forma persistente.
 - **Búsqueda Inteligente**: Soporte para tickers estándar (AAPL, BTC-USD) e identificadores ISIN internacionales.
 
 ## 🛠️ Stack Tecnológico

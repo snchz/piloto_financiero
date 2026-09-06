@@ -10,7 +10,7 @@ COPY templates templates
 COPY static static
 RUN mkdir -p data
 # ARG para invalidar caché con cada cambio
-ARG BUILD_VERSION=1.2.0
+ARG BUILD_VERSION=1.3.0
 LABEL version=${BUILD_VERSION}
 EXPOSE 5000
 CMD ["python", "-u", "app.py"]

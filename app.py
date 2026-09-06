@@ -396,177 +396,225 @@ def get_info(ticker):
         return jsonify({"error": str(e)}), 500
 
 # --- Operaciones API ---
+def calcular_datos_cartera(include_real_estate=False):
+    with db.get_db() as conn:
+        rows = conn.execute("SELECT * FROM operaciones ORDER BY fecha ASC").fetchall()
+        operaciones = [dict(row) for row in rows]
+        
+    # Sanear todas las fechas extraídas de la base de datos
+    for op in operaciones:
+        op['fecha'] = normalize_date(op['fecha'])
+
+    if not include_real_estate:
+        # Filtrar operaciones de activos tipo INMUEBLE
+        operaciones_filtradas = []
+        for op in operaciones:
+            info_t = get_asset_info_cached(op['ticker'])
+            if info_t.get('tipo') != 'INMUEBLE':
+                operaciones_filtradas.append(op)
+        operaciones = operaciones_filtradas
+        
+    # Agrupar por ticker
+    activos = {}
+    for op in operaciones:
+        t = op['ticker']
+        if t not in activos:
+            activos[t] = []
+        activos[t].append(op)
+        
+    # Calcular FIFO y métricas por activo
+    cartera = {}
+    flujos_caja = [] # Para TIR
+    total_pnl_realizado = 0.0
+    flujos_caja_dict = {} # Para simulación de benchmark
+    
+    activos_info = {}
+    warning_api_error = False
+    
+    for ticker, ops in activos.items():
+        info = get_asset_info_cached(ticker)
+        activos_info[ticker] = info
+        
+        if not include_real_estate and info.get('tipo') == 'INMUEBLE':
+            continue
+
+        # Obtener tipo de cambio a EUR (Divisa base de la cartera)
+        currency = info.get('currency', 'EUR') or 'EUR'
+        tasa_cambio_actual = get_exchange_rate(currency, 'EUR')
+        
+        # Inyectar tasa de cambio histórica a cada operación
+        for op in ops:
+            if op.get('tasa_cambio') is not None:
+                op['tasa_cambio'] = float(op['tasa_cambio'])
+            else:
+                fecha_str = str(op['fecha']).strip().split(' ')[0]
+                op_currency = op.get('moneda') or currency
+                op['tasa_cambio'] = get_historical_exchange_rate(op_currency, fecha_str, 'EUR')
+
+        resultado = portfolio_math.calcular_fifo(ops)
+        total_pnl_realizado += resultado['beneficio_realizado_base']
+
+        if resultado['cantidad_actual'] > 0:
+            if info.get('tipo') == 'INMUEBLE':
+                fecha_primera_op = sorted(ops, key=lambda x: str(x['fecha']))[0]['fecha']
+                comunidad = info.get('comunidad_autonoma', 'NACIONAL')
+                rev_factor = ine_api.calculate_ine_revalorization(comunidad, str(fecha_primera_op))
+                
+                pct_tit = info.get('pct_titularidad', 1.0)
+                precio_compra_total = info.get('precio_compra_total', 0.0)
+                valor_bruto = (precio_compra_total * pct_tit) * rev_factor if precio_compra_total > 0 else (resultado['coste_medio'] * rev_factor)
+                
+                total_amortizado = sum(float(op.get('amortizacion', 0) or (float(op['precio']) - float(op.get('comisiones', 0)))) for op in ops if op['tipo'] == 'HIPOTECA_CUOTA')
+                deuda_pendiente = max(info.get('hipoteca_inicial', 0.0) - total_amortizado, 0.0)
+                valor_neto = max(valor_bruto - deuda_pendiente, 0.0)
+                
+                precio_actual = valor_neto / resultado['cantidad_actual'] if resultado['cantidad_actual'] > 0 else valor_neto
+                valor_actual = valor_neto
+                inversion_actual = resultado['cantidad_actual'] * resultado['coste_medio']
+                pnl_latente = valor_actual - inversion_actual
+                
+                cartera[ticker] = {
+                    'name': info['name'],
+                    'currency': 'EUR',
+                    'tipo': 'INMUEBLE',
+                    'tasa_cambio': 1.0,
+                    'cantidad': resultado['cantidad_actual'],
+                    'coste_medio': resultado['coste_medio'],
+                    'precio_actual': precio_actual,
+                    'previous_close': None,
+                    'current_price_time': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
+                    'valor_actual': valor_actual,
+                    'valor_bruto': valor_bruto,
+                    'deuda_pendiente': deuda_pendiente,
+                    'comunidad_autonoma': comunidad,
+                    'pnl_latente': pnl_latente,
+                    'pnl_latente_base': pnl_latente,
+                    'pnl_activo_base': pnl_latente,
+                    'pnl_divisa_base': 0.0,
+                    'pnl_realizado': resultado['beneficio_realizado'],
+                    'rentabilidad_pct': (pnl_latente / inversion_actual) if inversion_actual > 0 else 0
+                }
+                if valor_actual > 0:
+                    flujos_caja.append((datetime.now(), valor_actual))
+            else:
+                # Intentar obtener precio actual para activos financieros
+                precio_actual = 0.0
+                current_price_time = 'N/A'
+                prev_close = None
+                if info['sym']:
+                    try:
+                        precio_actual, prev_close = finance_api.fetch_price(info['sym'])
+                        current_price_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+                    except Exception as e:
+                        warning_api_error = True
+                        log_debug(f"Error fetching price for {info['sym']}: {e}", "WARNING")
+                
+                valor_actual = resultado['cantidad_actual'] * precio_actual
+                inversion_actual = resultado['cantidad_actual'] * resultado['coste_medio']
+                pnl_latente = valor_actual - inversion_actual
+                
+                coste_medio_base = resultado.get('coste_medio_base', resultado['coste_medio'] * tasa_cambio_actual)
+                inversion_actual_base = resultado['cantidad_actual'] * coste_medio_base
+                pnl_latente_base = (valor_actual * tasa_cambio_actual) - inversion_actual_base
+                
+                tasa_cambio_media = (inversion_actual_base / inversion_actual) if inversion_actual > 0 else tasa_cambio_actual
+                pnl_activo_base = pnl_latente * tasa_cambio_actual
+                pnl_divisa_base = inversion_actual * (tasa_cambio_actual - tasa_cambio_media)
+                
+                cartera[ticker] = {
+                    'name': info['name'],
+                    'currency': info['currency'],
+                    'tasa_cambio': tasa_cambio_actual,
+                    'cantidad': resultado['cantidad_actual'],
+                    'coste_medio': resultado['coste_medio'],
+                    'precio_actual': precio_actual,
+                    'previous_close': prev_close,
+                    'current_price_time': current_price_time,
+                    'valor_actual': valor_actual,
+                    'pnl_latente': pnl_latente,
+                    'pnl_latente_base': pnl_latente_base,
+                    'pnl_activo_base': pnl_activo_base,
+                    'pnl_divisa_base': pnl_divisa_base,
+                    'pnl_realizado': resultado['beneficio_realizado'],
+                    'rentabilidad_pct': (pnl_latente / inversion_actual) if inversion_actual > 0 else 0
+                }
+                
+                if valor_actual > 0:
+                    flujos_caja.append((datetime.now(), valor_actual * tasa_cambio_actual))
+                
+        for op in ops:
+            fecha_str = str(op['fecha']).strip().split(' ')[0]
+            try:
+                dt = datetime.strptime(fecha_str, '%Y-%m-%d')
+            except ValueError:
+                dt = datetime.now()
+                
+            cash_flow = 0.0
+            if op['tipo'] in ('COMPRA', 'APORTACION', 'ENTRADA_INMUEBLE', 'REFORMA_MEJORA'):
+                cash_flow = -(op['cantidad'] * op['precio'] + op.get('comisiones',0) + op.get('impuestos',0))
+            elif op['tipo'] == 'HIPOTECA_CUOTA':
+                amort = float(op.get('amortizacion', 0) or (op['precio'] - op.get('comisiones',0)))
+                cash_flow = -(amort + op.get('comisiones',0) + op.get('impuestos',0))
+            elif op['tipo'] in ('VENTA', 'DIVIDENDO'):
+                cash_flow = (op['cantidad'] * op['precio']) - op.get('comisiones',0) - op.get('impuestos',0)
+            if cash_flow != 0:
+                flujo_base = cash_flow * op['tasa_cambio']
+                flujos_caja.append((dt, flujo_base))
+
+                fecha_key = dt.date()
+                flujos_caja_dict[fecha_key] = flujos_caja_dict.get(fecha_key, 0.0) - flujo_base
+
+    # Enriquecer cartera con etiquetas de estrategia
+    asset_tags_map = db.get_asset_tags()
+    tags_list = db.get_portfolio_tags()
+    tags_map = {t['tag_id']: t for t in tags_list}
+    
+    for ticker, metrics in cartera.items():
+        t_id = asset_tags_map.get(ticker)
+        if t_id and t_id in tags_map:
+            metrics['tag_id'] = t_id
+            metrics['tag_nombre'] = tags_map[t_id]['nombre']
+            metrics['tag_target_pct'] = tags_map[t_id]['target_pct']
+            metrics['tag_color'] = tags_map[t_id]['color']
+        elif metrics.get('tipo') == 'INMUEBLE':
+            metrics['tag_id'] = 'inmueble'
+            metrics['tag_nombre'] = 'Inmueble'
+            metrics['tag_target_pct'] = None
+            metrics['tag_color'] = '#06b6d4'
+        else:
+            metrics['tag_id'] = None
+            metrics['tag_nombre'] = 'Sin Etiqueta'
+            metrics['tag_target_pct'] = None
+            metrics['tag_color'] = '#64748b'
+
+    return {
+        'operaciones': operaciones,
+        'cartera': cartera,
+        'activos': activos,
+        'activos_info': activos_info,
+        'flujos_caja': flujos_caja,
+        'flujos_caja_dict': flujos_caja_dict,
+        'total_pnl_realizado': total_pnl_realizado,
+        'warning_api_error': warning_api_error,
+        'tags_list': tags_list,
+        'asset_tags_map': asset_tags_map
+    }
+
 @app.route('/api/operaciones', methods=['GET'])
 def get_operaciones():
     try:
         include_real_estate = request.args.get('include_real_estate', '0') == '1'
-
-        with db.get_db() as conn:
-            rows = conn.execute("SELECT * FROM operaciones ORDER BY fecha ASC").fetchall()
-            operaciones = [dict(row) for row in rows]
-            
-        # Sanear todas las fechas extraídas de la base de datos
-        for op in operaciones:
-            op['fecha'] = normalize_date(op['fecha'])
-
-        if not include_real_estate:
-            # Filtrar operaciones de activos tipo INMUEBLE
-            operaciones_filtradas = []
-            for op in operaciones:
-                info_t = get_asset_info_cached(op['ticker'])
-                if info_t.get('tipo') != 'INMUEBLE':
-                    operaciones_filtradas.append(op)
-            operaciones = operaciones_filtradas
-            
-        # Agrupar por ticker
-        activos = {}
-        for op in operaciones:
-            t = op['ticker']
-            if t not in activos:
-                activos[t] = []
-            activos[t].append(op)
-            
-        # Calcular FIFO y métricas por activo
-        cartera = {}
-        flujos_caja = [] # Para TIR
-        total_pnl_realizado = 0.0
-        flujos_caja_dict = {} # Para simulación de benchmark
-        
-        activos_info = {}
-        warning_api_error = False
-        
-        for ticker, ops in activos.items():
-            info = get_asset_info_cached(ticker)
-            activos_info[ticker] = info
-            
-            if not include_real_estate and info.get('tipo') == 'INMUEBLE':
-                continue
-
-            # Obtener tipo de cambio a EUR (Divisa base de la cartera)
-            currency = info.get('currency', 'EUR') or 'EUR'
-            tasa_cambio_actual = get_exchange_rate(currency, 'EUR')
-            
-            # Inyectar tasa de cambio histórica a cada operación
-            for op in ops:
-                if op.get('tasa_cambio') is not None:
-                    op['tasa_cambio'] = float(op['tasa_cambio'])
-                else:
-                    fecha_str = str(op['fecha']).strip().split(' ')[0]
-                    op_currency = op.get('moneda') or currency
-                    op['tasa_cambio'] = get_historical_exchange_rate(op_currency, fecha_str, 'EUR')
-
-            resultado = portfolio_math.calcular_fifo(ops)
-            total_pnl_realizado += resultado['beneficio_realizado_base']
-
-            if resultado['cantidad_actual'] > 0:
-                if info.get('tipo') == 'INMUEBLE':
-                    fecha_primera_op = sorted(ops, key=lambda x: str(x['fecha']))[0]['fecha']
-                    comunidad = info.get('comunidad_autonoma', 'NACIONAL')
-                    rev_factor = ine_api.calculate_ine_revalorization(comunidad, str(fecha_primera_op))
-                    
-                    pct_tit = info.get('pct_titularidad', 1.0)
-                    precio_compra_total = info.get('precio_compra_total', 0.0)
-                    valor_bruto = (precio_compra_total * pct_tit) * rev_factor if precio_compra_total > 0 else (resultado['coste_medio'] * rev_factor)
-                    
-                    total_amortizado = sum(float(op.get('amortizacion', 0) or (float(op['precio']) - float(op.get('comisiones', 0)))) for op in ops if op['tipo'] == 'HIPOTECA_CUOTA')
-                    deuda_pendiente = max(info.get('hipoteca_inicial', 0.0) - total_amortizado, 0.0)
-                    valor_neto = max(valor_bruto - deuda_pendiente, 0.0)
-                    
-                    precio_actual = valor_neto / resultado['cantidad_actual'] if resultado['cantidad_actual'] > 0 else valor_neto
-                    valor_actual = valor_neto
-                    inversion_actual = resultado['cantidad_actual'] * resultado['coste_medio']
-                    pnl_latente = valor_actual - inversion_actual
-                    
-                    cartera[ticker] = {
-                        'name': info['name'],
-                        'currency': 'EUR',
-                        'tipo': 'INMUEBLE',
-                        'tasa_cambio': 1.0,
-                        'cantidad': resultado['cantidad_actual'],
-                        'coste_medio': resultado['coste_medio'],
-                        'precio_actual': precio_actual,
-                        'previous_close': None,
-                        'current_price_time': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
-                        'valor_actual': valor_actual,
-                        'valor_bruto': valor_bruto,
-                        'deuda_pendiente': deuda_pendiente,
-                        'comunidad_autonoma': comunidad,
-                        'pnl_latente': pnl_latente,
-                        'pnl_latente_base': pnl_latente,
-                        'pnl_activo_base': pnl_latente,
-                        'pnl_divisa_base': 0.0,
-                        'pnl_realizado': resultado['beneficio_realizado'],
-                        'rentabilidad_pct': (pnl_latente / inversion_actual) if inversion_actual > 0 else 0
-                    }
-                    if valor_actual > 0:
-                        flujos_caja.append((datetime.now(), valor_actual))
-                else:
-                    # Intentar obtener precio actual para activos financieros
-                    precio_actual = 0.0
-                    current_price_time = 'N/A'
-                    prev_close = None
-                    if info['sym']:
-                        try:
-                            precio_actual, prev_close = finance_api.fetch_price(info['sym'])
-                            current_price_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-                        except Exception as e:
-                            warning_api_error = True
-                            log_debug(f"Error fetching price for {info['sym']}: {e}", "WARNING")
-                    
-                    valor_actual = resultado['cantidad_actual'] * precio_actual
-                    inversion_actual = resultado['cantidad_actual'] * resultado['coste_medio']
-                    pnl_latente = valor_actual - inversion_actual
-                    
-                    coste_medio_base = resultado.get('coste_medio_base', resultado['coste_medio'] * tasa_cambio_actual)
-                    inversion_actual_base = resultado['cantidad_actual'] * coste_medio_base
-                    pnl_latente_base = (valor_actual * tasa_cambio_actual) - inversion_actual_base
-                    
-                    tasa_cambio_media = (inversion_actual_base / inversion_actual) if inversion_actual > 0 else tasa_cambio_actual
-                    pnl_activo_base = pnl_latente * tasa_cambio_actual
-                    pnl_divisa_base = inversion_actual * (tasa_cambio_actual - tasa_cambio_media)
-                    
-                    cartera[ticker] = {
-                        'name': info['name'],
-                        'currency': info['currency'],
-                        'tasa_cambio': tasa_cambio_actual,
-                        'cantidad': resultado['cantidad_actual'],
-                        'coste_medio': resultado['coste_medio'],
-                        'precio_actual': precio_actual,
-                        'previous_close': prev_close,
-                        'current_price_time': current_price_time,
-                        'valor_actual': valor_actual,
-                        'pnl_latente': pnl_latente,
-                        'pnl_latente_base': pnl_latente_base,
-                        'pnl_activo_base': pnl_activo_base,
-                        'pnl_divisa_base': pnl_divisa_base,
-                        'pnl_realizado': resultado['beneficio_realizado'],
-                        'rentabilidad_pct': (pnl_latente / inversion_actual) if inversion_actual > 0 else 0
-                    }
-                    
-                    if valor_actual > 0:
-                        flujos_caja.append((datetime.now(), valor_actual * tasa_cambio_actual))
-                    
-            for op in ops:
-                fecha_str = str(op['fecha']).strip().split(' ')[0]
-                try:
-                    dt = datetime.strptime(fecha_str, '%Y-%m-%d')
-                except ValueError:
-                    dt = datetime.now()
-                    
-                cash_flow = 0.0
-                if op['tipo'] in ('COMPRA', 'APORTACION', 'ENTRADA_INMUEBLE', 'REFORMA_MEJORA'):
-                    cash_flow = -(op['cantidad'] * op['precio'] + op.get('comisiones',0) + op.get('impuestos',0))
-                elif op['tipo'] == 'HIPOTECA_CUOTA':
-                    amort = float(op.get('amortizacion', 0) or (op['precio'] - op.get('comisiones',0)))
-                    cash_flow = -(amort + op.get('comisiones',0) + op.get('impuestos',0))
-                elif op['tipo'] in ('VENTA', 'DIVIDENDO'):
-                    cash_flow = (op['cantidad'] * op['precio']) - op.get('comisiones',0) - op.get('impuestos',0)
-                if cash_flow != 0:
-                    flujo_base = cash_flow * op['tasa_cambio']
-                    flujos_caja.append((dt, flujo_base))
-
-                    fecha_key = dt.date()
-                    flujos_caja_dict[fecha_key] = flujos_caja_dict.get(fecha_key, 0.0) - flujo_base
+        datos = calcular_datos_cartera(include_real_estate=include_real_estate)
+        operaciones = datos['operaciones']
+        cartera = datos['cartera']
+        activos_info = datos['activos_info']
+        activos = datos['activos']
+        flujos_caja = datos['flujos_caja']
+        flujos_caja_dict = datos['flujos_caja_dict']
+        total_pnl_realizado = datos['total_pnl_realizado']
+        warning_api_error = datos['warning_api_error']
+        tags_list = datos['tags_list']
+        asset_tags_map = datos['asset_tags_map']
         
         tir = portfolio_math.xirr(flujos_caja) if flujos_caja else None
         
@@ -713,11 +761,98 @@ def get_operaciones():
             "total_pnl_realizado": total_pnl_realizado,
             "history": history,
             "metricas_riesgo": metricas_riesgo,
-            "warning_api_error": warning_api_error
+            "warning_api_error": warning_api_error,
+            "tags_config": tags_list,
+            "asset_tags": asset_tags_map
         })
     except Exception as e:
         tb = traceback.format_exc()
         log_debug(f"Error en /api/operaciones: {e}\nTraceback:\n{tb}", "ERROR")
+        return jsonify({"error": str(e)}), 500
+
+# --- Estrategia y Rebalanceo API ---
+@app.route('/api/rebalanceo', methods=['GET'])
+def get_rebalanceo():
+    try:
+        aportacion_str = request.args.get('aportacion', '0')
+        try:
+            aportacion = float(aportacion_str)
+        except (ValueError, TypeError):
+            aportacion = 0.0
+
+        datos = calcular_datos_cartera(include_real_estate=False)
+        tags_config = datos['tags_list']
+        asset_tags = datos['asset_tags_map']
+
+        resultado = portfolio_math.calcular_rebalanceo(
+            cartera=datos['cartera'],
+            tags_config=tags_config,
+            asset_tags=asset_tags,
+            aportacion_disponible=aportacion
+        )
+        return jsonify(resultado)
+    except Exception as e:
+        tb = traceback.format_exc()
+        log_debug(f"Error en /api/rebalanceo: {e}\nTraceback:\n{tb}", "ERROR")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/rebalanceo/tags', methods=['GET', 'POST'])
+def handle_rebalanceo_tags():
+    try:
+        if request.method == 'GET':
+            tags = db.get_portfolio_tags()
+            asset_tags = db.get_asset_tags()
+            return jsonify({"tags": tags, "asset_tags": asset_tags})
+
+        body = request.json or {}
+        if 'tags' in body:
+            for t in body['tags']:
+                tag_id = t.get('tag_id')
+                nombre = t.get('nombre')
+                target_pct = float(t.get('target_pct', 0.0))
+                color = t.get('color', '#3b82f6')
+                descripcion = t.get('descripcion', '')
+                if tag_id and nombre:
+                    db.save_portfolio_tag(tag_id, nombre, target_pct, color, descripcion)
+        else:
+            tag_id = body.get('tag_id')
+            nombre = body.get('nombre')
+            target_pct = float(body.get('target_pct', 0.0))
+            color = body.get('color', '#3b82f6')
+            descripcion = body.get('descripcion', '')
+            if not tag_id or not nombre:
+                return jsonify({"error": "tag_id y nombre son obligatorios"}), 400
+            db.save_portfolio_tag(tag_id, nombre, target_pct, color, descripcion)
+
+        return jsonify({"status": "ok", "tags": db.get_portfolio_tags()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/rebalanceo/tags/<tag_id>', methods=['DELETE'])
+def delete_rebalanceo_tag(tag_id):
+    try:
+        success = db.delete_portfolio_tag(tag_id)
+        return jsonify({"status": "ok" if success else "error"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/rebalanceo/map-asset', methods=['POST'])
+def map_rebalanceo_asset():
+    try:
+        body = request.json or {}
+        ticker = body.get('ticker', '').strip().upper()
+        tag_id = body.get('tag_id', '').strip()
+
+        if not ticker:
+            return jsonify({"error": "ticker es obligatorio"}), 400
+
+        if not tag_id or tag_id.lower() in ('none', 'null', 'unassigned'):
+            db.delete_asset_tag(ticker)
+        else:
+            db.set_asset_tag(ticker, tag_id)
+
+        return jsonify({"status": "ok", "asset_tags": db.get_asset_tags()})
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/operaciones/add', methods=['POST'])
