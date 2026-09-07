@@ -987,35 +987,6 @@ def edit_operacion(op_id):
         log_debug(f"Error editando operación: {e}", "ERROR")
         return jsonify({"error": str(e)}), 400
 
-@app.route('/api/operaciones/split', methods=['POST'])
-def apply_split():
-    data = request.json or {}
-    try:
-        ticker = data.get('ticker', '').upper().strip()
-        fecha_limite = data.get('fecha_limite')
-        ratio = float(data.get('ratio'))
-
-        if not ticker or not fecha_limite or ratio <= 0:
-            return jsonify({"error": "Parámetros inválidos: se requiere ticker, fecha_limite y un ratio positivo."}), 400
-
-        with db.get_db() as conn:
-            cursor = conn.execute('''
-                UPDATE operaciones
-                SET
-                    cantidad = cantidad * ?,
-                    precio = precio / ?
-                WHERE
-                    ticker = ? AND fecha < ?
-            ''', (ratio, ratio, ticker, fecha_limite))
-            conn.commit()
-            log_debug(f"Aplicado split/contrasplit con ratio {ratio} para {ticker} en operaciones anteriores a {fecha_limite}. Filas afectadas: {cursor.rowcount}")
-            return jsonify({"ok": True, "affected_rows": cursor.rowcount})
-    except (ValueError, TypeError):
-        return jsonify({"error": "Parámetros inválidos. El ratio debe ser un número."}), 400
-    except Exception as e:
-        log_debug(f"Error aplicando split: {e}", "ERROR")
-        return jsonify({"error": str(e)}), 500
-
 @app.route('/api/export/monitores', methods=['GET'])
 def export_monitores():
     try:

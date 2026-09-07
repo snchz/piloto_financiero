@@ -573,11 +573,6 @@
                         <div class="d-flex flex-wrap justify-content-between align-items-center p-3 border-bottom border-secondary border-opacity-25 gap-2">
                             <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Historial de Operaciones</h5>
                             <div class="d-flex align-items-center gap-1">
-                                <button class="action-btn" id="btn-open-split" title="Aplicar Split/Contrasplit">
-                                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                        <circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="8.59" y1="8.59" x2="15.41" y2="15.41"></line><line x1="8.59" y1="15.41" x2="15.41" y2="8.59"></line>
-                                    </svg>
-                                </button>
                                 <button class="action-btn" onclick="exportExcel('operaciones')" title="Exportar a CSV">
                                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                                 </button>
@@ -931,34 +926,6 @@
                 </div>
                 <div class="col-12 mt-4">
                     <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Guardar Cambios</button>
-                </div>
-            </form>
-        </div>
-    </dialog>
-
-    <!-- Split Modal -->
-    <dialog id="splitModal" class="border-0 p-0 rounded-4 shadow-lg" style="max-width: 460px; width: 95%;">
-        <div class="glass-panel p-4" style="background: rgba(17, 20, 30, 0.95);">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="m-0 fs-6 fw-bold text-white">✂️ Split / Contrasplit</h5>
-                <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('splitModal').close()"></button>
-            </div>
-            <form id="split-form" class="row g-3">
-                <div class="col-12">
-                    <label class="form-label text-secondary small mb-1">Ticker del Activo</label>
-                    <input type="text" name="ticker" class="form-control" placeholder="Ej. AAPL" required style="text-transform: uppercase;">
-                </div>
-                <div class="col-12">
-                    <label class="form-label text-secondary small mb-1">Factor de Ajuste</label>
-                    <input type="number" step="any" name="factor" class="form-control" placeholder="Ej. 10 para Split 1:10, 0.1 para Reverse Split" required>
-                    <span class="text-secondary small d-block mt-1">Multiplica la cantidad y divide el precio de compra.</span>
-                </div>
-                <div class="col-12">
-                    <label class="form-label text-secondary small mb-1">Afectar operaciones anteriores a:</label>
-                    <input type="date" id="split-fecha" name="fecha_limite" class="form-control" required>
-                </div>
-                <div class="col-12 mt-4">
-                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" id="split-submit-btn">Aplicar Ajuste</button>
                 </div>
             </form>
         </div>
@@ -1792,13 +1759,6 @@
             }
         });
 
-        document.getElementById('btn-open-split')?.addEventListener('click', () => {
-            document.getElementById('split-form').reset();
-            const fechaInput = document.getElementById('split-fecha');
-            if (fechaInput) fechaInput.valueAsDate = new Date();
-            document.getElementById('splitModal').showModal();
-        });
-
         window.handleDelete = async (id) => {
             if (!confirm('¿Seguro que deseas eliminar esta alerta?')) return;
             try {
@@ -1851,34 +1811,6 @@
                 UI.showToast('Objetivo actualizado con éxito');
             } catch (err) {
                 UI.showToast('No se pudo actualizar el objetivo', 'error');
-            }
-        });
-
-        document.getElementById('split-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!confirm('Esta acción modificará permanentemente las operaciones pasadas del activo. ¿Continuar?')) return;
-            
-            const btn = document.getElementById('split-submit-btn');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Aplicando...';
-
-            const formData = new FormData(e.target);
-            const payload = Object.fromEntries(formData.entries());
-
-            try {
-                const result = await API.fetch('/api/operaciones/split', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                UI.showToast(`Ajuste aplicado a ${result.affected_rows} operaciones.`);
-                document.getElementById('splitModal').close();
-                cargarOperaciones();
-            } catch (err) {
-                UI.showToast(err.message, 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Aplicar Ajuste';
             }
         });
 
