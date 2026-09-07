@@ -912,6 +912,13 @@ def add_operacion():
                 precio_compra_val = float(data.get('precio_compra_total') if data.get('precio_compra_total') is not None else cur_cfg.get('precio_compra_total', 0.0))
                 hipoteca_ini_val = float(data.get('hipoteca_inicial') if data.get('hipoteca_inicial') is not None else cur_cfg.get('hipoteca_inicial', 0.0))
                 db.save_inmueble_config(ticker, name_val, comunidad_val, pct_val, precio_compra_val, hipoteca_ini_val, conn=conn)
+            
+            if 'tag_id' in data:
+                tag_id_val = str(data.get('tag_id') or '').strip()
+                if not tag_id_val or tag_id_val.lower() in ('none', 'null', 'unassigned'):
+                    db.delete_asset_tag(ticker, conn=conn)
+                else:
+                    db.set_asset_tag(ticker, tag_id_val, conn=conn)
             conn.commit()
             
         ASSET_INFO_CACHE.pop(ticker, None)
@@ -965,6 +972,13 @@ def edit_operacion(op_id):
                 SET fecha = ?, ticker = ?, tipo = ?, cantidad = ?, precio = ?, comisiones = ?, impuestos = ?, moneda = ?, tasa_cambio = ?, amortizacion = ?, intereses = ?
                 WHERE id = ?
             ''', (fecha, ticker, tipo, cantidad, precio, comisiones, impuestos, moneda, tasa_cambio, amortizacion, intereses, op_id))
+            
+            if 'tag_id' in data:
+                tag_id_val = str(data.get('tag_id') or '').strip()
+                if not tag_id_val or tag_id_val.lower() in ('none', 'null', 'unassigned'):
+                    db.delete_asset_tag(ticker, conn=conn)
+                else:
+                    db.set_asset_tag(ticker, tag_id_val, conn=conn)
             conn.commit()
             
         log_debug(f"Editada operación {op_id} de {ticker}")

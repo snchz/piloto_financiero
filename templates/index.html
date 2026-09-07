@@ -809,6 +809,13 @@
                     </select>
                 </div>
 
+                <div class="col-md-6 field-fin-only">
+                    <label class="form-label text-secondary small mb-1">Categoría / Estrategia</label>
+                    <select id="op-tag" name="tag_id" class="form-select">
+                        <option value="">🎯 Capital Táctico (Por defecto / 5%)</option>
+                    </select>
+                </div>
+
                 <div class="col-md-6 field-fin-only" id="container-op-cantidad">
                     <label class="form-label text-secondary small mb-1">Cantidad de Títulos</label>
                     <input type="number" step="any" id="op-cantidad" name="cantidad" class="form-control" placeholder="1.00" value="1">
@@ -1622,6 +1629,17 @@
                 document.getElementById('op-fecha').valueAsDate = new Date();
                 document.getElementById('op-moneda').value = '';
             }
+
+            const tagSelect = document.getElementById('op-tag');
+            if (tagSelect) {
+                const currentTag = (op && operacionesData?.asset_tags?.[op.ticker]) || '';
+                const tagsList = operacionesData?.tags_config || [];
+                tagSelect.innerHTML = `
+                    <option value="">🎯 Capital Táctico (Por defecto / 5%)</option>
+                    ${tagsList.map(t => `<option value="${t.tag_id}" ${currentTag === t.tag_id ? 'selected' : ''}>${t.nombre} (${t.target_pct}%)</option>`).join('')}
+                `;
+                tagSelect.value = currentTag;
+            }
             
             actualizarPreviewOperacion();
             document.getElementById('opModal').showModal();
@@ -1716,6 +1734,11 @@
                 if (info.currency !== 'EUR') {
                     window.consultarTasaCambioModal();
                 }
+            }
+            const existingTag = operacionesData?.asset_tags?.[val];
+            const tagSelect = document.getElementById('op-tag');
+            if (tagSelect && existingTag) {
+                tagSelect.value = existingTag;
             }
             window.actualizarPreviewOperacion();
         });
@@ -1990,10 +2013,28 @@
                     const inmBadge = isInmueble ? `<span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 ms-1" style="font-size:0.65rem;">🏠 INMUEBLE (${metrics.comunidad_autonoma || 'INE'})</span>` : '';
 
                     let tagBadge = '';
-                    if (metrics.tag_nombre && metrics.tag_id !== 'inmueble') {
-                        const tColor = metrics.tag_color || '#3b82f6';
-                        const targetStr = metrics.tag_target_pct != null ? `${metrics.tag_target_pct}%` : '';
-                        tagBadge = `<span class="badge ms-1 font-monospace" style="background: ${tColor}20; color: ${tColor}; border: 1px solid ${tColor}40; font-size: 0.65rem;">${metrics.tag_nombre} ${targetStr}</span>`;
+                    if (!isInmueble) {
+                        const currentTag = data.asset_tags?.[ticker] || '';
+                        const activeTagObj = (data.tags_config || []).find(t => t.tag_id === currentTag);
+                        const tColor = activeTagObj ? (activeTagObj.color || '#3b82f6') : (currentTag === 'tactical' ? '#8b5cf6' : '#64748b');
+                        const tNombre = activeTagObj ? `${activeTagObj.nombre} (${activeTagObj.target_pct}%)` : (currentTag === 'tactical' ? 'Capital Táctico (5%)' : '⚙️ Asignar Categoría');
+
+                        tagBadge = `
+                            <div class="dropdown d-inline-block ms-1">
+                                <button class="badge font-monospace border-0 dropdown-toggle py-1 px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background: ${tColor}25; color: ${tColor}; border: 1px solid ${tColor}50; font-size: 0.68rem; cursor: pointer;" title="Clic para asignar o cambiar la categoría estratégica">
+                                    🏷️ ${tNombre}
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-dark p-1 shadow-lg" style="font-size: 0.78rem; z-index: 1050;">
+                                    <li><h6 class="dropdown-header py-1 text-secondary" style="font-size: 0.7rem;">Asignar a ${ticker}:</h6></li>
+                                    <li><a class="dropdown-item py-1 ${!currentTag ? 'active' : ''}" href="javascript:void(0)" onclick="asignarTagActivo('${ticker}', '')">🎯 Capital Táctico (Por defecto)</a></li>
+                                    ${(data.tags_config || []).map(t => `
+                                        <li><a class="dropdown-item py-1 ${currentTag === t.tag_id ? 'active' : ''}" href="javascript:void(0)" onclick="asignarTagActivo('${ticker}', '${t.tag_id}')">
+                                            <span style="color: ${t.color}">●</span> ${t.nombre} (${t.target_pct}%)
+                                        </a></li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        `;
                     }
 
                     return `
@@ -2609,6 +2650,7 @@
                     moneda: getSafeString('moneda') || null,
                     comisiones: getSafeFloat('comisiones'),
                     impuestos: getSafeFloat('impuestos'),
+                    tag_id: getSafeString('tag_id') || null,
                     tasa_cambio: tasaVal ? getSafeFloat('tasa_cambio') : null,
                     amortizacion: getSafeFloat('amortizacion'),
                     intereses: getSafeFloat('intereses'),
