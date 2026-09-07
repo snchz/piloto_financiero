@@ -601,7 +601,7 @@
                                         <th class="text-end">Precio</th>
                                         <th class="text-end">Comisiones</th>
                                         <th class="text-end">Impuestos</th>
-                                        <th class="text-end">Total</th>
+                                        <th class="text-end">Total (€)</th>
                                         <th class="text-end">Rentabilidad</th>
                                         <th class="text-end pe-4">Acciones</th>
                                     </tr>
@@ -884,8 +884,19 @@
                     <input type="number" step="any" id="op-impuestos" name="impuestos" class="form-control" placeholder="0.00" value="0">
                 </div>
                 <div class="col-md-4 field-fin-only">
-                    <label class="form-label text-secondary small mb-1">Tasa Cambio (vs EUR)</label>
-                    <input type="number" step="any" id="op-tasa-cambio" name="tasa_cambio" class="form-control" placeholder="Opcional">
+                    <label class="form-label text-secondary small mb-1" title="1 Unidad de moneda extranjera = X Euros. Ejemplo: 1 USD = 0.863 EUR">Tasa Cambio (vs EUR) ℹ️</label>
+                    <div class="input-group">
+                        <input type="number" step="any" id="op-tasa-cambio" name="tasa_cambio" class="form-control" placeholder="1.00">
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-2" id="btn-fetch-rate" title="Consultar tasa histórica para la fecha y moneda seleccionadas" onclick="consultarTasaCambioModal()">🔄</button>
+                    </div>
+                    <div class="form-text text-secondary" style="font-size: 0.68rem;" id="op-tasa-help">1 Moneda Extranjera = X €</div>
+                </div>
+
+                <div class="col-12 mt-2" id="op-live-preview-container">
+                    <div class="p-2 px-3 rounded-3 bg-dark bg-opacity-50 border border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+                        <span class="text-secondary small">Total estimado neto:</span>
+                        <span class="font-monospace fw-bold text-white" id="op-live-total">0,00 €</span>
+                    </div>
                 </div>
 
                 <div class="col-12 mt-4">
@@ -1551,6 +1562,8 @@
             }
         };
 
+        let operacionesData = null;
+
         window.abrirModalOperacion = (opId = null) => {
             const form = document.getElementById('op-form');
             form.reset();
@@ -1610,8 +1623,102 @@
                 document.getElementById('op-moneda').value = '';
             }
             
+            actualizarPreviewOperacion();
             document.getElementById('opModal').showModal();
         };
+
+        window.consultarTasaCambioModal = async () => {
+            const fecha = document.getElementById('op-fecha')?.value || new Date().toISOString().split('T')[0];
+            let moneda = document.getElementById('op-moneda')?.value;
+            const ticker = document.getElementById('op-ticker')?.value.trim().toUpperCase();
+            
+            if (!moneda && ticker && operacionesData?.activos_info?.[ticker]?.currency) {
+                moneda = operacionesData.activos_info[ticker].currency;
+            }
+            if (!moneda || moneda === 'EUR') {
+                const tasaInput = document.getElementById('op-tasa-cambio');
+                if (tasaInput) tasaInput.value = '1.0';
+                window.actualizarPreviewOperacion();
+                return;
+            }
+            
+            const btn = document.getElementById('btn-fetch-rate');
+            try {
+                if (btn) btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:0.8rem; height:0.8rem;"></span>';
+                const res = await API.fetch(`/api/exchange-rate?currency=${encodeURIComponent(moneda)}&date=${encodeURIComponent(fecha)}`);
+                if (res && res.rate) {
+                    const tasaInput = document.getElementById('op-tasa-cambio');
+                    if (tasaInput) tasaInput.value = res.rate;
+                    UI.showToast(`Tasa obtenida: 1 ${moneda} = ${parseFloat(res.rate).toFixed(4)} €`, 'info');
+                    window.actualizarPreviewOperacion();
+                }
+            } catch (e) {
+                UI.showToast('No se pudo obtener la tasa de cambio: ' + (e.message || e), 'error');
+            } finally {
+                if (btn) btn.innerHTML = '🔄';
+            }
+        };
+
+        window.actualizarPreviewOperacion = () => {
+            const tipo = document.getElementById('op-tipo')?.value || 'COMPRA';
+            const isCompra = ['COMPRA', 'APORTACION', 'ENTRADA_INMUEBLE', 'HIPOTECA_CUOTA', 'REFORMA_MEJORA'].includes(tipo);
+            const cantidad = parseFloat(document.getElementById('op-cantidad')?.value) || 0;
+            const precio = parseFloat(document.getElementById('op-precio')?.value) || 0;
+            const comisiones = parseFloat(document.getElementById('op-comisiones')?.value) || 0;
+            const impuestos = parseFloat(document.getElementById('op-impuestos')?.value) || 0;
+            const tasa = parseFloat(document.getElementById('op-tasa-cambio')?.value) || 1.0;
+            
+            let moneda = document.getElementById('op-moneda')?.value;
+            const ticker = document.getElementById('op-ticker')?.value.trim().toUpperCase();
+            if (!moneda && ticker && operacionesData?.activos_info?.[ticker]?.currency) {
+                moneda = operacionesData.activos_info[ticker].currency;
+            }
+            moneda = moneda || 'EUR';
+
+            const subtotal = isCompra
+                ? (cantidad * precio) + comisiones + impuestos
+                : (cantidad * precio) - comisiones - impuestos;
+            const totalEur = subtotal * tasa;
+
+            const previewEl = document.getElementById('op-live-total');
+            if (previewEl) {
+                if (moneda !== 'EUR') {
+                    previewEl.innerHTML = `${UI.formatCurrency(totalEur, 'EUR')} <span class="text-secondary opacity-75 font-monospace" style="font-size:0.75rem;">(${UI.formatCurrency(subtotal, moneda)})</span>`;
+                } else {
+                    previewEl.textContent = UI.formatCurrency(totalEur, 'EUR');
+                }
+            }
+        };
+
+        ['op-cantidad', 'op-precio', 'op-comisiones', 'op-impuestos', 'op-tasa-cambio'].forEach(id => {
+            document.getElementById(id)?.addEventListener('input', () => {
+                window.actualizarPreviewOperacion();
+            });
+        });
+        ['op-tipo', 'op-moneda', 'op-fecha'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', () => {
+                window.actualizarPreviewOperacion();
+            });
+        });
+        document.getElementById('op-moneda')?.addEventListener('change', (e) => {
+            if (e.target.value && e.target.value !== 'EUR') {
+                window.consultarTasaCambioModal();
+            } else if (e.target.value === 'EUR') {
+                const tasaInput = document.getElementById('op-tasa-cambio');
+                if (tasaInput) tasaInput.value = '1.0';
+                window.actualizarPreviewOperacion();
+            }
+        });
+        document.getElementById('op-ticker')?.addEventListener('blur', (e) => {
+            const val = e.target.value.trim().toUpperCase();
+            const info = operacionesData?.activos_info?.[val];
+            if (info?.currency && !document.getElementById('op-moneda').value) {
+                if (info.currency !== 'EUR') {
+                    window.consultarTasaCambioModal();
+                }
+            }
+            window.actualizarPreviewOperacion();
+        });
 
         document.getElementById('add-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1804,51 +1911,6 @@
             navigator.clipboard.writeText(logsText).then(() => UI.showToast('Logs copiados'));
         };
 
-        let operacionesData = null;
-
-        window.abrirModalOperacion = (opId = null) => {
-            const form = document.getElementById('op-form');
-            form.reset();
-            
-            const modalTitle = document.getElementById('opModalTitle');
-            const idInput = document.getElementById('op-id');
-            const monedaSelect = document.getElementById('op-moneda');
-
-            if (opId) {
-                modalTitle.innerHTML = '✏️ Editar Operación';
-                idInput.value = opId;
-                const op = operacionesData?.operaciones.find(o => o.id === opId);
-                if (op) {
-                    document.getElementById('op-fecha').value = op.fecha.split(' ')[0];
-                    document.getElementById('op-ticker').value = op.ticker;
-                    document.getElementById('op-tipo').value = op.tipo;
-                    document.getElementById('op-cantidad').value = op.cantidad;
-                    document.getElementById('op-precio').value = op.precio;
-                    
-                    const opMoneda = op.moneda || '';
-                    if (opMoneda && !Array.from(monedaSelect.options).some(opt => opt.value === opMoneda)) {
-                        monedaSelect.add(new Option(opMoneda + ' (Importada)', opMoneda));
-                    }
-                    monedaSelect.value = opMoneda;
-                    
-                    document.getElementById('op-comisiones').value = op.comisiones || 0;
-                    document.getElementById('op-impuestos').value = op.impuestos || 0;
-                    document.getElementById('op-tasa-cambio').value = op.tasa_cambio || '';
-                    document.getElementById('op-amortizacion').value = op.amortizacion || 0;
-                    document.getElementById('op-intereses').value = op.intereses || 0;
-                } else {
-                    return UI.showToast('No se encontraron los datos de la operación', 'error');
-                }
-            } else {
-                modalTitle.innerHTML = '➕ Registrar Operación';
-                idInput.value = '';
-                document.getElementById('op-fecha').valueAsDate = new Date();
-                document.getElementById('op-moneda').value = '';
-            }
-            
-            document.getElementById('opModal').showModal();
-        };
-
         function setupOperacionesFilter() {
             const filtroInput = document.getElementById('filtro-operaciones');
             const tbody = document.getElementById('operaciones-table');
@@ -1981,16 +2043,20 @@
                     
                     let rentabilidadHtml = '-';
                     if (op.tipo === 'VENTA' || op.tipo === 'DIVIDENDO') {
-                        const pnlVal = op.pnl !== undefined ? op.pnl : (op.beneficio !== undefined ? op.beneficio : null);
-                        if (pnlVal !== null) {
-                            const pnlClass = pnlVal >= 0 ? 'text-success' : 'text-danger';
-                            const pnlSign = pnlVal > 0 ? '+' : '';
+                        const pnlEur = op.pnl_base !== undefined ? op.pnl_base : (op.pnl !== undefined ? op.pnl : null);
+                        const pnlOrig = op.pnl !== undefined ? op.pnl : null;
+                        if (pnlEur !== null) {
+                            const pnlClass = pnlEur >= 0 ? 'text-success' : 'text-danger';
+                            const pnlSign = pnlEur > 0 ? '+' : '';
                             let rentabPctHtml = '';
                             const pctVal = op.rentabilidad !== undefined ? op.rentabilidad : (op.rentabilidad_pct !== undefined ? op.rentabilidad_pct : null);
                             if (pctVal !== null && op.tipo !== 'DIVIDENDO') {
                                 rentabPctHtml = `<br><span style="font-size: 0.75em">(${pctVal > 0 ? '+' : ''}${(pctVal * 100).toFixed(2)}%)</span>`;
                             }
-                            rentabilidadHtml = `<span class="${pnlClass}">${pnlSign}${UI.formatCurrency(pnlVal, currency)}${rentabPctHtml}</span>`;
+                            const pnlOrigSub = (currency !== 'EUR' && pnlOrig !== null)
+                                ? `<br><span class="text-secondary opacity-75 font-monospace" style="font-size:0.7rem;">(${pnlSign}${UI.formatCurrency(pnlOrig, currency)})</span>`
+                                : '';
+                            rentabilidadHtml = `<span class="${pnlClass}">${pnlSign}${UI.formatCurrency(pnlEur, 'EUR')}</span>${pnlOrigSub}${rentabPctHtml}`;
                         }
                     }
 
@@ -1999,6 +2065,11 @@
                     const totalOperacion = isCompra 
                         ? (op.cantidad * op.precio) + comisiones + impuestos
                         : (op.cantidad * op.precio) - comisiones - impuestos;
+                    const tasaCambio = op.tasa_cambio || 1.0;
+                    const totalOperacionEur = totalOperacion * tasaCambio;
+                    const totalSubtext = (currency !== 'EUR')
+                        ? `<br><span class="text-secondary opacity-75 font-monospace" style="font-size: 0.7rem;">${UI.formatCurrency(totalOperacion, currency)}</span>`
+                        : '';
 
                     const isHipoteca = op.tipo === 'HIPOTECA_CUOTA';
                     const hipoSubtext = isHipoteca && (op.amortizacion || op.intereses)
@@ -2019,7 +2090,7 @@
                         <td class="text-end font-monospace">${UI.formatCurrency(op.precio, currency)}${hipoSubtext}</td>
                         <td class="text-end font-monospace text-secondary">${UI.formatCurrency(comisiones, currency)}</td>
                         <td class="text-end font-monospace text-secondary">${UI.formatCurrency(impuestos, currency)}</td>
-                        <td class="text-end font-monospace text-white fw-semibold">${UI.formatCurrency(totalOperacion, currency)}</td>
+                        <td class="text-end font-monospace text-white fw-semibold">${UI.formatCurrency(totalOperacionEur, 'EUR')}${totalSubtext}</td>
                         <td class="text-end font-monospace">${rentabilidadHtml}</td>
                         <td class="text-end pe-4">
                             <button onclick="abrirModalOperacion('${op.id}')" class="action-btn me-1" title="Editar">

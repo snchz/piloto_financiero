@@ -855,6 +855,19 @@ def map_rebalanceo_asset():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/exchange-rate', methods=['GET'])
+def get_rate():
+    try:
+        from_curr = request.args.get('currency', '').upper().strip()
+        fecha = normalize_date(request.args.get('date') or datetime.now().strftime('%Y-%m-%d'))
+        if not from_curr or from_curr in ('EUR', '-'):
+            return jsonify({"currency": from_curr or 'EUR', "date": fecha, "rate": 1.0})
+        rate = get_historical_exchange_rate(from_curr, fecha, 'EUR')
+        return jsonify({"currency": from_curr, "date": fecha, "rate": rate})
+    except Exception as e:
+        log_debug(f"Error obteniendo tipo de cambio: {e}", "ERROR")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/operaciones/add', methods=['POST'])
 def add_operacion():
     data = request.json or {}
