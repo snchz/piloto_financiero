@@ -207,12 +207,31 @@
         }
 
         /* Navigation Tabs */
+        .nav-tabs {
+            border-bottom: 1px solid var(--border-color) !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .nav-tabs::-webkit-scrollbar {
+            display: none;
+        }
+        .nav-tabs .nav-item {
+            flex-shrink: 0;
+        }
         .nav-tabs .nav-link {
+            white-space: nowrap;
             border-bottom: 2px solid transparent !important;
             color: var(--text-secondary) !important;
             font-weight: 500;
-            padding-bottom: 0.5rem !important;
+            padding: 0.5rem 0.5rem 0.6rem !important;
             transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.85rem;
         }
         .nav-tabs .nav-link:hover {
             color: var(--text-primary) !important;
@@ -220,6 +239,24 @@
         .nav-tabs .nav-link.active {
             border-bottom-color: var(--accent) !important;
             color: var(--text-primary) !important;
+            font-weight: 600;
+        }
+
+        .op-filter-btn {
+            font-size: 0.72rem;
+            padding: 3px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: transparent;
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .op-filter-btn:hover, .op-filter-btn.active {
+            background: var(--accent);
+            color: #ffffff;
+            border-color: var(--accent);
             font-weight: 600;
         }
 
@@ -289,7 +326,7 @@
         <!-- Top Navigation Bar -->
         <header class="mb-3 border-bottom border-secondary border-opacity-25 pb-2">
             <div class="d-flex flex-wrap w-100 justify-content-between align-items-center gap-2 mb-2">
-                <div class="d-flex align-items-center gap-3">
+                <div class="d-flex align-items-center gap-2 gap-sm-3">
                     <div class="d-flex align-items-center gap-2">
                         <img src="/static/favicon.svg" alt="Logo" width="28" height="28" class="rounded-2 shadow-sm" style="filter: drop-shadow(0 2px 6px rgba(99,102,241,0.45));">
                         <span class="brand"><span id="brand-text">{{ app_title }}</span></span>
@@ -300,43 +337,58 @@
                     </span>
                 </div>
                 <div class="d-flex align-items-center gap-2">
+                    <div class="form-check form-switch m-0 d-flex align-items-center gap-2 px-2 py-1 rounded-pill glass-panel shadow-sm" style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color);" title="Incluir o excluir activos inmobiliarios en todas las métricas, gráficos y tablas">
+                        <input class="form-check-input ms-0 mt-0" type="checkbox" role="switch" id="toggleRealEstate" onchange="cargarOperaciones()">
+                        <label class="form-check-label small text-secondary fw-medium" for="toggleRealEstate" style="cursor: pointer; user-select: none; font-size: 0.75rem;">🏠 <span class="d-none d-sm-inline">Incluir </span>Inmuebles</label>
+                    </div>
                     <button class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-1 shadow-sm" onclick="abrirModalOperacion()">
                         <span>➕</span>
-                        <span>Añadir Operación</span>
+                        <span class="d-none d-sm-inline">Añadir Operación</span>
                     </button>
                     <button class="action-btn" onclick="abrirConfig(); syncLogs();" title="Configuración" style="font-size: 1.15rem;">⚙️</button>
-                    <div class="version-badge font-monospace">v<span id="version">{{ version }}</span></div>
+                    <div class="version-badge font-monospace d-none d-md-block">v<span id="version">{{ version }}</span></div>
                 </div>
             </div>
             
-            <ul class="nav nav-tabs border-bottom-0 gap-3" id="myTab" role="tablist">
+            <ul class="nav nav-tabs border-bottom-0 gap-1 gap-md-2" id="myTab" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active bg-transparent border-0 px-1 fw-semibold" id="operaciones-tab" data-bs-toggle="tab" data-bs-target="#nav-operaciones" type="button" role="tab" onclick="cargarOperaciones();">Operaciones y Cartera</button>
+                    <button class="nav-link active bg-transparent border-0 px-2 fw-semibold" id="resumen-tab" data-bs-toggle="tab" data-bs-target="#nav-resumen" type="button" role="tab">
+                        <span>📊</span><span>Resumen</span>
+                    </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link bg-transparent border-0 px-1 fw-semibold" id="alertas-tab" data-bs-toggle="tab" data-bs-target="#nav-alertas" type="button" role="tab">Monitores y Alertas</button>
+                    <button class="nav-link bg-transparent border-0 px-2 fw-semibold" id="cartera-tab" data-bs-toggle="tab" data-bs-target="#nav-cartera" type="button" role="tab">
+                        <span>💼</span><span>Cartera</span>
+                    </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link bg-transparent border-0 px-1 fw-semibold" id="actividad-tab" data-bs-toggle="tab" data-bs-target="#nav-actividad" type="button" role="tab">Actividad Reciente</button>
+                    <button class="nav-link bg-transparent border-0 px-2 fw-semibold" id="rebalanceo-tab" data-bs-toggle="tab" data-bs-target="#nav-rebalanceo" type="button" role="tab">
+                        <span>🎯</span><span>Rebalanceo</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link bg-transparent border-0 px-2 fw-semibold" id="operaciones-tab" data-bs-toggle="tab" data-bs-target="#nav-operaciones" type="button" role="tab">
+                        <span>📜</span><span>Operaciones</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link bg-transparent border-0 px-2 fw-semibold" id="alertas-tab" data-bs-toggle="tab" data-bs-target="#nav-alertas" type="button" role="tab">
+                        <span>🔔</span><span>Monitores y Alertas</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link bg-transparent border-0 px-2 fw-semibold" id="actividad-tab" data-bs-toggle="tab" data-bs-target="#nav-actividad" type="button" role="tab">
+                        <span>⚡</span><span>Actividad</span>
+                    </button>
                 </li>
             </ul>
         </header>
 
         <div class="tab-content flex-grow-1 d-flex flex-column" id="nav-tabContent">
             
-            <!-- TAB 1: Operaciones y Cartera -->
-            <div class="tab-pane fade show active flex-grow-1" id="nav-operaciones" role="tabpanel" aria-labelledby="operaciones-tab">
+            <!-- TAB 1: Resumen Ejecutivo -->
+            <div class="tab-pane fade show active flex-grow-1" id="nav-resumen" role="tabpanel" aria-labelledby="resumen-tab">
                 <div class="d-flex flex-column gap-3">
-                    
-                    <!-- Filtro Global a nivel de Pestaña -->
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <span class="text-secondary small fw-semibold text-uppercase font-monospace" style="font-size: 0.72rem; letter-spacing: 0.06em;">Resumen de Cartera</span>
-                        <div class="form-check form-switch m-0 d-flex align-items-center gap-2 px-3 py-1 rounded-pill glass-panel shadow-sm" style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color);" title="Incluir o excluir activos inmobiliarios en todas las métricas, gráficos y tablas de la pestaña">
-                            <input class="form-check-input ms-0 mt-0" type="checkbox" role="switch" id="toggleRealEstate" onchange="cargarOperaciones()">
-                            <label class="form-check-label small text-secondary fw-medium" for="toggleRealEstate" style="cursor: pointer; user-select: none; font-size: 0.78rem;">🏠 Incluir Inmuebles</label>
-                        </div>
-                    </div>
-                    
                     <!-- Hero Bento Grid KPIs -->
                     <div class="row g-2 align-items-stretch">
                         <!-- Hero Card: Valor Total -->
@@ -489,89 +541,107 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <!-- Row 2.5: Estrategia y Rebalanceo Objetivo -->
-                    <div class="glass-panel d-flex flex-column overflow-hidden" id="panel-rebalanceo">
-                        <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                            <div class="d-flex align-items-center gap-2">
-                                <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">🎯 Estrategia y Rebalanceo Objetivo</h5>
-                                <span class="badge font-monospace" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); font-size: 0.68rem;">Cash-Flow Rebalancing</span>
-                            </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <button class="action-btn px-2 py-1 text-secondary small d-flex align-items-center gap-1 shadow-sm" onclick="abrirConfigTagsModal()" title="Configurar Categorías y Objetivos de la Cartera" style="font-size: 0.78rem; height: auto;">
-                                    <span>⚙️</span><span>Configurar Estrategia</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="p-3">
-                            <!-- Cards de Categorías de la Estrategia -->
-                            <div class="row g-2 mb-3" id="rebalanceo-tags-grid">
-                                <div class="col-12 text-center py-3 text-secondary small">Cargando estrategia de inversión...</div>
-                            </div>
-
-                            <!-- Calculadora de Aportación Mensual -->
-                            <div class="p-3 rounded-3" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06);">
-                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-                                    <div>
-                                        <span class="fw-bold text-white small d-block">💡 Calculadora de Aportación Mensual</span>
-                                        <span class="text-secondary small" style="font-size: 0.75rem;">Optimiza el capital nuevo asignándolo a los activos en déficit frente al objetivo sin forzar ventas.</span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div class="input-group input-group-sm" style="max-width: 250px;">
-                                            <span class="input-group-text bg-dark border-secondary border-opacity-50 text-secondary">Aportar</span>
-                                            <input type="number" id="input-aportacion-mes" class="form-control bg-dark text-white border-secondary border-opacity-50 font-monospace text-end" value="500" min="0" step="50" oninput="debounceCalcularRebalanceo()">
-                                            <span class="input-group-text bg-dark border-secondary border-opacity-50 text-secondary">€</span>
-                                            <button class="btn btn-primary px-3" type="button" onclick="ejecutarCalculoRebalanceo()">Calcular</button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="d-flex flex-wrap gap-1 mb-3">
-                                    <span class="text-secondary small me-1 align-self-center" style="font-size: 0.72rem;">Importe:</span>
-                                    <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(100)">100 €</button>
-                                    <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(200)">200 €</button>
-                                    <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(300)">300 €</button>
-                                    <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(500)">500 €</button>
-                                    <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(1000)">1.000 €</button>
-                                </div>
-
-                                <div id="rebalanceo-sugerencias-container">
-                                    <!-- Aquí se inyectan las compras recomendadas del mes -->
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Row 3: Mi Cartera (Abierta) -->
-                    <div class="glass-panel d-flex flex-column">
-                        <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
-                            <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Mi Cartera (Abierta)</h5>
+            <!-- TAB 2: Cartera (Posiciones Abiertas) -->
+            <div class="tab-pane fade flex-grow-1" id="nav-cartera" role="tabpanel" aria-labelledby="cartera-tab">
+                <div class="glass-panel d-flex flex-column">
+                    <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">💼 Mi Cartera (Posiciones Abiertas)</h5>
                             <span class="text-secondary small font-monospace" id="count-cartera-activos">0 activos</span>
                         </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-borderless align-middle mb-0">
-                                <thead class="bg-dark bg-opacity-40 sticky-top" style="z-index: 1;">
-                                    <tr>
-                                        <th class="ps-4">Activo</th>
-                                        <th class="text-end">Cantidad <span style="cursor: help;" data-bs-toggle="tooltip" title="Número total de títulos que posees actualmente.">ℹ️</span></th>
-                                        <th class="text-end">Coste Medio <span style="cursor: help;" data-bs-toggle="tooltip" title="Precio promedio de compra incluyendo comisiones.">ℹ️</span></th>
-                                        <th class="text-end">Precio Actual <span style="cursor: help;" data-bs-toggle="tooltip" title="Última cotización de mercado registrada y variación diaria.">ℹ️</span></th>
-                                        <th class="text-end">Valor Actual <span style="cursor: help;" data-bs-toggle="tooltip" title="Valoración a precio de mercado (Cantidad × Precio Actual).">ℹ️</span></th>
-                                        <th class="text-end">Rentab. % <span style="cursor: help;" data-bs-toggle="tooltip" title="Ganancia o pérdida porcentual acumulada sobre este activo.">ℹ️</span></th>
-                                        <th class="text-end pe-4">Beneficio / Pérdida <span style="cursor: help;" data-bs-toggle="tooltip" title="Ganancia o pérdida total en euros (P&L Latente) de la posición.">ℹ️</span></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="cartera-table">
-                                    <tr><td colspan="7" class="text-center py-4 text-secondary">Cargando datos de cartera...</td></tr>
-                                </tbody>
-                            </table>
+                        <button class="btn btn-outline-primary btn-sm py-1 px-2 d-flex align-items-center gap-1 shadow-sm" onclick="abrirModalOperacion()" style="font-size: 0.78rem;">
+                            <span>➕</span><span>Nueva Operación</span>
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless align-middle mb-0">
+                            <thead class="bg-dark bg-opacity-40 sticky-top" style="z-index: 1;">
+                                <tr>
+                                    <th class="ps-4">Activo</th>
+                                    <th class="text-end">Cantidad <span style="cursor: help;" data-bs-toggle="tooltip" title="Número total de títulos que posees actualmente.">ℹ️</span></th>
+                                    <th class="text-end">Coste Medio <span style="cursor: help;" data-bs-toggle="tooltip" title="Precio promedio de compra incluyendo comisiones.">ℹ️</span></th>
+                                    <th class="text-end">Precio Actual <span style="cursor: help;" data-bs-toggle="tooltip" title="Última cotización de mercado registrada y variación diaria.">ℹ️</span></th>
+                                    <th class="text-end">Valor Actual <span style="cursor: help;" data-bs-toggle="tooltip" title="Valoración a precio de mercado (Cantidad × Precio Actual).">ℹ️</span></th>
+                                    <th class="text-end">Rentab. % <span style="cursor: help;" data-bs-toggle="tooltip" title="Ganancia o pérdida porcentual acumulada sobre este activo.">ℹ️</span></th>
+                                    <th class="text-end pe-4">Beneficio / Pérdida <span style="cursor: help;" data-bs-toggle="tooltip" title="Ganancia o pérdida total en euros (P&L Latente) de la posición.">ℹ️</span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="cartera-table">
+                                <tr><td colspan="7" class="text-center py-4 text-secondary">Cargando datos de cartera...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: Rebalanceo y Estrategia -->
+            <div class="tab-pane fade flex-grow-1" id="nav-rebalanceo" role="tabpanel" aria-labelledby="rebalanceo-tab">
+                <div class="glass-panel d-flex flex-column overflow-hidden" id="panel-rebalanceo">
+                    <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">🎯 Estrategia y Rebalanceo Objetivo</h5>
+                            <span class="badge font-monospace" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); font-size: 0.68rem;">Cash-Flow Rebalancing</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="action-btn px-2 py-1 text-secondary small d-flex align-items-center gap-1 shadow-sm" onclick="abrirConfigTagsModal()" title="Configurar Categorías y Objetivos de la Cartera" style="font-size: 0.78rem; height: auto;">
+                                <span>⚙️</span><span>Configurar Estrategia</span>
+                            </button>
                         </div>
                     </div>
+                    <div class="p-3">
+                        <!-- Cards de Categorías de la Estrategia -->
+                        <div class="row g-2 mb-3" id="rebalanceo-tags-grid">
+                            <div class="col-12 text-center py-3 text-secondary small">Cargando estrategia de inversión...</div>
+                        </div>
 
-                    <!-- Row 4: Historial de Operaciones -->
-                    <div class="glass-panel d-flex flex-column">
-                        <div class="d-flex flex-wrap justify-content-between align-items-center p-3 border-bottom border-secondary border-opacity-25 gap-2">
-                            <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Historial de Operaciones</h5>
+                        <!-- Calculadora de Aportación Mensual -->
+                        <div class="p-3 rounded-3" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06);">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                <div>
+                                    <span class="fw-bold text-white small d-block">💡 Calculadora de Aportación Mensual</span>
+                                    <span class="text-secondary small" style="font-size: 0.75rem;">Optimiza el capital nuevo asignándolo a los activos en déficit frente al objetivo sin forzar ventas.</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="input-group input-group-sm" style="max-width: 250px;">
+                                        <span class="input-group-text bg-dark border-secondary border-opacity-50 text-secondary">Aportar</span>
+                                        <input type="number" id="input-aportacion-mes" class="form-control bg-dark text-white border-secondary border-opacity-50 font-monospace text-end" value="500" min="0" step="50" oninput="debounceCalcularRebalanceo()">
+                                        <span class="input-group-text bg-dark border-secondary border-opacity-50 text-secondary">€</span>
+                                        <button class="btn btn-primary px-3" type="button" onclick="ejecutarCalculoRebalanceo()">Calcular</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex flex-wrap gap-1 mb-3">
+                                <span class="text-secondary small me-1 align-self-center" style="font-size: 0.72rem;">Importe:</span>
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(100)">100 €</button>
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(200)">200 €</button>
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(300)">300 €</button>
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(500)">500 €</button>
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(1000)">1.000 €</button>
+                            </div>
+
+                            <div id="rebalanceo-sugerencias-container">
+                                <!-- Aquí se inyectan las compras recomendadas del mes -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: Historial de Operaciones -->
+            <div class="tab-pane fade flex-grow-1" id="nav-operaciones" role="tabpanel" aria-labelledby="operaciones-tab">
+                <div class="glass-panel d-flex flex-column">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center p-3 border-bottom border-secondary border-opacity-25 gap-2">
+                        <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">📜 Historial de Operaciones</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-1 shadow-sm" onclick="abrirModalOperacion()">
+                                <span>➕</span>
+                                <span>Nueva Operación</span>
+                            </button>
+                            <div class="vr bg-secondary opacity-25 d-none d-sm-block" style="height: 20px;"></div>
                             <div class="d-flex align-items-center gap-1">
                                 <button class="action-btn" onclick="exportExcel('operaciones')" title="Exportar a CSV">
                                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
@@ -582,32 +652,42 @@
                                 <input type="file" id="import-operaciones-file" style="display:none" accept=".csv,.xls" onchange="importExcel('operaciones', this)">
                             </div>
                         </div>
-                        <div class="p-3 border-bottom border-secondary border-opacity-25">
-                            <input type="text" id="filtro-operaciones" class="form-control" placeholder="🔎 Buscar por Ticker, ISIN o Nombre...">
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-borderless align-middle mb-0">
-                                <thead class="bg-dark bg-opacity-40 sticky-top" style="z-index: 1;">
-                                    <tr>
-                                        <th class="ps-4">Fecha</th>
-                                        <th>Ticker / Activo</th>
-                                        <th class="text-center">Tipo</th>
-                                        <th class="text-end">Cantidad</th>
-                                        <th class="text-end">Precio</th>
-                                        <th class="text-end">Comisiones</th>
-                                        <th class="text-end">Impuestos</th>
-                                        <th class="text-end">Total (€)</th>
-                                        <th class="text-end">Rentabilidad</th>
-                                        <th class="text-end pe-4">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="operaciones-table">
-                                    <tr><td colspan="10" class="text-center py-4 text-secondary">Cargando operaciones...</td></tr>
-                                </tbody>
-                            </table>
+                    </div>
+                    
+                    <!-- Barra de Búsqueda y Filtros Rápidos -->
+                    <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex flex-column gap-2">
+                        <input type="text" id="filtro-operaciones" class="form-control" placeholder="🔎 Buscar por Ticker, ISIN, Tipo o Nombre...">
+                        <div class="d-flex flex-wrap gap-1 align-items-center">
+                            <span class="text-secondary small me-1 font-monospace" style="font-size: 0.72rem;">Tipo:</span>
+                            <button type="button" class="op-filter-btn active" onclick="filtrarOperacionesPorTipo('TODOS', this)">Todas</button>
+                            <button type="button" class="op-filter-btn" onclick="filtrarOperacionesPorTipo('COMPRA', this)">Compras / Aportaciones</button>
+                            <button type="button" class="op-filter-btn" onclick="filtrarOperacionesPorTipo('VENTA', this)">Ventas</button>
+                            <button type="button" class="op-filter-btn" onclick="filtrarOperacionesPorTipo('DIVIDENDO', this)">Dividendos</button>
+                            <button type="button" class="op-filter-btn" onclick="filtrarOperacionesPorTipo('INMUEBLE', this)">🏠 Inmuebles / Hipotecas</button>
                         </div>
                     </div>
 
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless align-middle mb-0">
+                            <thead class="bg-dark bg-opacity-40 sticky-top" style="z-index: 1;">
+                                <tr>
+                                    <th class="ps-4">Fecha</th>
+                                    <th>Ticker / Activo</th>
+                                    <th class="text-center">Tipo</th>
+                                    <th class="text-end">Cantidad</th>
+                                    <th class="text-end">Precio</th>
+                                    <th class="text-end">Comisiones</th>
+                                    <th class="text-end">Impuestos</th>
+                                    <th class="text-end">Total (€)</th>
+                                    <th class="text-end">Rentabilidad</th>
+                                    <th class="text-end pe-4">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="operaciones-table">
+                                <tr><td colspan="10" class="text-center py-4 text-secondary">Cargando operaciones...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -1545,11 +1625,12 @@
             const modalTitle = document.getElementById('opModalTitle');
             const idInput = document.getElementById('op-id');
             const monedaSelect = document.getElementById('op-moneda');
+            let op = null;
 
             if (opId) {
                 modalTitle.innerHTML = '✏️ Editar Operación';
                 idInput.value = opId;
-                const op = operacionesData?.operaciones.find(o => o.id === opId);
+                op = operacionesData?.operaciones.find(o => o.id === opId);
                 if (op) {
                     const isRealEstate = ['ENTRADA_INMUEBLE', 'HIPOTECA_CUOTA', 'REFORMA_MEJORA'].includes(op.tipo);
                     if (isRealEstate) {
@@ -1866,21 +1947,51 @@
             navigator.clipboard.writeText(logsText).then(() => UI.showToast('Logs copiados'));
         };
 
-        function setupOperacionesFilter() {
+        let filtroTipoOperacion = 'TODOS';
+
+        window.filtrarOperacionesPorTipo = (tipo, btn) => {
+            filtroTipoOperacion = tipo;
+            document.querySelectorAll('.op-filter-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            aplicarFiltroOperaciones();
+        };
+
+        function aplicarFiltroOperaciones() {
             const filtroInput = document.getElementById('filtro-operaciones');
             const tbody = document.getElementById('operaciones-table');
-            if (!filtroInput || !tbody) return;
+            if (!tbody) return;
 
-            filtroInput.addEventListener('input', function(e) {
-                const textoBusqueda = e.target.value.toLowerCase().trim();
-                const filas = tbody.getElementsByTagName('tr');
+            const textoBusqueda = (filtroInput ? filtroInput.value : '').toLowerCase().trim();
+            const filas = tbody.getElementsByTagName('tr');
 
-                for (let i = 0; i < filas.length; i++) {
-                    const fila = filas[i];
-                    const textoFila = fila.textContent || fila.innerText;
-                    fila.style.display = textoFila.toLowerCase().includes(textoBusqueda) ? "" : "none";
+            for (let i = 0; i < filas.length; i++) {
+                const fila = filas[i];
+                const tipoOp = fila.getAttribute('data-tipo') || '';
+                const textoFila = (fila.textContent || fila.innerText).toLowerCase();
+
+                const coincideTexto = !textoBusqueda || textoFila.includes(textoBusqueda);
+                let coincideTipo = true;
+
+                if (filtroTipoOperacion === 'COMPRA') {
+                    coincideTipo = tipoOp === 'COMPRA' || tipoOp === 'APORTACION';
+                } else if (filtroTipoOperacion === 'VENTA') {
+                    coincideTipo = tipoOp === 'VENTA';
+                } else if (filtroTipoOperacion === 'DIVIDENDO') {
+                    coincideTipo = tipoOp === 'DIVIDENDO';
+                } else if (filtroTipoOperacion === 'INMUEBLE') {
+                    coincideTipo = ['ENTRADA_INMUEBLE', 'HIPOTECA_CUOTA', 'REFORMA_MEJORA'].includes(tipoOp);
                 }
-            });
+
+                fila.style.display = (coincideTexto && coincideTipo) ? "" : "none";
+            }
+        }
+
+        function setupOperacionesFilter() {
+            const filtroInput = document.getElementById('filtro-operaciones');
+            if (filtroInput && !filtroInput.dataset.listenerAttached) {
+                filtroInput.addEventListener('input', aplicarFiltroOperaciones);
+                filtroInput.dataset.listenerAttached = 'true';
+            }
         }
 
         window.cargarOperaciones = async () => {
@@ -2050,7 +2161,7 @@
                         : '';
 
                     return `
-                    <tr>
+                    <tr data-tipo="${op.tipo}">
                         <td class="ps-4 font-monospace text-secondary" style="font-size: 0.82rem">${op.fecha}</td>
                         <td>
                             <div class="fw-bold text-white">${name || op.ticker}</div>
@@ -2078,6 +2189,7 @@
                 
                 document.getElementById('operaciones-table').innerHTML = opsHtml || '<tr><td colspan="10" class="text-center py-4 text-secondary">No hay operaciones registradas</td></tr>';
                 setupOperacionesFilter();
+                aplicarFiltroOperaciones();
 
                 // 3. Renderizar KPIs Resumen Global
                 document.getElementById('resumen-valor-total').textContent = UI.formatCurrency(totalValor, 'EUR');
@@ -2651,6 +2763,17 @@
             const fechaInput = document.getElementById('op-fecha');
             if (fechaInput) fechaInput.valueAsDate = new Date();
             cargarOperaciones();
+
+            // Auto-resize de gráficos Chart.js al cambiar a la pestaña Resumen
+            document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tabBtn => {
+                tabBtn.addEventListener('shown.bs.tab', (e) => {
+                    if (e.target.id === 'resumen-tab') {
+                        if (window.equityCurveChartInstance) window.equityCurveChartInstance.resize();
+                        if (window.allocationChartInstance) window.allocationChartInstance.resize();
+                        if (window.currencyChartInstance) window.currencyChartInstance.resize();
+                    }
+                });
+            });
         });
     </script>
 </body>
