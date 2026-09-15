@@ -337,6 +337,9 @@
                     </span>
                 </div>
                 <div class="d-flex align-items-center gap-2">
+                    <button id="btn-modo-miron" class="action-btn d-flex align-items-center justify-content-center p-0" onclick="toggleModoMiron()" title="Modo Mirón" style="font-size: 1.15rem; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.04);">
+                        <span id="icono-miron" style="opacity: 0.55; filter: grayscale(1); transition: all 0.2s; user-select: none;">👁️</span>
+                    </button>
                     <div class="form-check form-switch m-0 d-flex align-items-center gap-2 px-2 py-1 rounded-pill glass-panel shadow-sm" style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color);" title="Incluir o excluir activos inmobiliarios en todas las métricas, gráficos y tablas">
                         <input class="form-check-input ms-0 mt-0" type="checkbox" role="switch" id="toggleRealEstate" onchange="cargarOperaciones()">
                         <label class="form-check-label small text-secondary fw-medium" for="toggleRealEstate" style="cursor: pointer; user-select: none; font-size: 0.75rem;">🏠 <span class="d-none d-sm-inline">Incluir </span>Inmuebles</label>
@@ -1650,7 +1653,8 @@
                     document.getElementById('op-fecha').value = op.fecha.split(' ')[0];
                     document.getElementById('op-ticker').value = op.ticker;
                     document.getElementById('op-tipo').value = op.tipo;
-                    document.getElementById('op-cantidad').value = op.cantidad || 1;
+                    const cantVal = (window.modoMiron && op.raw_cantidad !== undefined) ? op.raw_cantidad : (op.cantidad || 1);
+                    document.getElementById('op-cantidad').value = cantVal;
                     document.getElementById('op-precio').value = op.precio;
                     
                     const opMoneda = op.moneda || '';
@@ -1659,8 +1663,10 @@
                     }
                     monedaSelect.value = opMoneda;
                     
-                    document.getElementById('op-comisiones').value = op.comisiones || 0;
-                    document.getElementById('op-impuestos').value = op.impuestos || 0;
+                    const comVal = (window.modoMiron && op.raw_comisiones !== undefined) ? op.raw_comisiones : (op.comisiones || 0);
+                    document.getElementById('op-comisiones').value = comVal;
+                    const impVal = (window.modoMiron && op.raw_impuestos !== undefined) ? op.raw_impuestos : (op.impuestos || 0);
+                    document.getElementById('op-impuestos').value = impVal;
                     document.getElementById('op-tasa-cambio').value = op.tasa_cambio || '';
                     document.getElementById('op-amortizacion').value = op.amortizacion || '';
                     document.getElementById('op-intereses').value = op.intereses || '';
@@ -1994,10 +2000,36 @@
             }
         }
 
+        window.modoMiron = false;
+        window.toggleModoMiron = () => {
+            window.modoMiron = !window.modoMiron;
+            const btn = document.getElementById('btn-modo-miron');
+            const icono = document.getElementById('icono-miron');
+            if (btn && icono) {
+                if (window.modoMiron) {
+                    btn.style.background = 'rgba(99, 102, 241, 0.25)';
+                    btn.style.borderColor = 'rgba(129, 140, 248, 0.5)';
+                    btn.style.boxShadow = '0 0 10px rgba(99, 102, 241, 0.35)';
+                    icono.style.opacity = '1';
+                    icono.style.filter = 'none';
+                    icono.style.transform = 'scale(1.15)';
+                } else {
+                    btn.style.background = 'rgba(255, 255, 255, 0.04)';
+                    btn.style.borderColor = 'var(--border-color)';
+                    btn.style.boxShadow = 'none';
+                    icono.style.opacity = '0.55';
+                    icono.style.filter = 'grayscale(1)';
+                    icono.style.transform = 'scale(1)';
+                }
+            }
+            window.cargarOperaciones();
+        };
+
         window.cargarOperaciones = async () => {
             try {
                 const includeRealEstate = document.getElementById('toggleRealEstate')?.checked ?? false;
-                const data = await API.fetch(`/api/operaciones?include_real_estate=${includeRealEstate ? 1 : 0}`);
+                const mironParam = window.modoMiron ? '&miron=1' : '';
+                const data = await API.fetch(`/api/operaciones?include_real_estate=${includeRealEstate ? 1 : 0}${mironParam}`);
                 operacionesData = data;
                 
                 if (data.warning_api_error) {
@@ -2381,7 +2413,8 @@
             }
 
             try {
-                const res = await API.fetch(`/api/rebalanceo?aportacion=${aportacion}`);
+                const mironParam = window.modoMiron ? '&miron=1' : '';
+                const res = await API.fetch(`/api/rebalanceo?aportacion=${aportacion}${mironParam}`);
                 lastRebalanceoData = res;
 
                 // 1. Renderizar Tarjetas de Categorías

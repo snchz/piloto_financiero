@@ -396,7 +396,7 @@ def get_info(ticker):
         return jsonify({"error": str(e)}), 500
 
 # --- Operaciones API ---
-def calcular_datos_cartera(include_real_estate=False):
+def calcular_datos_cartera(include_real_estate=False, multiplier=1.0):
     with db.get_db() as conn:
         rows = conn.execute("SELECT * FROM operaciones ORDER BY fecha ASC").fetchall()
         operaciones = [dict(row) for row in rows]
@@ -413,6 +413,21 @@ def calcular_datos_cartera(include_real_estate=False):
             if info_t.get('tipo') != 'INMUEBLE':
                 operaciones_filtradas.append(op)
         operaciones = operaciones_filtradas
+
+    # Modo mirón: multiplicar por factor (x3) únicamente inversiones financieras
+    if multiplier != 1.0:
+        for op in operaciones:
+            info_t = get_asset_info_cached(op['ticker'])
+            is_inmueble = info_t.get('tipo') == 'INMUEBLE' or op.get('tipo') in ('ENTRADA_INMUEBLE', 'HIPOTECA_CUOTA', 'REFORMA_MEJORA')
+            if not is_inmueble:
+                op['raw_cantidad'] = op['cantidad']
+                op['raw_comisiones'] = op.get('comisiones', 0.0)
+                op['raw_impuestos'] = op.get('impuestos', 0.0)
+                op['cantidad'] = float(op['cantidad']) * multiplier
+                if op.get('comisiones'):
+                    op['comisiones'] = float(op['comisiones']) * multiplier
+                if op.get('impuestos'):
+                    op['impuestos'] = float(op['impuestos']) * multiplier
         
     # Agrupar por ticker
     activos = {}
@@ -604,7 +619,9 @@ def calcular_datos_cartera(include_real_estate=False):
 def get_operaciones():
     try:
         include_real_estate = request.args.get('include_real_estate', '0') == '1'
-        datos = calcular_datos_cartera(include_real_estate=include_real_estate)
+        miron = request.args.get('miron', '0') == '1'
+        multiplier = 3.0 if miron else 1.0
+        datos = calcular_datos_cartera(include_real_estate=include_real_estate, multiplier=multiplier)
         operaciones = datos['operaciones']
         cartera = datos['cartera']
         activos_info = datos['activos_info']
@@ -775,12 +792,14 @@ def get_operaciones():
 def get_rebalanceo():
     try:
         aportacion_str = request.args.get('aportacion', '0')
+        miron = request.args.get('miron', '0') == '1'
+        multiplier = 3.0 if miron else 1.0
         try:
             aportacion = float(aportacion_str)
         except (ValueError, TypeError):
             aportacion = 0.0
 
-        datos = calcular_datos_cartera(include_real_estate=False)
+        datos = calcular_datos_cartera(include_real_estate=False, multiplier=multiplier)
         tags_config = datos['tags_list']
         asset_tags = datos['asset_tags_map']
 
