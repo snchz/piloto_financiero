@@ -58,6 +58,40 @@ def xirr(cash_flows, guess=0.1, max_iter=100, tol=1e-6):
         
     return None # No converge
 
+def calcular_tir_real(flujos_caja, ipc_map):
+    """
+    Calcula la TIR Real anualizada deflactando los flujos de caja a euros de poder adquisitivo actual.
+    CF_real = CF_nominal * (IPC_actual / IPC_flujo)
+    """
+    if not flujos_caja or not ipc_map:
+        return None
+
+    sorted_keys = sorted(ipc_map.keys())
+    if not sorted_keys:
+        return None
+
+    latest_ym = sorted_keys[-1]
+    ipc_actual = ipc_map[latest_ym]
+
+    def _lookup_ipc(dt):
+        ym = (dt.year, dt.month)
+        if ym in ipc_map:
+            return ipc_map[ym]
+        if ym < sorted_keys[0]:
+            return ipc_map[sorted_keys[0]]
+        return ipc_actual
+
+    flujos_reales = []
+    for dt, cf in flujos_caja:
+        ipc_dt = _lookup_ipc(dt)
+        if ipc_dt and ipc_dt > 0:
+            factor = ipc_actual / ipc_dt
+            flujos_reales.append((dt, cf * factor))
+        else:
+            flujos_reales.append((dt, cf))
+
+    return xirr(flujos_reales)
+
 def calcular_fifo(operaciones_activo):
     """
     Recibe una lista de operaciones (diccionarios) de un mismo activo.
@@ -411,7 +445,7 @@ def simular_benchmark_cartera(fechas, flujos_caja, ticker="VWCE.DE", cache=None)
 
     return valores_simulados
 
-def calcular_metricas_avanzadas(history, tir_anualizada=None):
+def calcular_metricas_avanzadas(history, tir_anualizada=None, ipc_map=None):
     import math
     from datetime import datetime
     
@@ -421,6 +455,11 @@ def calcular_metricas_avanzadas(history, tir_anualizada=None):
     if len(values) < 2:
         return {
             "twr": 0.0,
+            "twr_anual": 0.0,
+            "twr_real": 0.0,
+            "twr_real_anual": 0.0,
+            "inflacion_acumulada": 0.0,
+            "inflacion_anualizada": 0.0,
             "volatilidad": 0.0,
             "sharpe": 0.0,
             "max_drawdown": 0.0
@@ -454,6 +493,8 @@ def calcular_metricas_avanzadas(history, tir_anualizada=None):
         days = max((d2 - d1).days, 1)
     except Exception:
         days = 365
+        d1 = datetime.now()
+        d2 = datetime.now()
         
     if days > 365 * 2:
         periods_per_year = 12 # Frecuencia mensual (ME)
@@ -495,9 +536,50 @@ def calcular_metricas_avanzadas(history, tir_anualizada=None):
             dd = (peak - val) / peak
             if dd > max_dd:
                 max_dd = dd
+
+    # Inflación y métricas reales (IPC)
+    inflacion_acum = 0.0
+    inflacion_anual = 0.0
+    twr_real_cum = twr_cum
+    twr_real_anual = twr_anual
+
+    if ipc_map and history.get("labels"):
+        sorted_keys = sorted(ipc_map.keys())
+        if sorted_keys:
+            latest_ym = sorted_keys[-1]
+            ipc_latest = ipc_map[latest_ym]
+
+            def _lookup_ipc(dt):
+                ym = (dt.year, dt.month)
+                if ym in ipc_map:
+                    return ipc_map[ym]
+                if ym < sorted_keys[0]:
+                    return ipc_map[sorted_keys[0]]
+                return ipc_latest
+
+            ipc_start = _lookup_ipc(d1)
+            ipc_end = _lookup_ipc(d2)
+            if ipc_start and ipc_start > 0:
+                inflacion_acum = (ipc_end / ipc_start) - 1.0
+                if years > 0 and inflacion_acum > -1.0:
+                    inflacion_anual = (1.0 + inflacion_acum) ** (1.0 / years) - 1.0
+                else:
+                    inflacion_anual = inflacion_acum
+
+                if inflacion_acum > -1.0:
+                    twr_real_cum = ((1.0 + twr_cum) / (1.0 + inflacion_acum)) - 1.0
+                    if years > 0 and twr_real_cum > -1.0:
+                        twr_real_anual = (1.0 + twr_real_cum) ** (1.0 / years) - 1.0
+                    else:
+                        twr_real_anual = twr_real_cum
                 
     return {
         "twr": twr_cum,
+        "twr_anual": twr_anual,
+        "twr_real": twr_real_cum,
+        "twr_real_anual": twr_real_anual,
+        "inflacion_acumulada": inflacion_acum,
+        "inflacion_anualizada": inflacion_anual,
         "volatilidad": vol_anual,
         "sharpe": sharpe,
         "max_drawdown": max_dd

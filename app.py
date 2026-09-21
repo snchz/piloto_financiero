@@ -633,7 +633,9 @@ def get_operaciones():
         tags_list = datos['tags_list']
         asset_tags_map = datos['asset_tags_map']
         
+        ipc_map = ine_api.get_ine_ipc_map()
         tir = portfolio_math.xirr(flujos_caja) if flujos_caja else None
+        tir_real = portfolio_math.calcular_tir_real(flujos_caja, ipc_map) if flujos_caja else None
         
         # --- Generar Historial ---
         history = {"labels": [], "capital": [], "values": []}
@@ -760,7 +762,7 @@ def get_operaciones():
                     cache=HISTORICAL_PRICES_CACHE
                 )
                 history["benchmark_values"] = benchmark_values
-                metricas_riesgo = portfolio_math.calcular_metricas_avanzadas(history, tir_anualizada=tir)
+                metricas_riesgo = portfolio_math.calcular_metricas_avanzadas(history, tir_anualizada=tir, ipc_map=ipc_map)
         else:
             dt_now = datetime.now()
             history = {
@@ -768,13 +770,18 @@ def get_operaciones():
                 "capital": [0],
                 "values": [0]
             }
-            metricas_riesgo = {"volatilidad": 0.0, "sharpe": 0.0, "max_drawdown": 0.0, "twr": 0.0}
+            metricas_riesgo = {
+                "volatilidad": 0.0, "sharpe": 0.0, "max_drawdown": 0.0,
+                "twr": 0.0, "twr_anual": 0.0, "twr_real": 0.0, "twr_real_anual": 0.0,
+                "inflacion_acumulada": 0.0, "inflacion_anualizada": 0.0
+            }
 
         return jsonify({
             "operaciones": operaciones,
             "cartera": cartera,
             "activos_info": activos_info,
             "tir_anualizada": tir,
+            "tir_anualizada_real": tir_real,
             "total_pnl_realizado": total_pnl_realizado,
             "history": history,
             "metricas_riesgo": metricas_riesgo,

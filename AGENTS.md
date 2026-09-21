@@ -23,10 +23,12 @@ Este archivo guía a cualquier agente de IA para trabajar en este repositorio co
 | [`app.py`](file:///opt/stacks/piloto_financiero/app.py) | `L791-L875` | `GET /api/rebalanceo`, `/tags`, `/map-asset` — Cash-flow rebalancing y categorías. |
 | [`app.py`](file:///opt/stacks/piloto_financiero/app.py) | `L890-L1007` | Mutaciones transaccionales (`/add`, `edit/<id>`, `delete/<id>`). |
 | [`app.py`](file:///opt/stacks/piloto_financiero/app.py) | `L1067-L1189` | CSV streaming import/export de operaciones. |
-| [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L20-L59` | `xirr(cash_flows)` — Newton-Raphson para TIR anualizada. |
-| [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L61-L205` | `calcular_fifo(ops)` — Motor FIFO, comisiones, impuestos, multidivisa y amortización. |
-| [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L207-L320` | `calcular_historico_cartera(...)` — Evolución temporal capital vs valor. |
-| [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L322-L412` | `simular_benchmark_cartera(...)` — Simulación contra VWCE.DE. |
+| [`ine_api.py`](file:///opt/stacks/piloto_financiero/ine_api.py) | `L1-L190` | Integración API INE: series IPV (inmuebles) e IPC General (`IPC290751`). |
+| [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L20-L95` | `xirr(cash_flows)` y `calcular_tir_real(flujos_caja, ipc_map)` — TIR nominal y real anualizada. |
+| [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L97-L240` | `calcular_fifo(ops)` — Motor FIFO, comisiones, impuestos, multidivisa y amortización. |
+| [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L242-L355` | `calcular_historico_cartera(...)` — Evolución temporal capital vs valor. |
+| [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L357-L445` | `simular_benchmark_cartera(...)` — Simulación contra VWCE.DE. |
+| [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L447-L580` | `calcular_metricas_avanzadas(...)` — Sharpe, Volatilidad, Max Drawdown, TWR nominal y TWR real (IPC). |
 | [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L506-L682` | `calcular_rebalanceo(...)` — Algoritmo de cash-flow rebalancing. |
 | [`db.py`](file:///opt/stacks/piloto_financiero/db.py) | `L9-L14` | `get_db()` — Conector SQLite WAL con timeout 30s. |
 | [`db.py`](file:///opt/stacks/piloto_financiero/db.py) | `L200-L320` | CRUD de transacciones `operaciones`. |

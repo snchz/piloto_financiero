@@ -133,3 +133,55 @@ def calculate_ine_revalorization(community_key, start_date_str, end_date_str=Non
         return val_end / val_start
         
     return 1.0  # Fallback si no hay datos disponibles
+
+# --- INE IPC General (Índice de Precios de Consumo) ---
+INE_IPC_SERIES_CODE = "IPC290751"
+
+def sync_ine_ipc_series():
+    """
+    Sincroniza la serie del IPC general de España (INE) con la base de datos local
+    si no ha sido sincronizada en los últimos 7 días.
+    """
+    try:
+        last_sync = db.get_ine_last_sync(INE_IPC_SERIES_CODE)
+        if last_sync and (time.time() - last_sync < 7 * 86400):
+            return True
+
+        url = f"https://servicios.ine.es/wstempus/js/es/DATOS_SERIE/{INE_IPC_SERIES_CODE}?nult=120"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode('utf-8'))
+
+        datapoints = data.get('Data', [])
+        rows_to_save = []
+        for dp in datapoints:
+            anyo = dp.get('Anyo')
+            mes = dp.get('FK_Periodo')  # mes 1..12
+            valor = dp.get('Valor')
+            if anyo and mes and valor is not None:
+                rows_to_save.append((int(anyo), int(mes), float(valor)))
+
+        if rows_to_save:
+            db.save_ine_ipc_data(rows_to_save)
+            return True
+    except Exception as e:
+        print(f"[INE API] Error descargando serie IPC {INE_IPC_SERIES_CODE}: {e}")
+
+    return False
+
+def get_ine_ipc_map():
+    """
+    Obtiene el diccionario {(anyo, mes): valor} del IPC general nacional.
+    Si la base de datos está vacía o desactualizada (>7 días), sincroniza con el INE.
+    """
+    ipc_map = db.get_ine_ipc_all()
+    if not ipc_map:
+        if sync_ine_ipc_series():
+            ipc_map = db.get_ine_ipc_all()
+    else:
+        last_sync = db.get_ine_last_sync(INE_IPC_SERIES_CODE)
+        if not last_sync or (time.time() - last_sync > 7 * 86400):
+            sync_ine_ipc_series()
+            ipc_map = db.get_ine_ipc_all()
+    return ipc_map
+

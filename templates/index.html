@@ -419,10 +419,13 @@
                             <div class="glass-panel p-3 kpi-card h-100 d-flex flex-column justify-content-between">
                                 <div class="text-secondary small text-uppercase fw-medium mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">
                                     TIR (Anual) 
-                                    <span style="cursor: help;" data-bs-toggle="tooltip" title="Tasa Interna de Retorno anualizada: Rentabilidad ponderada por capital introducido o retirado.">ℹ️</span>
+                                    <span style="cursor: help;" data-bs-toggle="tooltip" title="Tasa Interna de Retorno anualizada: Rentabilidad ponderada por capital introducido o retirado. Abajo, la TIR Real neta de inflación oficial (IPC).">ℹ️</span>
                                 </div>
                                 <div class="fs-4 fw-bold font-monospace my-1" id="resumen-tir">--</div>
-                                <div class="text-secondary" style="font-size: 0.68rem;">Ponderada por capital</div>
+                                <div class="text-secondary d-flex justify-content-between align-items-center" style="font-size: 0.68rem;">
+                                    <span>Ponderada capital</span>
+                                    <span id="resumen-tir-real" class="font-monospace text-info fw-semibold" title="TIR Real anualizada (descontando inflación oficial IPC)">Real: --</span>
+                                </div>
                             </div>
                         </div>
 
@@ -431,10 +434,13 @@
                             <div class="glass-panel p-3 kpi-card h-100 d-flex flex-column justify-content-between">
                                 <div class="text-secondary small text-uppercase fw-medium mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">
                                     TWR (Acumulado) 
-                                    <span style="cursor: help;" data-bs-toggle="tooltip" title="Time-Weighted Return: Rendimiento puro de la estrategia aislando entradas/salidas de capital.">ℹ️</span>
+                                    <span style="cursor: help;" data-bs-toggle="tooltip" title="Time-Weighted Return: Rendimiento puro de la estrategia aislando entradas/salidas de capital. Abajo, el TWR Real neto de inflación oficial (IPC).">ℹ️</span>
                                 </div>
                                 <div class="fs-4 fw-bold font-monospace my-1" id="resumen-twr">--</div>
-                                <div class="text-secondary" style="font-size: 0.68rem;">Rendimiento puro</div>
+                                <div class="text-secondary d-flex justify-content-between align-items-center" style="font-size: 0.68rem;">
+                                    <span>Rendimiento puro</span>
+                                    <span id="resumen-twr-real" class="font-monospace text-info fw-semibold" title="TWR Real acumulado (descontando inflación oficial IPC)">Real: --</span>
+                                </div>
                             </div>
                         </div>
 
@@ -512,6 +518,13 @@
                                             Máxima Caída <span style="cursor: help;" data-bs-toggle="tooltip" title="Max Drawdown: La mayor pérdida histórica acumulada de pico a valle en la valoración.">ℹ️</span>
                                         </span>
                                         <span class="fs-6 fw-bold text-white font-monospace" id="resumen-drawdown">--</span>
+                                    </div>
+                                    <div class="vr bg-secondary opacity-25 d-none d-sm-block" style="height: 24px;"></div>
+                                    <div>
+                                        <span class="text-secondary small d-block mb-0 text-uppercase fw-semibold" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                            Inflación IPC <span style="cursor: help;" data-bs-toggle="tooltip" title="Inflación acumulada (y tasa anualizada) del IPC General del INE durante el periodo de inversión.">ℹ️</span>
+                                        </span>
+                                        <span class="fs-6 fw-bold text-white font-monospace" id="resumen-inflacion">--</span>
                                     </div>
                                 </div>
                             </div>
@@ -2252,10 +2265,32 @@
                 document.getElementById('resumen-tir').textContent = data.tir_anualizada ? (data.tir_anualizada * 100).toFixed(2) + '%' : 'N/A';
                 document.getElementById('resumen-tir').className = 'fs-4 fw-bold font-monospace my-1 ' + (data.tir_anualizada >= 0 ? 'text-success' : 'text-danger');
                 
+                const tirRealEl = document.getElementById('resumen-tir-real');
+                if (tirRealEl) {
+                    if (data.tir_anualizada_real !== undefined && data.tir_anualizada_real !== null) {
+                        const tirRealSign = data.tir_anualizada_real >= 0 ? '+' : '';
+                        tirRealEl.textContent = `Real: ${tirRealSign}${(data.tir_anualizada_real * 100).toFixed(2)}%`;
+                        tirRealEl.className = 'font-monospace ' + (data.tir_anualizada_real >= 0 ? 'text-info' : 'text-danger') + ' fw-semibold';
+                    } else {
+                        tirRealEl.textContent = 'Real: --';
+                    }
+                }
+
                 const metricas = data.metricas_riesgo || { twr: 0, volatilidad: 0, sharpe: 0, max_drawdown: 0 };
                 document.getElementById('resumen-twr').textContent = metricas.twr !== undefined ? (metricas.twr * 100).toFixed(2) + '%' : 'N/A';
                 document.getElementById('resumen-twr').className = 'fs-4 fw-bold font-monospace my-1 ' + (metricas.twr >= 0 ? 'text-success' : 'text-danger');
                 
+                const twrRealEl = document.getElementById('resumen-twr-real');
+                if (twrRealEl) {
+                    if (metricas.twr_real !== undefined && metricas.twr_real !== null) {
+                        const twrRealSign = metricas.twr_real >= 0 ? '+' : '';
+                        twrRealEl.textContent = `Real: ${twrRealSign}${(metricas.twr_real * 100).toFixed(2)}%`;
+                        twrRealEl.className = 'font-monospace ' + (metricas.twr_real >= 0 ? 'text-info' : 'text-danger') + ' fw-semibold';
+                    } else {
+                        twrRealEl.textContent = 'Real: --';
+                    }
+                }
+
                 document.getElementById('resumen-latente').textContent = UI.formatCurrency(totalLatente, 'EUR');
                 document.getElementById('resumen-latente').className = 'fs-4 fw-bold font-monospace my-1 ' + (totalLatente >= 0 ? 'text-success' : 'text-danger');
                 
@@ -2266,6 +2301,16 @@
                 document.getElementById('resumen-volatilidad').textContent = metricas.volatilidad !== undefined ? (metricas.volatilidad * 100).toFixed(2) + '%' : 'N/A';
                 document.getElementById('resumen-sharpe').textContent = metricas.sharpe !== undefined ? metricas.sharpe.toFixed(2) : 'N/A';
                 document.getElementById('resumen-drawdown').textContent = metricas.max_drawdown !== undefined ? (metricas.max_drawdown * 100).toFixed(2) + '%' : 'N/A';
+                
+                const inflacionEl = document.getElementById('resumen-inflacion');
+                if (inflacionEl) {
+                    if (metricas.inflacion_acumulada !== undefined && metricas.inflacion_acumulada !== null) {
+                        const infSign = metricas.inflacion_acumulada >= 0 ? '+' : '';
+                        inflacionEl.textContent = `${infSign}${(metricas.inflacion_acumulada * 100).toFixed(2)}% (${(metricas.inflacion_anualizada * 100).toFixed(2)}% a.)`;
+                    } else {
+                        inflacionEl.textContent = 'N/A';
+                    }
+                }
 
                 // 4. Renderizar Gráfico de Líneas con Filtro de Rango
                 rawHistoryData = data.history;

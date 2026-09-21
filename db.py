@@ -158,6 +158,14 @@ def init_db():
             )
         ''')
         c.execute('''
+            CREATE TABLE IF NOT EXISTS cache_ine_ipc (
+                anyo INTEGER,
+                mes INTEGER,
+                valor REAL,
+                PRIMARY KEY (anyo, mes)
+            )
+        ''')
+        c.execute('''
             CREATE TABLE IF NOT EXISTS sync_ine_log (
                 series_code TEXT PRIMARY KEY,
                 last_sync REAL
@@ -438,6 +446,32 @@ def get_ine_ipv_latest(series_code):
     except Exception:
         pass
     return None
+
+def save_ine_ipc_data(rows):
+    try:
+        with get_db() as conn:
+            conn.executemany(
+                "INSERT OR REPLACE INTO cache_ine_ipc (anyo, mes, valor) VALUES (?, ?, ?)",
+                rows
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO sync_ine_log (series_code, last_sync) VALUES ('IPC290751', ?)",
+                (time.time(),)
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"Error saving INE IPC data: {e}")
+
+def get_ine_ipc_all():
+    try:
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT anyo, mes, valor FROM cache_ine_ipc ORDER BY anyo ASC, mes ASC"
+            ).fetchall()
+            return {(r['anyo'], r['mes']): r['valor'] for r in rows}
+    except Exception:
+        pass
+    return {}
 
 # --- Inmuebles Config Helpers ---
 def get_inmueble_config(ticker, conn=None):
