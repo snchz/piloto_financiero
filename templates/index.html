@@ -1324,6 +1324,13 @@
                     throw new Error(data.error || 'Error de comunicación con el servidor');
                 }
                 return res.json();
+            },
+            async post(url, data = {}) {
+                return this.fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
             }
         };
 
