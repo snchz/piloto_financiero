@@ -1,0 +1,171 @@
+            <!-- TAB 1: Resumen Ejecutivo -->
+            <div class="tab-pane fade show active flex-grow-1" id="nav-resumen" role="tabpanel" aria-labelledby="resumen-tab">
+                <div class="d-flex flex-column gap-3">
+                    <!-- Hero Bento Grid KPIs -->
+                    <div class="row g-2 align-items-stretch">
+                        <!-- Hero Card: Valor Total -->
+                        <div class="col-xl-4 col-md-6">
+                            <div class="glass-panel p-3 hero-card h-100 d-flex flex-column justify-content-between">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.08em; color: #a5b4fc;">
+                                        Valor Total Cartera 
+                                        <span style="cursor: help;" data-bs-toggle="tooltip" title="Valoración total a precio de mercado de todas tus posiciones abiertas en euros.">ℹ️</span>
+                                    </span>
+                                    <span class="badge font-monospace" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.68rem;">● En Vivo</span>
+                                </div>
+                                <div class="my-1">
+                                    <div class="fs-3 fw-bold text-white font-monospace" id="resumen-valor-total" style="font-weight: 800; letter-spacing: -0.03em;">--</div>
+                                </div>
+                                <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+                                    <span class="badge font-monospace px-2 py-1" id="resumen-variacion-dia" style="font-size: 0.75rem;">--</span>
+                                    <span class="text-secondary small font-monospace" id="resumen-total-pnl-combined" style="font-size: 0.75rem;" title="P&L Total (Latente + Realizado)">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- KPI 2: TIR Anual -->
+                        <div class="col-xl-2 col-md-3 col-6">
+                            <div class="glass-panel p-3 kpi-card h-100 d-flex flex-column justify-content-between">
+                                <div class="text-secondary small text-uppercase fw-medium mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                    TIR (Anual) 
+                                    <span style="cursor: help;" data-bs-toggle="tooltip" title="Tasa Interna de Retorno anualizada: Rentabilidad ponderada por capital introducido o retirado. Abajo, la TIR Real neta de inflación oficial (IPC).">ℹ️</span>
+                                </div>
+                                <div class="fs-4 fw-bold font-monospace my-1" id="resumen-tir">--</div>
+                                <div class="text-secondary d-flex justify-content-between align-items-center" style="font-size: 0.68rem;">
+                                    <span>Ponderada capital</span>
+                                    <span id="resumen-tir-real" class="font-monospace text-info fw-semibold" title="TIR Real anualizada (descontando inflación oficial IPC)">Real: --</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- KPI 3: TWR Acumulado -->
+                        <div class="col-xl-2 col-md-3 col-6">
+                            <div class="glass-panel p-3 kpi-card h-100 d-flex flex-column justify-content-between">
+                                <div class="text-secondary small text-uppercase fw-medium mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                    TWR (Acumulado) 
+                                    <span style="cursor: help;" data-bs-toggle="tooltip" title="Time-Weighted Return: Rendimiento puro de la estrategia aislando entradas/salidas de capital. Abajo, el TWR Real neto de inflación oficial (IPC).">ℹ️</span>
+                                </div>
+                                <div class="fs-4 fw-bold font-monospace my-1" id="resumen-twr">--</div>
+                                <div class="text-secondary d-flex justify-content-between align-items-center" style="font-size: 0.68rem;">
+                                    <span>Rendimiento puro</span>
+                                    <span id="resumen-twr-real" class="font-monospace text-info fw-semibold" title="TWR Real acumulado (descontando inflación oficial IPC)">Real: --</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- KPI 4: P&L Latente -->
+                        <div class="col-xl-2 col-md-3 col-6">
+                            <div class="glass-panel p-3 kpi-card h-100 d-flex flex-column justify-content-between">
+                                <div class="text-secondary small text-uppercase fw-medium mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                    P&L Latente 
+                                    <span style="cursor: help;" data-bs-toggle="tooltip" title="Ganancia o pérdida virtual en vivo si vendieras hoy las posiciones abiertas.">ℹ️</span>
+                                </div>
+                                <div class="fs-4 fw-bold font-monospace my-1" id="resumen-latente">--</div>
+                                <div class="text-secondary" style="font-size: 0.68rem;">Posiciones abiertas</div>
+                            </div>
+                        </div>
+
+                        <!-- KPI 5: P&L Realizado -->
+                        <div class="col-xl-2 col-md-3 col-6">
+                            <div class="glass-panel p-3 kpi-card h-100 d-flex flex-column justify-content-between">
+                                <div class="text-secondary small text-uppercase fw-medium mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                    P&L Realizado 
+                                    <span style="cursor: help;" data-bs-toggle="tooltip" title="Beneficios o pérdidas materializadas por ventas pasadas o dividendos cobrados.">ℹ️</span>
+                                </div>
+                                <div class="fs-4 fw-bold font-monospace my-1" id="resumen-realizado">--</div>
+                                <div class="text-secondary" style="font-size: 0.68rem;">Ventas + Dividendos</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Charts (Evolución + Distribución) -->
+                    <div class="row g-2 align-items-stretch">
+                        <!-- Chart Evolución -->
+                        <div class="col-lg-8">
+                            <div class="glass-panel p-3 h-100 d-flex flex-column">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+                                    <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Evolución de la Cartera</h5>
+                                    
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="btn-group btn-group-sm" id="time-range-selector" role="group">
+                                            <button type="button" class="btn time-btn" onclick="filtrarRangoHistorico('1M', this)">1M</button>
+                                            <button type="button" class="btn time-btn" onclick="filtrarRangoHistorico('3M', this)">3M</button>
+                                            <button type="button" class="btn time-btn" onclick="filtrarRangoHistorico('6M', this)">6M</button>
+                                            <button type="button" class="btn time-btn" onclick="filtrarRangoHistorico('1Y', this)">1Y</button>
+                                            <button type="button" class="btn time-btn" onclick="filtrarRangoHistorico('YTD', this)">YTD</button>
+                                            <button type="button" class="btn time-btn active" onclick="filtrarRangoHistorico('ALL', this)">TODOS</button>
+                                            <div class="form-check form-switch m-0 ms-1" title="Comparar con el índice de referencia VWCE">
+                                                <input class="form-check-input" type="checkbox" role="switch" id="toggleBenchmark" checked>
+                                                <label class="form-check-label small text-secondary" for="toggleBenchmark" style="font-size:0.75rem;">Benchmark</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex-grow-1" style="min-height: 220px; max-height: 280px; position: relative;">
+                                    <canvas id="equityCurveChart"></canvas>
+                                </div>
+
+                                <!-- Pill Bar for Risk Metrics -->
+                                <div class="d-flex flex-wrap justify-content-around metric-advanced align-items-center mt-2 pt-2 border-top border-secondary border-opacity-25 gap-2 text-center">
+                                    <div>
+                                        <span class="text-secondary small d-block mb-0 text-uppercase fw-semibold" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                            Volatilidad Anual <span style="cursor: help;" data-bs-toggle="tooltip" title="Volatilidad Anualizada: Muestra cuánto varía el rendimiento diario de la cartera.">ℹ️</span>
+                                        </span>
+                                        <span class="fs-6 fw-bold text-white font-monospace" id="resumen-volatilidad">--</span>
+                                    </div>
+                                    <div class="vr bg-secondary opacity-25 d-none d-sm-block" style="height: 24px;"></div>
+                                    <div>
+                                        <span class="text-secondary small d-block mb-0 text-uppercase fw-semibold" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                            Ratio de Sharpe <span style="cursor: help;" data-bs-toggle="tooltip" title="Ratio de Sharpe (Tasa libre de riesgo 2%): Evalúa si el rendimiento compensa el riesgo asumiendo. Superior a 1 es considerado muy bueno.">ℹ️</span>
+                                        </span>
+                                        <span class="fs-6 fw-bold text-white font-monospace" id="resumen-sharpe">--</span>
+                                    </div>
+                                    <div class="vr bg-secondary opacity-25 d-none d-sm-block" style="height: 24px;"></div>
+                                    <div>
+                                        <span class="text-secondary small d-block mb-0 text-uppercase fw-semibold" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                            Máxima Caída <span style="cursor: help;" data-bs-toggle="tooltip" title="Max Drawdown: La mayor pérdida histórica acumulada de pico a valle en la valoración.">ℹ️</span>
+                                        </span>
+                                        <span class="fs-6 fw-bold text-white font-monospace" id="resumen-drawdown">--</span>
+                                    </div>
+                                    <div class="vr bg-secondary opacity-25 d-none d-sm-block" style="height: 24px;"></div>
+                                    <div>
+                                        <span class="text-secondary small d-block mb-0 text-uppercase fw-semibold" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                                            Inflación IPC <span style="cursor: help;" data-bs-toggle="tooltip" title="Inflación acumulada (y tasa anualizada) del IPC General del INE durante el periodo de inversión.">ℹ️</span>
+                                        </span>
+                                        <span class="fs-6 fw-bold text-white font-monospace" id="resumen-inflacion">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Chart Distribución -->
+                        <div class="col-lg-4">
+                            <div class="glass-panel p-3 h-100 d-flex flex-column">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">Distribución</h5>
+                                    
+                                    <ul class="nav nav-pills nav-sm mb-0 gap-1" id="chartTabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active time-btn py-1 px-2" data-bs-toggle="tab" data-bs-target="#tab-activos" type="button" role="tab">Activos</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link time-btn py-1 px-2" data-bs-toggle="tab" data-bs-target="#tab-divisas" type="button" role="tab">Divisas</button>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div class="tab-content flex-grow-1" style="min-height: 220px; position: relative;">
+                                    <div class="tab-pane fade show active h-100 w-100 position-absolute top-0 start-0" id="tab-activos" role="tabpanel">
+                                        <canvas id="allocationChart"></canvas>
+                                    </div>
+                                    <div class="tab-pane fade h-100 w-100 position-absolute top-0 start-0" id="tab-divisas" role="tabpanel">
+                                        <canvas id="currencyChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+

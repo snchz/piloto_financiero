@@ -35,12 +35,19 @@ Este archivo guía a cualquier agente de IA para trabajar en este repositorio co
 | [`db.py`](file:///opt/stacks/piloto_financiero/db.py) | `L9-L14` | `get_db()` — Conector SQLite WAL con timeout 30s. |
 | [`db.py`](file:///opt/stacks/piloto_financiero/db.py) | `L200-L320` | CRUD de transacciones `operaciones` y configuración FIRE (`save_fire_config`). |
 | [`db.py`](file:///opt/stacks/piloto_financiero/db.py) | `L360-L440` | Mapeos de categorías `portfolio_tags` y `asset_tags`. |
-| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L335-L380` | Cabecera: Modo Mirón (`👁️`), switch Inmuebles y pestaña `Independencia Financiera`. |
-| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L600-L760` | Panel `nav-fire`: KPIs de progreso, simulador interactivo, gráfico Chart.js y tabla de hitos. |
-| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L1040-L1220` | Modal de Operación (`opModal`). |
-| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L2200-L2240` | `toggleModoMiron()` — Toggle visual y recarga reactiva con `&miron=1`. |
-| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L2240-L2580` | `cargarOperaciones()` — Renderizado de tablas, Bento Grid y gráficos. |
-| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L3000-L3320` | `cargarFire()`, `simularFireDebounced()`, `guardarConfigFire()` y renderizado de proyección. |
+| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L1-L50` | Layout central y contenedor de componentes Jinja2. |
+| [`templates/components/header.html`](file:///opt/stacks/piloto_financiero/templates/components/header.html) | `L1-L70` | Cabecera: Modo Mirón (`👁️`), Conmutador Vista Esencial/Completa y selector Inmuebles. |
+| [`templates/components/tab_resumen.html`](file:///opt/stacks/piloto_financiero/templates/components/tab_resumen.html) | `L1-L175` | Bento Grid KPIs, Gráfico Evolución con Benchmark y donas de distribución. |
+| [`templates/components/tab_fire.html`](file:///opt/stacks/piloto_financiero/templates/components/tab_fire.html) | `L1-L165` | Panel FIRE: KPIs de progreso, simulador interactivo, Chart.js y tabla de hitos. |
+| [`templates/components/modal_operacion.html`](file:///opt/stacks/piloto_financiero/templates/components/modal_operacion.html) | `L1-L170` | Modal de Operación (`opModal`) con datalist predictivo para tickers. |
+| [`static/css/styles.css`](file:///opt/stacks/piloto_financiero/static/css/styles.css) | `L1-L325` | Estilos visuales dark-glassmorphism, tipografía JetBrains Mono y reglas de Modo Esencial. |
+| [`static/js/api.js`](file:///opt/stacks/piloto_financiero/static/js/api.js) | `L1-L30` | Helper cliente HTTP centralizado (`API.fetch` y `API.post`). |
+| [`static/js/ui.js`](file:///opt/stacks/piloto_financiero/static/js/ui.js) | `L1-L260` | Formateo de divisas, toasts, modales de configuración y `toggleVistaEsencial()`. |
+| [`static/js/portfolio.js`](file:///opt/stacks/piloto_financiero/static/js/portfolio.js) | `L1-L430` | `cargarOperaciones()`, `toggleModoMiron()`, curva de patrimonio y gráficos de asignación. |
+| [`static/js/operations.js`](file:///opt/stacks/piloto_financiero/static/js/operations.js) | `L1-L375` | CRUD de operaciones, modal interactivo, relleno predictivo de tickers y filtros. |
+| [`static/js/rebalance.js`](file:///opt/stacks/piloto_financiero/static/js/rebalance.js) | `L1-L250` | `cargarRebalanceo()`, sugerencias de aportación y gestión de etiquetas/estrategias. |
+| [`static/js/fire.js`](file:///opt/stacks/piloto_financiero/static/js/fire.js) | `L1-L240` | `cargarFire()`, simulación paramétrica interactiva, gráficos e hitos. |
+| [`static/js/main.js`](file:///opt/stacks/piloto_financiero/static/js/main.js) | `L1-L55` | Bootstrapper de la aplicación y redimensionamiento reactivo de gráficos Chart.js. |
 
 ---
 

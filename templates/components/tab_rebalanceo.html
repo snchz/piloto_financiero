@@ -1,0 +1,54 @@
+            <!-- TAB 3: Rebalanceo y Estrategia -->
+            <div class="tab-pane fade flex-grow-1" id="nav-rebalanceo" role="tabpanel" aria-labelledby="rebalanceo-tab">
+                <div class="glass-panel d-flex flex-column overflow-hidden" id="panel-rebalanceo">
+                    <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">🎯 Estrategia y Rebalanceo Objetivo</h5>
+                            <span class="badge font-monospace" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); font-size: 0.68rem;">Cash-Flow Rebalancing</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="action-btn px-2 py-1 text-secondary small d-flex align-items-center gap-1 shadow-sm" onclick="abrirConfigTagsModal()" title="Configurar Categorías y Objetivos de la Cartera" style="font-size: 0.78rem; height: auto;">
+                                <span>⚙️</span><span>Configurar Estrategia</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <!-- Cards de Categorías de la Estrategia -->
+                        <div class="row g-2 mb-3" id="rebalanceo-tags-grid">
+                            <div class="col-12 text-center py-3 text-secondary small">Cargando estrategia de inversión...</div>
+                        </div>
+
+                        <!-- Calculadora de Aportación Mensual -->
+                        <div class="p-3 rounded-3" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06);">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                <div>
+                                    <span class="fw-bold text-white small d-block">💡 Calculadora de Aportación Mensual</span>
+                                    <span class="text-secondary small" style="font-size: 0.75rem;">Optimiza el capital nuevo asignándolo a los activos en déficit frente al objetivo sin forzar ventas.</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="input-group input-group-sm" style="max-width: 250px;">
+                                        <span class="input-group-text bg-dark border-secondary border-opacity-50 text-secondary">Aportar</span>
+                                        <input type="number" id="input-aportacion-mes" class="form-control bg-dark text-white border-secondary border-opacity-50 font-monospace text-end" value="500" min="0" step="50" oninput="debounceCalcularRebalanceo()">
+                                        <span class="input-group-text bg-dark border-secondary border-opacity-50 text-secondary">€</span>
+                                        <button class="btn btn-primary px-3" type="button" onclick="ejecutarCalculoRebalanceo()">Calcular</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex flex-wrap gap-1 mb-3">
+                                <span class="text-secondary small me-1 align-self-center" style="font-size: 0.72rem;">Importe:</span>
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(100)">100 €</button>
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(200)">200 €</button>
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(300)">300 €</button>
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(500)">500 €</button>
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace" style="font-size: 0.72rem;" onclick="setAportacionRapida(1000)">1.000 €</button>
+                            </div>
+
+                            <div id="rebalanceo-sugerencias-container">
+                                <!-- Aquí se inyectan las compras recomendadas del mes -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+

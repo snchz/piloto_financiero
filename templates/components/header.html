@@ -1,0 +1,70 @@
+        <!-- Top Navigation Bar -->
+        <header class="mb-3 border-bottom border-secondary border-opacity-25 pb-2">
+            <div class="d-flex flex-wrap w-100 justify-content-between align-items-center gap-2 mb-2">
+                <div class="d-flex align-items-center gap-2 gap-sm-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <img src="/static/favicon.svg" alt="Logo" width="28" height="28" class="rounded-2 shadow-sm" style="filter: drop-shadow(0 2px 6px rgba(99,102,241,0.45));">
+                        <span class="brand"><span id="brand-text">{{ app_title }}</span></span>
+                    </div>
+                    <span class="last-update font-monospace">
+                        <span class="live-dot"></span>
+                        <span id="last-update-time">--:--:--</span>
+                    </span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button id="btn-toggle-vista" class="btn time-btn me-2" onclick="toggleVistaEsencial()" title="Alternar entre Vista Esencial y Vista Completa">📊 Vista: Completa</button>
+                    <button id="btn-modo-miron" class="action-btn d-flex align-items-center justify-content-center p-0" onclick="toggleModoMiron()" title="Modo Mirón" style="font-size: 1.15rem; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.04);">
+                        <span id="icono-miron" style="opacity: 0.55; filter: grayscale(1); transition: all 0.2s; user-select: none;">👁️</span>
+                    </button>
+                    <div class="form-check form-switch m-0 d-flex align-items-center gap-2 px-2 py-1 rounded-pill glass-panel shadow-sm" style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color);" title="Incluir o excluir activos inmobiliarios en todas las métricas, gráficos y tablas">
+                        <input class="form-check-input ms-0 mt-0" type="checkbox" role="switch" id="toggleRealEstate" onchange="cargarOperaciones()">
+                        <label class="form-check-label small text-secondary fw-medium" for="toggleRealEstate" style="cursor: pointer; user-select: none; font-size: 0.75rem;">🏠 <span class="d-none d-sm-inline">Incluir </span>Inmuebles</label>
+                    </div>
+                    <button class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-1 shadow-sm" onclick="abrirModalOperacion()">
+                        <span>➕</span>
+                        <span class="d-none d-sm-inline">Añadir Operación</span>
+                    </button>
+                    <button class="action-btn" onclick="abrirConfig(); syncLogs();" title="Configuración" style="font-size: 1.15rem;">⚙️</button>
+                    <div class="version-badge font-monospace d-none d-md-block">v<span id="version">{{ version }}</span></div>
+                </div>
+            </div>
+            
+            <ul class="nav nav-tabs border-bottom-0 gap-1 gap-md-2" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active bg-transparent border-0 px-2 fw-semibold" id="resumen-tab" data-bs-toggle="tab" data-bs-target="#nav-resumen" type="button" role="tab">
+                        <span>📊</span><span>Resumen</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link bg-transparent border-0 px-2 fw-semibold" id="cartera-tab" data-bs-toggle="tab" data-bs-target="#nav-cartera" type="button" role="tab">
+                        <span>💼</span><span>Cartera</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link bg-transparent border-0 px-2 fw-semibold" id="fire-tab" data-bs-toggle="tab" data-bs-target="#nav-fire" type="button" role="tab">
+                        <span>🔥</span><span>Independencia Financiera</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link bg-transparent border-0 px-2 fw-semibold" id="rebalanceo-tab" data-bs-toggle="tab" data-bs-target="#nav-rebalanceo" type="button" role="tab">
+                        <span>🎯</span><span>Rebalanceo</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link bg-transparent border-0 px-2 fw-semibold" id="operaciones-tab" data-bs-toggle="tab" data-bs-target="#nav-operaciones" type="button" role="tab">
+                        <span>📜</span><span>Operaciones</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link bg-transparent border-0 px-2 fw-semibold" id="alertas-tab" data-bs-toggle="tab" data-bs-target="#nav-alertas" type="button" role="tab">
+                        <span>🔔</span><span>Monitores y Alertas</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link bg-transparent border-0 px-2 fw-semibold" id="actividad-tab" data-bs-toggle="tab" data-bs-target="#nav-actividad" type="button" role="tab">
+                        <span>⚡</span><span>Actividad</span>
+                    </button>
+                </li>
+            </ul>
+        </header>
+

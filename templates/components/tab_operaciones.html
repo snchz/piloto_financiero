@@ -1,0 +1,60 @@
+            <!-- TAB 4: Historial de Operaciones -->
+            <div class="tab-pane fade flex-grow-1" id="nav-operaciones" role="tabpanel" aria-labelledby="operaciones-tab">
+                <div class="glass-panel d-flex flex-column">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center p-3 border-bottom border-secondary border-opacity-25 gap-2">
+                        <h5 class="m-0 fs-6 fw-semibold text-uppercase text-secondary" style="letter-spacing: 0.05em">📜 Historial de Operaciones</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-1 shadow-sm" onclick="abrirModalOperacion()">
+                                <span>➕</span>
+                                <span>Nueva Operación</span>
+                            </button>
+                            <div class="vr bg-secondary opacity-25 d-none d-sm-block" style="height: 20px;"></div>
+                            <div class="d-flex align-items-center gap-1">
+                                <button class="action-btn" onclick="exportExcel('operaciones')" title="Exportar a CSV">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                </button>
+                                <button class="action-btn" onclick="document.getElementById('import-operaciones-file').click()" title="Importar de CSV">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                </button>
+                                <input type="file" id="import-operaciones-file" style="display:none" accept=".csv,.xls" onchange="importExcel('operaciones', this)">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Barra de Búsqueda y Filtros Rápidos -->
+                    <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex flex-column gap-2">
+                        <input type="text" id="filtro-operaciones" class="form-control" placeholder="🔎 Buscar por Ticker, ISIN, Tipo o Nombre...">
+                        <div class="d-flex flex-wrap gap-1 align-items-center">
+                            <span class="text-secondary small me-1 font-monospace" style="font-size: 0.72rem;">Tipo:</span>
+                            <button type="button" class="op-filter-btn active" onclick="filtrarOperacionesPorTipo('TODOS', this)">Todas</button>
+                            <button type="button" class="op-filter-btn" onclick="filtrarOperacionesPorTipo('COMPRA', this)">Compras / Aportaciones</button>
+                            <button type="button" class="op-filter-btn" onclick="filtrarOperacionesPorTipo('VENTA', this)">Ventas</button>
+                            <button type="button" class="op-filter-btn" onclick="filtrarOperacionesPorTipo('DIVIDENDO', this)">Dividendos</button>
+                            <button type="button" class="op-filter-btn" onclick="filtrarOperacionesPorTipo('INMUEBLE', this)">🏠 Inmuebles / Hipotecas</button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless align-middle mb-0">
+                            <thead class="bg-dark bg-opacity-40 sticky-top" style="z-index: 1;">
+                                <tr>
+                                    <th class="ps-4">Fecha</th>
+                                    <th>Ticker / Activo</th>
+                                    <th class="text-center">Tipo</th>
+                                    <th class="text-end">Cantidad</th>
+                                    <th class="text-end">Precio</th>
+                                    <th class="text-end">Comisiones</th>
+                                    <th class="text-end">Impuestos</th>
+                                    <th class="text-end">Total (€)</th>
+                                    <th class="text-end">Rentabilidad</th>
+                                    <th class="text-end pe-4">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="operaciones-table">
+                                <tr><td colspan="10" class="text-center py-4 text-secondary">Cargando operaciones...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+

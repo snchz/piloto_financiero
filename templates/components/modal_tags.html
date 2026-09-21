@@ -1,0 +1,52 @@
+    <!-- Tags & Strategy Modal -->
+    <dialog id="tagsModal" class="border-0 p-0 rounded-4 shadow-lg" style="max-width: 680px; width: 95%;">
+        <div class="glass-panel p-4" style="background: rgba(17, 20, 30, 0.98);">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="m-0 fs-6 fw-bold text-white">⚙️ Configuración de Estrategia y Etiquetas</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('tagsModal').close()"></button>
+            </div>
+            
+            <ul class="nav nav-pills nav-fill mb-3" id="tagsTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active py-1 small" id="tags-list-tab" data-bs-toggle="tab" data-bs-target="#tab-tags-list" type="button" role="tab">Categorías y % Objetivo</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link py-1 small" id="tags-mapping-tab" data-bs-toggle="tab" data-bs-target="#tab-tags-mapping" type="button" role="tab">Asignación de Activos</button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <!-- Pestaña 1: Configurar % de Etiquetas -->
+                <div class="tab-pane fade show active" id="tab-tags-list" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-secondary small">Porcentajes objetivo de cada categoría:</span>
+                        <span id="tags-total-pct-badge" class="badge bg-success font-monospace">Total: 100%</span>
+                    </div>
+                    <form id="form-tags-config" onsubmit="guardarTagsConfig(event)">
+                        <div class="d-flex flex-column gap-2 mb-3" id="tags-inputs-container" style="max-height: 48vh; overflow-y: auto;">
+                            <!-- Inyectado dinámicamente -->
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('tagsModal').close()">Cancelar</button>
+                            <button type="submit" class="btn btn-primary btn-sm px-3 fw-semibold">Guardar Cambios</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Pestaña 2: Mapeo Activo -> Etiqueta -->
+                <div class="tab-pane fade" id="tab-tags-mapping" role="tabpanel">
+                    <span class="text-secondary small d-block mb-3">Vincula cada activo o fondo de tu cartera a su bloque de inversión:</span>
+                    <div class="d-flex flex-column gap-2 mb-3" id="asset-mapping-container" style="max-height: 48vh; overflow-y: auto;">
+                        <!-- Inyectado dinámicamente -->
+                    </div>
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('tagsModal').close()">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- Debug Toggle & Panel -->

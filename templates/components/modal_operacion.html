@@ -1,0 +1,166 @@
+    <!-- Modals -->
+    <!-- Operación Modal -->
+    <!-- Operation Modal -->
+    <dialog id="opModal" class="border-0 p-0 rounded-4 shadow-lg" style="max-width: 580px; width: 95%;">
+        <div class="glass-panel p-4" style="background: rgba(17, 20, 30, 0.95);">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="m-0 fs-6 fw-bold text-white" id="opModalTitle">➕ Registrar Operación</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('opModal').close()"></button>
+            </div>
+
+            <!-- Switcher de Categoría -->
+            <div class="btn-group w-100 mb-3" role="group">
+                <input type="radio" class="btn-check" name="op-category" id="op-cat-financial" value="FINANCIERO" checked onchange="switchOpCategory('FINANCIERO')">
+                <label class="btn btn-outline-primary text-white" for="op-cat-financial">📈 Cotizado / Fondo</label>
+
+                <input type="radio" class="btn-check" name="op-category" id="op-cat-inmueble" value="INMUEBLE" onchange="switchOpCategory('INMUEBLE')">
+                <label class="btn btn-outline-primary text-white" for="op-cat-inmueble">🏠 Vivienda / Bien Raíz</label>
+            </div>
+
+            <form id="op-form" class="row g-3">
+                <input type="hidden" id="op-id" name="id">
+
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small mb-1">Fecha</label>
+                    <input type="date" id="op-fecha" name="fecha" class="form-control" required>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small mb-1" id="lbl-op-ticker">Ticker o ISIN</label>
+                    <input type="text" id="op-ticker" name="ticker" list="ticker-suggestions" class="form-control font-monospace" placeholder="Ej. AAPL, ES0105065009" required autocomplete="off">
+                    <datalist id="ticker-suggestions"></datalist>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small mb-1">Tipo de Operación</label>
+                    <select id="op-tipo" name="tipo" class="form-select" required onchange="toggleOpTypeFields(this.value)">
+                        <!-- Opciones Financieras -->
+                        <option value="COMPRA" class="opt-fin">COMPRA</option>
+                        <option value="APORTACION" class="opt-fin">APORTACIÓN (Fondo)</option>
+                        <option value="VENTA" class="opt-fin">VENTA</option>
+                        <option value="DIVIDENDO" class="opt-fin">DIVIDENDO / RENDIMIENTO</option>
+
+                        <!-- Opciones Inmobiliarias -->
+                        <option value="ENTRADA_INMUEBLE" class="opt-inm d-none">🔑 ENTRADA / ARRAS (Tu Aportación Inicial)</option>
+                        <option value="HIPOTECA_CUOTA" class="opt-inm d-none">🏦 CUOTA HIPOTECA (Tu Pago Mensual)</option>
+                        <option value="REFORMA_MEJORA" class="opt-inm d-none">🛠️ REFORMA / MEJORA (Tu Inversión)</option>
+                    </select>
+                </div>
+
+                <!-- Campos de Moneda/Tasa Cambio sólo para Cotizados -->
+                <div class="col-md-6 field-fin-only">
+                    <label class="form-label text-secondary small mb-1">Moneda de la Operación</label>
+                    <select id="op-moneda" name="moneda" class="form-select">
+                        <option value="">Automático (Del activo)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="USD">USD ($)</option>
+                        <option value="GBP">GBP (£)</option>
+                        <option value="NOK">NOK (kr)</option>
+                        <option value="CHF">CHF (Fr)</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 field-fin-only">
+                    <label class="form-label text-secondary small mb-1">Categoría / Estrategia</label>
+                    <select id="op-tag" name="tag_id" class="form-select">
+                        <option value="">🎯 Capital Táctico (Por defecto / 5%)</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 field-fin-only" id="container-op-cantidad">
+                    <label class="form-label text-secondary small mb-1">Cantidad de Títulos</label>
+                    <input type="number" step="any" id="op-cantidad" name="cantidad" class="form-control" placeholder="1.00" value="1">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small mb-1" id="lbl-op-precio">Precio Unitario (€)</label>
+                    <input type="number" step="any" id="op-precio" name="precio" class="form-control" placeholder="0.00" required>
+                </div>
+
+                <!-- Campos Específicos para Configuración de Inmueble -->
+                <div class="col-md-6 field-inm-only d-none">
+                    <label class="form-label text-secondary small mb-1">Comunidad Autónoma (INE)</label>
+                    <select id="op-inm-comunidad" name="comunidad_autonoma" class="form-select">
+                        <option value="NACIONAL">España (Nacional)</option>
+                        <option value="ANDALUCIA">Andalucía</option>
+                        <option value="ARAGON">Aragón</option>
+                        <option value="ASTURIAS">Asturias, Principado de</option>
+                        <option value="BALEARES">Balears, Illes</option>
+                        <option value="CANARIAS">Canarias</option>
+                        <option value="CANTABRIA">Cantabria</option>
+                        <option value="CASTILLA_LEON">Castilla y León</option>
+                        <option value="CASTILLA_MANCHA">Castilla - La Mancha</option>
+                        <option value="CATALUNA">Cataluña</option>
+                        <option value="VALENCIA">Comunitat Valenciana</option>
+                        <option value="EXTREMADURA">Extremadura</option>
+                        <option value="GALICIA">Galicia</option>
+                        <option value="MADRID" selected>Madrid, Comunidad de</option>
+                        <option value="MURCIA">Murcia, Región de</option>
+                        <option value="NAVARRA">Navarra, Comunidad Foral de</option>
+                        <option value="PAIS_VASCO">País Vasco</option>
+                        <option value="LA_RIOJA">Rioja, La</option>
+                        <option value="CEUTA">Ceuta</option>
+                        <option value="MELILLA">Melilla</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 field-inm-only d-none">
+                    <label class="form-label text-secondary small mb-1">% Tu Titularidad en Escritura</label>
+                    <input type="number" step="0.01" id="op-inm-pct" name="pct_titularidad" class="form-control" placeholder="64.0" value="50">
+                    <div class="form-text text-secondary" style="font-size: 0.7rem;">Porcentaje de propiedad tuyo (ej. 64%)</div>
+                </div>
+
+                <div class="col-md-6 field-inm-only d-none">
+                    <label class="form-label text-secondary small mb-1">Precio Compra Total (Ambos) (€)</label>
+                    <input type="number" step="any" id="op-inm-precio-compra" name="precio_compra_total" class="form-control" placeholder="Ej. 326000">
+                    <div class="form-text text-secondary" style="font-size: 0.7rem;">Valor total firmado en la compra de la casa</div>
+                </div>
+
+                <div class="col-md-6 field-inm-only d-none">
+                    <label class="form-label text-secondary small mb-1">Hipoteca Inicial (Solo Tu Parte) (€)</label>
+                    <input type="number" step="any" id="op-inm-hipoteca-ini" name="hipoteca_inicial" class="form-control" placeholder="Ej. 64500">
+                    <div class="form-text text-secondary" style="font-size: 0.7rem;">Deuda inicial que te corresponde a ti (ej. 50% de hipoteca)</div>
+                </div>
+
+                <!-- Desglose Hipotecario -->
+                <div class="col-md-6 fields-hipoteca d-none">
+                    <label class="form-label text-secondary small mb-1 text-info">Amortización Capital (€)</label>
+                    <input type="number" step="any" id="op-amortizacion" name="amortizacion" class="form-control" placeholder="Solo tu parte amortizada">
+                </div>
+
+                <div class="col-md-6 fields-hipoteca d-none">
+                    <label class="form-label text-secondary small mb-1 text-warning">Intereses / Gastos (€)</label>
+                    <input type="number" step="any" id="op-intereses" name="intereses" class="form-control" placeholder="Solo tu parte de intereses">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-secondary small mb-1" id="lbl-op-comisiones">Comisiones</label>
+                    <input type="number" step="any" id="op-comisiones" name="comisiones" class="form-control" placeholder="0.00" value="0">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-secondary small mb-1" id="lbl-op-impuestos">Impuestos</label>
+                    <input type="number" step="any" id="op-impuestos" name="impuestos" class="form-control" placeholder="0.00" value="0">
+                </div>
+                <div class="col-md-4 field-fin-only">
+                    <label class="form-label text-secondary small mb-1" title="1 Unidad de moneda extranjera = X Euros. Ejemplo: 1 USD = 0.863 EUR">Tasa Cambio (vs EUR) ℹ️</label>
+                    <div class="input-group">
+                        <input type="number" step="any" id="op-tasa-cambio" name="tasa_cambio" class="form-control" placeholder="1.00">
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-2" id="btn-fetch-rate" title="Consultar tasa histórica para la fecha y moneda seleccionadas" onclick="consultarTasaCambioModal()">🔄</button>
+                    </div>
+                    <div class="form-text text-secondary" style="font-size: 0.68rem;" id="op-tasa-help">1 Moneda Extranjera = X €</div>
+                </div>
+
+                <div class="col-12 mt-2" id="op-live-preview-container">
+                    <div class="p-2 px-3 rounded-3 bg-dark bg-opacity-50 border border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+                        <span class="text-secondary small">Total estimado neto:</span>
+                        <span class="font-monospace fw-bold text-white" id="op-live-total">0,00 €</span>
+                    </div>
+                </div>
+
+                <div class="col-12 mt-4">
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" id="op-submit-btn">Guardar Operación</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
