@@ -15,6 +15,7 @@ import notifications
 import monitor_worker
 import portfolio_math
 import ine_api
+import screener_service
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
@@ -976,6 +977,61 @@ def api_save_fire_config():
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+# --- Equity Screener API ---
+@app.route('/api/screener', methods=['GET'])
+def api_get_screener():
+    try:
+        umbral_wr = float(request.args.get('umbral_wr', -80.0))
+        comision_in = float(request.args.get('comision_in', 0.12))
+        comision_out = float(request.args.get('comision_out', 0.12))
+        target_gain = float(request.args.get('target_gain', 5.0))
+        market_filter = request.args.get('market', 'ALL')
+
+        data = screener_service.get_screener_data(
+            umbral_wr=umbral_wr,
+            comision_in=comision_in,
+            comision_out=comision_out,
+            target_gain=target_gain,
+            market_filter=market_filter
+        )
+        return jsonify(data)
+    except Exception as e:
+        log_debug(f"Error en /api/screener: {e}", "ERROR")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/screener/scan', methods=['POST'])
+def api_trigger_screener_scan():
+    try:
+        batch_size = int(request.args.get('batch_size', 50))
+        started = screener_service.trigger_screener_scan(batch_size=batch_size)
+        return jsonify({
+            "ok": True,
+            "started": started,
+            "status": screener_service.get_scan_state()
+        })
+    except Exception as e:
+        log_debug(f"Error iniciando escaneo screener: {e}", "ERROR")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/screener/status', methods=['GET'])
+def api_get_screener_status():
+    return jsonify(screener_service.get_scan_state())
+
+@app.route('/api/screener/tickers', methods=['GET', 'POST'])
+def api_screener_tickers():
+    if request.method == 'GET':
+        return jsonify({
+            "spanish_tickers": screener_service.get_configured_spanish_tickers()
+        })
+    else:
+        try:
+            data = request.json or {}
+            tickers = data.get('spanish_tickers', [])
+            screener_service.save_configured_spanish_tickers(tickers)
+            return jsonify({"ok": True})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
 
 @app.route('/api/exchange-rate', methods=['GET'])
 def get_rate():

@@ -46,7 +46,9 @@ Este archivo guía a cualquier agente de IA para trabajar en este repositorio co
 | [`static/js/portfolio.js`](file:///opt/stacks/piloto_financiero/static/js/portfolio.js) | `L1-L430` | `cargarOperaciones()`, `toggleModoMiron()`, curva de patrimonio y gráficos de asignación. |
 | [`static/js/operations.js`](file:///opt/stacks/piloto_financiero/static/js/operations.js) | `L1-L375` | CRUD de operaciones, modal interactivo, relleno predictivo de tickers y filtros. |
 | [`static/js/rebalance.js`](file:///opt/stacks/piloto_financiero/static/js/rebalance.js) | `L1-L250` | `cargarRebalanceo()`, sugerencias de aportación y gestión de etiquetas/estrategias. |
-| [`static/js/fire.js`](file:///opt/stacks/piloto_financiero/static/js/fire.js) | `L1-L240` | `cargarFire()`, simulación paramétrica interactiva, gráficos e hitos. |
+| [`screener_service.py`](file:///opt/stacks/piloto_financiero/screener_service.py) | `L1-L260` | Motor Screener: Scraper S&P 500 Wikipedia, cálculo Williams %R (14) y precio target neto. |
+| [`templates/components/tab_screener.html`](file:///opt/stacks/piloto_financiero/templates/components/tab_screener.html) | `L1-L220` | Pestaña Radar W%R: Bento KPIs, sliders dinámicos, tabla de señales y modal tickers .MC. |
+| [`static/js/screener.js`](file:///opt/stacks/piloto_financiero/static/js/screener.js) | `L1-L260` | Cliente Screener: `cargarScreener()`, polling de progreso y recálculo en caliente de precio target. |
 | [`static/js/main.js`](file:///opt/stacks/piloto_financiero/static/js/main.js) | `L1-L55` | Bootstrapper de la aplicación y redimensionamiento reactivo de gráficos Chart.js. |
 
 ---

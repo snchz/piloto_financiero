@@ -1,0 +1,225 @@
+<!-- TAB: Screener de Acciones (Williams %R y Target Neto) -->
+<div class="tab-pane fade flex-grow-1" id="nav-screener" role="tabpanel" aria-labelledby="screener-tab">
+    <div class="d-flex flex-column gap-3">
+        
+        <!-- Header de la pestaña Screener -->
+        <div class="glass-panel p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fs-4">🔍</span>
+                    <div>
+                        <h5 class="m-0 fs-6 fw-bold text-white">Radar de Oportunidades: Williams %R (14)</h5>
+                        <div class="text-secondary small">Detección sistemática de sobreventa extrema en S&P 500 y Mercado Continuo Español (.MC)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn time-btn py-1 px-3" onclick="abrirModalTickersEspana()" title="Configurar la lista de activos a rastrear en el mercado español">
+                    ⚙️ Tickers .MC
+                </button>
+                <button type="button" id="btn-scan-screener" class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-2" onclick="iniciarEscaneoScreener()">
+                    <span id="spinner-scan" class="spinner-border spinner-border-sm d-none"></span>
+                    <span id="label-scan">🔄 Escanear Mercado</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Barra de Progreso de Escaneo (Oculta por defecto) -->
+        <div id="screener-scan-progress-box" class="glass-panel p-3 d-none">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-white small fw-semibold d-flex align-items-center gap-2">
+                    <span class="spinner-grow spinner-grow-sm text-primary"></span>
+                    <span id="screener-scan-message">Analizando activos en segundo plano...</span>
+                </span>
+                <span id="screener-scan-pct" class="badge bg-primary font-monospace">0%</span>
+            </div>
+            <div class="progress" style="height: 6px; background: rgba(255,255,255,0.06);">
+                <div id="screener-scan-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <!-- Bento Grid KPIs del Screener -->
+        <div class="row g-2">
+            <div class="col-xl-3 col-md-6">
+                <div class="glass-panel p-3 kpi-card h-100 d-flex flex-column justify-content-between">
+                    <div class="text-secondary small text-uppercase fw-medium" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                        Universo Analizado
+                        <span style="cursor: help;" data-bs-toggle="tooltip" title="Total de empresas escaneadas (S&P 500 extraído automáticamente + Mercado Continuo .MC).">ℹ️</span>
+                    </div>
+                    <div class="fs-3 fw-bold font-monospace text-white my-1" id="screener-kpi-total">--</div>
+                    <div class="text-secondary" style="font-size: 0.68rem;">S&P 500 + Continuo (.MC)</div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="glass-panel p-3 kpi-card h-100 d-flex flex-column justify-content-between" style="border-left: 3px solid #f43f5e;">
+                    <div class="text-secondary small text-uppercase fw-medium" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                        Señales en Sobreventa
+                        <span style="cursor: help;" data-bs-toggle="tooltip" title="Activos cuyo Williams %R de 14 sesiones ha cerrado por debajo del umbral configurado (ej. < -80).">ℹ️</span>
+                    </div>
+                    <div class="fs-3 fw-bold font-monospace text-danger my-1" id="screener-kpi-signals">--</div>
+                    <div class="text-secondary" style="font-size: 0.68rem;" id="screener-kpi-signals-sub">W%R &lt; -80.00</div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="glass-panel p-3 kpi-card h-100 d-flex flex-column justify-content-between">
+                    <div class="text-secondary small text-uppercase fw-medium" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                        Media W%R Señales
+                        <span style="cursor: help;" data-bs-toggle="tooltip" title="Nivel medio de sobreventa de las oportunidades detectadas. Más cercano a -100 indica sobreventa extrema.">ℹ️</span>
+                    </div>
+                    <div class="fs-3 fw-bold font-monospace text-info my-1" id="screener-kpi-avg-wr">--</div>
+                    <div class="text-secondary" style="font-size: 0.68rem;">Intensidad de sobreventa</div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="glass-panel p-3 kpi-card h-100 d-flex flex-column justify-content-between">
+                    <div class="text-secondary small text-uppercase fw-medium" style="font-size: 0.7rem; letter-spacing: 0.05em;">
+                        Último Escaneo
+                        <span style="cursor: help;" data-bs-toggle="tooltip" title="Fecha y hora en la que se descargaron y procesaron las velas históricas.">ℹ️</span>
+                    </div>
+                    <div class="fs-5 fw-bold font-monospace text-light my-1" id="screener-kpi-last-scan">--:--:--</div>
+                    <div class="text-secondary" style="font-size: 0.68rem;">Persistido en caché local</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Parámetros Ajustables (Recálculo en tiempo real) -->
+        <div class="glass-panel p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                <span class="text-secondary small text-uppercase fw-bold" style="letter-spacing: 0.05em;">
+                    ⚡ Parámetros del Radar y Bróker (Recálculo en Vivo)
+                </span>
+                <span class="text-secondary small font-monospace" style="font-size: 0.72rem;">
+                    Fórmula neta: P<sub>venta</sub> = P<sub>cierre</sub> × [(1 + c<sub>in</sub>) × (1 + r<sub>obj</sub>)] / (1 - c<sub>out</sub>)
+                </span>
+            </div>
+
+            <div class="row g-3 align-items-end">
+                <!-- Umbral Williams %R -->
+                <div class="col-xl-3 col-md-6">
+                    <label class="form-label text-secondary small mb-1 d-flex justify-content-between">
+                        <span>Umbral Sobreventa W%R:</span>
+                        <span id="lbl-val-umbral" class="fw-bold text-danger font-monospace">&lt; -80</span>
+                    </label>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="range" class="form-range" id="screener-slider-umbral" min="-98" max="-70" step="1" value="-80" oninput="actualizarFiltrosScreener()">
+                    </div>
+                </div>
+
+                <!-- Rentabilidad Neta Objetivo -->
+                <div class="col-xl-2 col-md-3 col-6">
+                    <label class="form-label text-secondary small mb-1">Target Neto Limpio</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-dark border-secondary border-opacity-50 text-success fw-bold">+</span>
+                        <input type="number" step="0.25" min="0.5" max="50" class="form-control bg-dark text-white border-secondary border-opacity-50 font-monospace text-end" id="screener-input-target" value="5.00" oninput="actualizarFiltrosScreener()">
+                        <span class="input-group-text bg-dark border-secondary border-opacity-50 text-secondary">%</span>
+                    </div>
+                </div>
+
+                <!-- Comisión Compra -->
+                <div class="col-xl-2 col-md-3 col-6">
+                    <label class="form-label text-secondary small mb-1">Comisión Compra (c<sub>in</sub>)</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" step="0.01" min="0" max="5" class="form-control bg-dark text-white border-secondary border-opacity-50 font-monospace text-end" id="screener-input-cin" value="0.12" oninput="actualizarFiltrosScreener()">
+                        <span class="input-group-text bg-dark border-secondary border-opacity-50 text-secondary">%</span>
+                    </div>
+                </div>
+
+                <!-- Comisión Venta -->
+                <div class="col-xl-2 col-md-3 col-6">
+                    <label class="form-label text-secondary small mb-1">Comisión Venta (c<sub>out</sub>)</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" step="0.01" min="0" max="5" class="form-control bg-dark text-white border-secondary border-opacity-50 font-monospace text-end" id="screener-input-cout" value="0.12" oninput="actualizarFiltrosScreener()">
+                        <span class="input-group-text bg-dark border-secondary border-opacity-50 text-secondary">%</span>
+                    </div>
+                </div>
+
+                <!-- Filtro de Mercado -->
+                <div class="col-xl-3 col-md-6 col-12">
+                    <label class="form-label text-secondary small mb-1">Mercado</label>
+                    <div class="btn-group btn-group-sm w-100" role="group">
+                        <button type="button" class="btn time-btn active" id="btn-mkt-all" onclick="setMercadoFiltro('ALL', this)">TODOS</button>
+                        <button type="button" class="btn time-btn" id="btn-mkt-sp500" onclick="setMercadoFiltro('SP500', this)">🇺🇸 S&P 500</button>
+                        <button type="button" class="btn time-btn" id="btn-mkt-mc" onclick="setMercadoFiltro('MC', this)">🇪🇸 Continuo (.MC)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Resultados y Señales de Compra -->
+        <div class="glass-panel p-0 overflow-hidden">
+            <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fw-bold text-white small text-uppercase" style="letter-spacing: 0.05em;">Señales Detectadas en Sobreventa</span>
+                    <span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-40 font-monospace" id="screener-table-count">0 señales</span>
+                </div>
+                <div class="text-secondary small" style="font-size: 0.72rem;">
+                    🎯 Coloca la orden limitada en tu bróker al precio sugerido para embolsar exactamente la rentabilidad neta limpia.
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table align-middle table-hover mb-0" id="screener-table">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Activo / Empresa</th>
+                            <th class="text-center">Mercado</th>
+                            <th class="text-end">Precio Cierre</th>
+                            <th class="text-center" style="min-width: 170px;">Williams %R (14)</th>
+                            <th class="text-center">Rango 14d (L<sub>14</sub> - H<sub>14</sub>)</th>
+                            <th class="text-end pe-4" style="min-width: 200px;">Orden Limitada Venta Sugerida</th>
+                        </tr>
+                    </thead>
+                    <tbody id="screener-table-body">
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-secondary">
+                                <div class="mb-2 fs-3">📡</div>
+                                <div>No hay escaneos disponibles o no se detectaron señales bajo el umbral actual.</div>
+                                <div class="mt-2">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="iniciarEscaneoScreener()">Ejecutar Primer Escaneo Ahora</button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal: Configuración de Tickers del Mercado Continuo (.MC) -->
+<dialog id="screenerTickersModal" class="border-0 p-0 rounded-4 shadow-lg" style="max-width: 600px; width: 95%;">
+    <div class="glass-panel p-4" style="background: rgba(17, 20, 30, 0.98);">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="m-0 fs-6 fw-bold text-white">⚙️ Configurar Tickers Mercado Continuo (.MC)</h5>
+            <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('screenerTickersModal').close()"></button>
+        </div>
+
+        <p class="text-secondary small mb-3">
+            Introduce los tickers del mercado español que deseas rastrear junto a los 500 del S&P 500. Puedes separarlos por comas o saltos de línea (el sufijo <code>.MC</code> se añade automáticamente si falta).
+        </p>
+
+        <form id="screener-tickers-form" onsubmit="guardarTickersEspana(event)">
+            <div class="mb-3">
+                <label class="form-label text-secondary small">Lista de Tickers Españoles</label>
+                <textarea id="screener-tickers-textarea" class="form-control font-monospace text-white bg-dark border-secondary border-opacity-50" rows="8" style="font-size: 0.8rem;"></textarea>
+                <div class="form-text text-secondary" style="font-size: 0.72rem;">
+                    Ejemplo: SAN.MC, BBVA.MC, ITX.MC, IBE.MC, TEF.MC, REP.MC, CABK.MC
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="restaurarTickersEspanaDefault()">
+                    Restaurar IBEX 35 + Continuo
+                </button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('screenerTickersModal').close()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-3">Guardar Lista</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</dialog>

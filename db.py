@@ -201,6 +201,28 @@ def init_db():
             )
         ''')
 
+        # Tablas para Equity Screener (Williams %R y Target)
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS screener_results (
+                ticker TEXT PRIMARY KEY,
+                name TEXT,
+                market TEXT,
+                currency TEXT,
+                close_price REAL,
+                high_14 REAL,
+                low_14 REAL,
+                williams_r REAL,
+                date TEXT,
+                updated_at TEXT
+            )
+        ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS screener_config (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        ''')
+
         # Insertar etiquetas por defecto si la tabla está vacía
         if c.execute("SELECT COUNT(*) FROM portfolio_tags").fetchone()[0] == 0:
             default_tags = [
@@ -616,5 +638,64 @@ def delete_asset_tag(ticker, conn=None):
     except Exception as e:
         print(f"Error deleting asset tag: {e}")
         return False
+
+# --- Equity Screener Database Helpers ---
+def get_screener_config(key, default=None):
+    try:
+        with get_db() as conn:
+            row = conn.execute("SELECT value FROM screener_config WHERE key = ?", (key,)).fetchone()
+            return row['value'] if row else default
+    except Exception as e:
+        print(f"Error fetching screener config {key}: {e}")
+        return default
+
+def set_screener_config(key, value):
+    try:
+        with get_db() as conn:
+            conn.execute("INSERT OR REPLACE INTO screener_config (key, value) VALUES (?, ?)", (key, str(value)))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error saving screener config {key}: {e}")
+        return False
+
+def save_screener_results(results_list, scan_timestamp, total_scanned):
+    try:
+        with get_db() as conn:
+            conn.execute("DELETE FROM screener_results")
+            for r in results_list:
+                conn.execute('''
+                    INSERT OR REPLACE INTO screener_results 
+                    (ticker, name, market, currency, close_price, high_14, low_14, williams_r, date, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    r['ticker'], r.get('name', r['ticker']), r.get('market', ''), r.get('currency', 'USD'),
+                    r['close_price'], r['high_14'], r['low_14'], r['williams_r'], r['date'], scan_timestamp
+                ))
+            conn.execute("INSERT OR REPLACE INTO screener_config (key, value) VALUES ('last_scan_time', ?)", (scan_timestamp,))
+            conn.execute("INSERT OR REPLACE INTO screener_config (key, value) VALUES ('total_scanned', ?)", (str(total_scanned),))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error saving screener results: {e}")
+        return False
+
+def get_screener_results():
+    try:
+        with get_db() as conn:
+            rows = conn.execute("SELECT * FROM screener_results ORDER BY williams_r ASC").fetchall()
+            return [dict(r) for r in rows]
+    except Exception as e:
+        print(f"Error fetching screener results: {e}")
+        return []
+
+def get_screener_meta():
+    try:
+        with get_db() as conn:
+            rows = conn.execute("SELECT key, value FROM screener_config").fetchall()
+            return {r['key']: r['value'] for r in rows}
+    except Exception as e:
+        print(f"Error fetching screener meta: {e}")
+        return {}
 
 
