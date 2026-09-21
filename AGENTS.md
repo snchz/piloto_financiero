@@ -21,24 +21,26 @@ Este archivo guía a cualquier agente de IA para trabajar en este repositorio co
 | [`app.py`](file:///opt/stacks/piloto_financiero/app.py) | `L399-L616` | `calcular_datos_cartera(include_real_estate, multiplier)` — Filtro de inmuebles, modo mirón x3, agregación y métricas. |
 | [`app.py`](file:///opt/stacks/piloto_financiero/app.py) | `L618-L788` | `GET /api/operaciones` — TIR global, histórico diario y benchmark VWCE. |
 | [`app.py`](file:///opt/stacks/piloto_financiero/app.py) | `L791-L875` | `GET /api/rebalanceo`, `/tags`, `/map-asset` — Cash-flow rebalancing y categorías. |
-| [`app.py`](file:///opt/stacks/piloto_financiero/app.py) | `L890-L1007` | Mutaciones transaccionales (`/add`, `edit/<id>`, `delete/<id>`). |
-| [`app.py`](file:///opt/stacks/piloto_financiero/app.py) | `L1067-L1189` | CSV streaming import/export de operaciones. |
+| [`app.py`](file:///opt/stacks/piloto_financiero/app.py) | `L883-L985` | `GET /api/fire`, `POST /api/fire/config` — Independencia Financiera (FIRE): proyecciones y simulador. |
+| [`app.py`](file:///opt/stacks/piloto_financiero/app.py) | `L987-L1100` | Mutaciones transaccionales (`/add`, `edit/<id>`, `delete/<id>`). |
+| [`app.py`](file:///opt/stacks/piloto_financiero/app.py) | `L1160-L1280` | CSV streaming import/export de operaciones. |
 | [`ine_api.py`](file:///opt/stacks/piloto_financiero/ine_api.py) | `L1-L190` | Integración API INE: series IPV (inmuebles) e IPC General (`IPC290751`). |
 | [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L20-L95` | `xirr(cash_flows)` y `calcular_tir_real(flujos_caja, ipc_map)` — TIR nominal y real anualizada. |
 | [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L97-L240` | `calcular_fifo(ops)` — Motor FIFO, comisiones, impuestos, multidivisa y amortización. |
 | [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L242-L355` | `calcular_historico_cartera(...)` — Evolución temporal capital vs valor. |
 | [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L357-L445` | `simular_benchmark_cartera(...)` — Simulación contra VWCE.DE. |
 | [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L447-L580` | `calcular_metricas_avanzadas(...)` — Sharpe, Volatilidad, Max Drawdown, TWR nominal y TWR real (IPC). |
-| [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L506-L682` | `calcular_rebalanceo(...)` — Algoritmo de cash-flow rebalancing. |
+| [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L582-L750` | `calcular_rebalanceo(...)` — Algoritmo de cash-flow rebalancing. |
+| [`portfolio_math.py`](file:///opt/stacks/piloto_financiero/portfolio_math.py) | `L765-L910` | `calcular_datos_fire(...)` — Proyección temporal, escenarios conservador vs TIR Real e hitos FIRE. |
 | [`db.py`](file:///opt/stacks/piloto_financiero/db.py) | `L9-L14` | `get_db()` — Conector SQLite WAL con timeout 30s. |
-| [`db.py`](file:///opt/stacks/piloto_financiero/db.py) | `L200-L320` | CRUD de transacciones `operaciones`. |
+| [`db.py`](file:///opt/stacks/piloto_financiero/db.py) | `L200-L320` | CRUD de transacciones `operaciones` y configuración FIRE (`save_fire_config`). |
 | [`db.py`](file:///opt/stacks/piloto_financiero/db.py) | `L360-L440` | Mapeos de categorías `portfolio_tags` y `asset_tags`. |
-| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L335-L355` | Cabecera: botón Modo Mirón (`btn-modo-miron`, `👁️`) y switch Inmuebles. |
-| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L880-L1060` | Modal de Operación (`opModal`). |
-| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L1620-L1690` | `abrirModalOperacion(opId)` — Inyección segura de campos (`raw_cantidad`). |
-| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L2000-L2027` | `toggleModoMiron()` — Toggle visual y recarga reactiva con `&miron=1`. |
-| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L2028-L2378` | `cargarOperaciones()` — Renderizado de tablas, Bento Grid y gráficos. |
-| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L2405-L2530` | `cargarRebalanceo(aportacion)` — Grid de rebalanceo y barras de progreso. |
+| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L335-L380` | Cabecera: Modo Mirón (`👁️`), switch Inmuebles y pestaña `Independencia Financiera`. |
+| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L600-L760` | Panel `nav-fire`: KPIs de progreso, simulador interactivo, gráfico Chart.js y tabla de hitos. |
+| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L1040-L1220` | Modal de Operación (`opModal`). |
+| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L2200-L2240` | `toggleModoMiron()` — Toggle visual y recarga reactiva con `&miron=1`. |
+| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L2240-L2580` | `cargarOperaciones()` — Renderizado de tablas, Bento Grid y gráficos. |
+| [`templates/index.html`](file:///opt/stacks/piloto_financiero/templates/index.html) | `L3000-L3320` | `cargarFire()`, `simularFireDebounced()`, `guardarConfigFire()` y renderizado de proyección. |
 
 ---
 

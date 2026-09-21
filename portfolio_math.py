@@ -762,3 +762,150 @@ def calcular_rebalanceo(cartera, tags_config, asset_tags, aportacion_disponible=
         'sugerencias_compra': sugerencias_compra,
         'unassigned': unassigned_holdings
     }
+
+def calcular_datos_fire(capital_actual, gastos_anuales, swr_pct=4.0, aportacion_mensual=0.0, tasa_conservadora_pct=4.0, tir_real_pct=14.77, max_anos=35):
+    """
+    Calcula las proyecciones, métricas y tiempo restante para la Independencia Financiera (FIRE).
+    """
+    import math
+    from datetime import datetime
+    
+    capital_actual = max(0.0, float(capital_actual or 0.0))
+    gastos_anuales = max(0.0, float(gastos_anuales or 24000.0))
+    swr_pct = max(0.1, min(20.0, float(swr_pct or 4.0)))
+    swr_decimal = swr_pct / 100.0
+    
+    fire_target = gastos_anuales / swr_decimal if swr_decimal > 0 else 0.0
+    progreso_pct = min(100.0, (capital_actual / fire_target * 100.0)) if fire_target > 0 else 100.0
+    brecha_restante = max(0.0, fire_target - capital_actual)
+    
+    aportacion_mensual = max(0.0, float(aportacion_mensual or 0.0))
+    
+    r_cons_anual = max(0.0, float(tasa_conservadora_pct or 4.0)) / 100.0
+    r_tir_anual = max(0.0, float(tir_real_pct or 4.0)) / 100.0
+    
+    def _calcular_meses(p0, target, pmt, r_anual):
+        if p0 >= target:
+            return 0
+        r_m = (1.0 + r_anual) ** (1.0 / 12.0) - 1.0
+        if r_m <= 1e-9:
+            if pmt <= 0:
+                return None
+            return math.ceil((target - p0) / pmt)
+        num = target * r_m + pmt
+        den = p0 * r_m + pmt
+        if den <= 0 or num <= 0:
+            return None
+        try:
+            m = math.log(num / den) / math.log(1.0 + r_m)
+            return max(0, math.ceil(m))
+        except (ValueError, ZeroDivisionError):
+            return None
+
+    def _fecha_objetivo(meses):
+        if meses is None:
+            return "Inalcanzable (aumenta tu ahorro)"
+        if meses == 0:
+            return "¡Alcanzado!"
+        dt = datetime.now()
+        y = dt.year + (dt.month - 1 + meses) // 12
+        m = (dt.month - 1 + meses) % 12 + 1
+        meses_nombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        return f"{meses_nombres[m - 1]} {y}"
+
+    meses_cons = _calcular_meses(capital_actual, fire_target, aportacion_mensual, r_cons_anual)
+    meses_tir = _calcular_meses(capital_actual, fire_target, aportacion_mensual, r_tir_anual)
+    meses_ahorro = _calcular_meses(capital_actual, fire_target, aportacion_mensual, 0.0)
+    
+    # Determinar horizonte para el gráfico
+    meses_max_calc = [m for m in [meses_cons, meses_tir] if m is not None]
+    if meses_max_calc:
+        duracion_meses = min(max_anos * 12, max(max(meses_max_calc) + 12, 60))
+    else:
+        duracion_meses = 120
+        
+    duracion_meses = max(36, min(max_anos * 12, duracion_meses))
+    step_meses = 12 if duracion_meses > 60 else 6
+    
+    labels = []
+    serie_cons = []
+    serie_tir = []
+    serie_ahorro = []
+    serie_target = []
+    
+    dt_now = datetime.now()
+    r_m_cons = (1.0 + r_cons_anual) ** (1.0 / 12.0) - 1.0
+    r_m_tir = (1.0 + r_tir_anual) ** (1.0 / 12.0) - 1.0
+    
+    def _fv(p0, r_m, pmt, m):
+        if r_m <= 1e-9:
+            return p0 + pmt * m
+        return p0 * ((1.0 + r_m) ** m) + pmt * (((1.0 + r_m) ** m - 1.0) / r_m)
+
+    for m in range(0, duracion_meses + step_meses, step_meses):
+        y = dt_now.year + (dt_now.month - 1 + m) // 12
+        lbl = str(y) if step_meses == 12 else f"M{m} ({y})"
+        labels.append(lbl)
+        
+        serie_cons.append(round(_fv(capital_actual, r_m_cons, aportacion_mensual, m), 2))
+        serie_tir.append(round(_fv(capital_actual, r_m_tir, aportacion_mensual, m), 2))
+        serie_ahorro.append(round(_fv(capital_actual, 0.0, aportacion_mensual, m), 2))
+        serie_target.append(round(fire_target, 2))
+        
+    hitos = []
+    for pct in [25, 50, 75, 100]:
+        t_sub = fire_target * (pct / 100.0)
+        m_c = _calcular_meses(capital_actual, t_sub, aportacion_mensual, r_cons_anual)
+        m_t = _calcular_meses(capital_actual, t_sub, aportacion_mensual, r_tir_anual)
+        hitos.append({
+            "porcentaje": pct,
+            "capital_objetivo": round(t_sub, 2),
+            "superado": capital_actual >= t_sub,
+            "meses_cons": m_c,
+            "anos_cons": m_c // 12 if m_c is not None else None,
+            "meses_resto_cons": m_c % 12 if m_c is not None else None,
+            "fecha_cons": _fecha_objetivo(m_c),
+            "meses_tir": m_t,
+            "anos_tir": m_t // 12 if m_t is not None else None,
+            "meses_resto_tir": m_t % 12 if m_t is not None else None,
+            "fecha_tir": _fecha_objetivo(m_t)
+        })
+
+    return {
+        "capital_actual": round(capital_actual, 2),
+        "gastos_anuales": round(gastos_anuales, 2),
+        "gastos_mensuales": round(gastos_anuales / 12.0, 2),
+        "swr_pct": swr_pct,
+        "fire_target": round(fire_target, 2),
+        "progreso_pct": round(progreso_pct, 2),
+        "brecha_restante": round(brecha_restante, 2),
+        "aportacion_mensual": round(aportacion_mensual, 2),
+        "escenario_conservador": {
+            "tasa_anual_pct": round(r_cons_anual * 100.0, 2),
+            "meses": meses_cons,
+            "anos": meses_cons // 12 if meses_cons is not None else None,
+            "meses_resto": meses_cons % 12 if meses_cons is not None else None,
+            "fecha": _fecha_objetivo(meses_cons)
+        },
+        "escenario_tir_real": {
+            "tasa_anual_pct": round(r_tir_anual * 100.0, 2),
+            "meses": meses_tir,
+            "anos": meses_tir // 12 if meses_tir is not None else None,
+            "meses_resto": meses_tir % 12 if meses_tir is not None else None,
+            "fecha": _fecha_objetivo(meses_tir)
+        },
+        "escenario_ahorro": {
+            "meses": meses_ahorro,
+            "anos": meses_ahorro // 12 if meses_ahorro is not None else None,
+            "meses_resto": meses_ahorro % 12 if meses_ahorro is not None else None,
+            "fecha": _fecha_objetivo(meses_ahorro)
+        },
+        "hitos": hitos,
+        "chart": {
+            "labels": labels,
+            "target": serie_target,
+            "conservador": serie_cons,
+            "tir_real": serie_tir,
+            "ahorro": serie_ahorro
+        }
+    }

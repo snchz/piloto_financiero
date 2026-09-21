@@ -241,6 +241,10 @@ def init_db():
             c.execute("INSERT OR IGNORE INTO config (clave, valor) VALUES ('app_title', 'Piloto Financiero')")
             c.execute("INSERT OR IGNORE INTO config (clave, valor) VALUES ('activity_retention_days', '2')")
             c.execute("INSERT OR IGNORE INTO config (clave, valor) VALUES ('exchange_rate_ttl_hours', '12')")
+            c.execute("INSERT OR IGNORE INTO config (clave, valor) VALUES ('fire_gastos_anuales', '24000')")
+            c.execute("INSERT OR IGNORE INTO config (clave, valor) VALUES ('fire_swr_pct', '4.0')")
+            c.execute("INSERT OR IGNORE INTO config (clave, valor) VALUES ('fire_aportacion_mensual', '0')")
+            c.execute("INSERT OR IGNORE INTO config (clave, valor) VALUES ('fire_tasa_conservadora_pct', '4.0')")
         conn.commit()
 
 def get_config():
@@ -256,13 +260,31 @@ def get_config():
                 "debug_ui": cfg.get("debug_ui", "0") == "1",
                 "app_title": cfg.get("app_title", "Piloto Financiero"),
                 "activity_retention_days": int(cfg.get("activity_retention_days", "2")),
-                "exchange_rate_ttl_hours": float(cfg.get("exchange_rate_ttl_hours", "12"))
+                "exchange_rate_ttl_hours": float(cfg.get("exchange_rate_ttl_hours", "12")),
+                "fire_gastos_anuales": float(cfg.get("fire_gastos_anuales", "24000") or 24000),
+                "fire_swr_pct": float(cfg.get("fire_swr_pct", "4.0") or 4.0),
+                "fire_aportacion_mensual": float(cfg.get("fire_aportacion_mensual", "0") or 0),
+                "fire_tasa_conservadora_pct": float(cfg.get("fire_tasa_conservadora_pct", "4.0") or 4.0)
             }
     except Exception as e:
         return {
             "telegram_token": "", "telegram_chat_id": "",
-            "refresh_interval": 30, "check_market_hours": True, "debug_ui": False, "app_title": "Piloto Financiero", "activity_retention_days": 2, "exchange_rate_ttl_hours": 12.0
+            "refresh_interval": 30, "check_market_hours": True, "debug_ui": False, "app_title": "Piloto Financiero", "activity_retention_days": 2, "exchange_rate_ttl_hours": 12.0,
+            "fire_gastos_anuales": 24000.0, "fire_swr_pct": 4.0, "fire_aportacion_mensual": 0.0, "fire_tasa_conservadora_pct": 4.0
         }
+
+def save_fire_config(gastos_anuales, swr_pct, aportacion_mensual, tasa_conservadora_pct):
+    try:
+        with get_db() as conn:
+            conn.execute("INSERT OR REPLACE INTO config (clave, valor) VALUES ('fire_gastos_anuales', ?)", (str(gastos_anuales),))
+            conn.execute("INSERT OR REPLACE INTO config (clave, valor) VALUES ('fire_swr_pct', ?)", (str(swr_pct),))
+            conn.execute("INSERT OR REPLACE INTO config (clave, valor) VALUES ('fire_aportacion_mensual', ?)", (str(aportacion_mensual),))
+            conn.execute("INSERT OR REPLACE INTO config (clave, valor) VALUES ('fire_tasa_conservadora_pct', ?)", (str(tasa_conservadora_pct),))
+            conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error saving fire config: {e}")
+        return False
 
 # --- Cache Helpers ---
 def get_cached_asset(ticker):

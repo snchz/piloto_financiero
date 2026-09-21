@@ -881,6 +881,102 @@ def map_rebalanceo_asset():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# --- Independencia Financiera (FIRE) API ---
+@app.route('/api/fire', methods=['GET'])
+def get_fire_data():
+    try:
+        cfg = db.get_config()
+        miron = request.args.get('miron', '0') == '1'
+        multiplier = 3.0 if miron else 1.0
+
+        gastos_param = request.args.get('gastos')
+        swr_param = request.args.get('swr')
+        aportacion_param = request.args.get('aportacion')
+        tasa_cons_param = request.args.get('tasa_cons')
+
+        base_gastos = float(cfg.get('fire_gastos_anuales', 24000.0) or 24000.0)
+        gastos_anuales = float(gastos_param) if gastos_param else (base_gastos * multiplier)
+        swr_pct = float(swr_param) if swr_param else float(cfg.get('fire_swr_pct', 4.0) or 4.0)
+        tasa_cons_pct = float(tasa_cons_param) if tasa_cons_param else float(cfg.get('fire_tasa_conservadora_pct', 4.0) or 4.0)
+
+        datos = calcular_datos_cartera(include_real_estate=False, multiplier=multiplier)
+        cartera = datos['cartera']
+        operaciones = datos['operaciones']
+        flujos_caja = datos['flujos_caja']
+
+        capital_liquido = sum(m['valor_actual'] * (m.get('tasa_cambio', 1.0) or 1.0) for m in cartera.values())
+
+        # Calcular aportación media histórica
+        aportacion_calculada = 0.0
+        if operaciones:
+            fechas_ops = [datetime.strptime(str(op['fecha']).split(' ')[0], '%Y-%m-%d') for op in operaciones if op['tipo'] in ('COMPRA', 'APORTACION')]
+            if fechas_ops:
+                max_f = max(fechas_ops)
+                hace_12m = datetime(max_f.year - 1, max_f.month, 1)
+                ops_12m = [op for op in operaciones if op['tipo'] in ('COMPRA', 'APORTACION') and datetime.strptime(str(op['fecha']).split(' ')[0], '%Y-%m-%d') >= hace_12m]
+                if ops_12m:
+                    total_aport_12m = sum((float(op['cantidad']) * float(op['precio']) + float(op.get('comisiones',0) or 0) + float(op.get('impuestos',0) or 0)) * float(op.get('tasa_cambio',1.0) or 1.0) for op in ops_12m)
+                    aportacion_calculada = round(total_aport_12m / 12.0, 2)
+                else:
+                    min_f = min(fechas_ops)
+                    meses_totales = max(((max_f.year - min_f.year) * 12 + max_f.month - min_f.month), 1)
+                    total_aport = sum((float(op['cantidad']) * float(op['precio']) + float(op.get('comisiones',0) or 0) + float(op.get('impuestos',0) or 0)) * float(op.get('tasa_cambio',1.0) or 1.0) for op in operaciones if op['tipo'] in ('COMPRA', 'APORTACION'))
+                    aportacion_calculada = round(total_aport / meses_totales, 2)
+
+        cfg_aport = float(cfg.get('fire_aportacion_mensual', 0.0) or 0.0)
+        if aportacion_param:
+            aportacion_mensual = float(aportacion_param)
+        elif cfg_aport > 0:
+            aportacion_mensual = cfg_aport * multiplier
+        else:
+            aportacion_mensual = aportacion_calculada if aportacion_calculada > 0 else (1000.0 * multiplier)
+
+        ipc_map = ine_api.get_ine_ipc_map()
+        tir_real = portfolio_math.calcular_tir_real(flujos_caja, ipc_map) if flujos_caja else None
+        tir_real_pct = (tir_real * 100.0) if (tir_real and tir_real > 0) else tasa_cons_pct
+
+        resultado = portfolio_math.calcular_datos_fire(
+            capital_actual=capital_liquido,
+            gastos_anuales=gastos_anuales,
+            swr_pct=swr_pct,
+            aportacion_mensual=aportacion_mensual,
+            tasa_conservadora_pct=tasa_cons_pct,
+            tir_real_pct=tir_real_pct
+        )
+
+        resultado['config_guardada'] = {
+            'gastos_anuales': base_gastos,
+            'swr_pct': float(cfg.get('fire_swr_pct', 4.0) or 4.0),
+            'aportacion_mensual': cfg_aport,
+            'tasa_conservadora_pct': float(cfg.get('fire_tasa_conservadora_pct', 4.0) or 4.0),
+            'aportacion_calculada': aportacion_calculada
+        }
+        resultado['modo_miron'] = miron
+
+        return jsonify(resultado)
+    except Exception as e:
+        tb = traceback.format_exc()
+        log_debug(f"Error en /api/fire: {e}\nTraceback:\n{tb}", "ERROR")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/fire/config', methods=['POST'])
+def api_save_fire_config():
+    data = request.json or {}
+    try:
+        miron = request.args.get('miron', '0') == '1'
+        divisor = 3.0 if miron else 1.0
+
+        gastos_in = float(data.get('gastos_anuales', 24000.0)) / divisor
+        swr = float(data.get('swr_pct', 4.0))
+        aport_in = float(data.get('aportacion_mensual', 0.0))
+        aportacion = (aport_in / divisor) if aport_in > 0 else 0.0
+        tasa_cons = float(data.get('tasa_conservadora_pct', 4.0))
+
+        db.save_fire_config(gastos_in, swr, aportacion, tasa_cons)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
 @app.route('/api/exchange-rate', methods=['GET'])
 def get_rate():
     try:
