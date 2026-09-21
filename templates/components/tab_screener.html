@@ -148,12 +148,71 @@
             </div>
         </div>
 
+        <!-- Filtros Clásicos de Value Investing (Graham, Buffett, Deuda) -->
+        <div class="glass-panel p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-secondary small text-uppercase fw-bold" style="letter-spacing: 0.05em;">
+                        🏛️ Filtros Clásicos de Valor (Value Investing)
+                    </span>
+                    <span class="badge bg-dark border border-secondary border-opacity-50 text-secondary font-monospace" style="font-size: 0.68rem;">
+                        Filtrado multicriterio
+                    </span>
+                </div>
+                <div class="text-secondary small" style="font-size: 0.72rem;">
+                    Combina sobreventa extrema con empresas baratas, rentables y poco endeudadas
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <!-- Preset Joyas Value -->
+                <button type="button" class="btn btn-value-filter d-flex align-items-center gap-2" id="btn-filtro-gem" onclick="toggleFiltroValue('gem')" title="Filtra activos que cumplen SIMULTÁNEAMENTE los 3 filtros de valor (Graham + Buffett + Deuda)">
+                    <span>💎</span>
+                    <span class="fw-bold">Joyas Value</span>
+                    <span class="badge bg-purple bg-opacity-50 text-white font-monospace ms-1" id="badge-count-gem">0</span>
+                </button>
+
+                <div class="vr bg-secondary opacity-50 mx-1 d-none d-md-block" style="height: 24px;"></div>
+
+                <!-- Filtro Graham -->
+                <button type="button" class="btn btn-value-filter d-flex align-items-center gap-2" id="btn-filtro-graham" onclick="toggleFiltroValue('graham')" title="Filtro Benjamin Graham: PER < 15 y Precio/Valor Contable < 1.5">
+                    <span>🏛️</span>
+                    <span>B. Graham</span>
+                    <span class="text-secondary d-none d-sm-inline" style="font-size: 0.68rem;">(PER &lt; 15 &bull; P/B &lt; 1.5)</span>
+                    <span class="badge bg-secondary bg-opacity-50 text-white font-monospace ms-1" id="badge-count-graham">0</span>
+                </button>
+
+                <!-- Filtro Buffett -->
+                <button type="button" class="btn btn-value-filter d-flex align-items-center gap-2" id="btn-filtro-buffett" onclick="toggleFiltroValue('buffett')" title="Filtro Warren Buffett: Retorno s/Capital (ROE) > 10% y Beneficio por Acción (BPA) > 0">
+                    <span>👔</span>
+                    <span>W. Buffett</span>
+                    <span class="text-secondary d-none d-sm-inline" style="font-size: 0.68rem;">(ROE &gt; 10% &bull; BPA &gt; 0)</span>
+                    <span class="badge bg-secondary bg-opacity-50 text-white font-monospace ms-1" id="badge-count-buffett">0</span>
+                </button>
+
+                <!-- Filtro Deuda -->
+                <button type="button" class="btn btn-value-filter d-flex align-items-center gap-2" id="btn-filtro-deuda" onclick="toggleFiltroValue('deuda')" title="Filtro Deuda: Ratio Deuda/Capital < 100">
+                    <span>🛡️</span>
+                    <span>Deuda Baja</span>
+                    <span class="text-secondary d-none d-sm-inline" style="font-size: 0.68rem;">(D/E &lt; 100)</span>
+                    <span class="badge bg-secondary bg-opacity-50 text-white font-monospace ms-1" id="badge-count-deuda">0</span>
+                </button>
+
+                <!-- Reset filtros -->
+                <button type="button" class="btn btn-link text-secondary text-decoration-none p-0 ms-auto small d-flex align-items-center gap-1" id="btn-clear-value-filters" onclick="limpiarFiltrosValue()" style="font-size: 0.75rem;">
+                    <span>✕</span>
+                    <span>Restablecer</span>
+                </button>
+            </div>
+        </div>
+
         <!-- Tabla de Resultados y Señales de Compra -->
         <div class="glass-panel p-0 overflow-hidden">
             <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-2">
                     <span class="fw-bold text-white small text-uppercase" style="letter-spacing: 0.05em;">Señales Detectadas en Sobreventa</span>
                     <span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-40 font-monospace" id="screener-table-count">0 señales</span>
+                    <span class="badge badge-gem font-monospace d-none" id="screener-table-gems-badge">💎 0 Joyas Value</span>
                 </div>
                 <div class="text-secondary small" style="font-size: 0.72rem;">
                     🎯 Coloca la orden limitada en tu bróker al precio sugerido para embolsar exactamente la rentabilidad neta limpia.
@@ -167,9 +226,9 @@
                             <th class="ps-4">Activo / Empresa</th>
                             <th class="text-center">Mercado</th>
                             <th class="text-end">Precio Cierre</th>
-                            <th class="text-center" style="min-width: 170px;">Williams %R (14)</th>
-                            <th class="text-center">Rango 14d (L<sub>14</sub> - H<sub>14</sub>)</th>
-                            <th class="text-end pe-4" style="min-width: 200px;">Orden Limitada Venta Sugerida</th>
+                            <th class="text-center" style="min-width: 160px;">Williams %R (14)</th>
+                            <th class="text-center" style="min-width: 220px;">Filtros Value</th>
+                            <th class="text-end pe-4" style="min-width: 190px;">Orden Limitada Venta Sugerida</th>
                         </tr>
                     </thead>
                     <tbody id="screener-table-body">

@@ -317,3 +317,42 @@ body.vista-esencial .metric-advanced {
     border-color: var(--accent) !important;
     color: #fff !important;
 }
+
+/* Screener: Value Investing Filters & Badges */
+.badge-gem {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(236, 72, 153, 0.25));
+    border: 1px solid rgba(168, 85, 247, 0.6);
+    color: #f3e8ff;
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(168, 85, 247, 0.5);
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+}
+
+.btn-value-filter {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+.btn-value-filter:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.25);
+}
+.btn-value-filter.active {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: #6366f1;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
+}
+.btn-value-filter.active-gem {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(236, 72, 153, 0.3));
+    border-color: #a855f7;
+    color: #fff;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.35);
+}
+

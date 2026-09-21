@@ -1,11 +1,17 @@
 /**
  * Equity Screener (Williams %R & Net Target Gain)
- * Escaneo en segundo plano, cálculo en vivo de orden limitada y gestión de universo
+ * Escaneo en segundo plano, cálculo en vivo de orden limitada y filtros Value Investing
  */
 
 let screenerRawSignals = [];
 let screenerPollTimer = null;
 let screenerMarketFilter = 'ALL';
+
+// Estado de Filtros Value Investing
+let screenerFilterGem = false;
+let screenerFilterGraham = false;
+let screenerFilterBuffett = false;
+let screenerFilterDeuda = false;
 
 async function cargarScreener() {
     const umbral = parseFloat(document.getElementById('screener-slider-umbral')?.value || -80);
@@ -35,10 +41,13 @@ async function cargarScreener() {
         const lastScanEl = document.getElementById('screener-kpi-last-scan');
         if (lastScanEl) lastScanEl.textContent = data.last_scan_time || '--:--:--';
 
-        // 2. Renderizar tabla
+        // 2. Contadores de Filtros Value
+        actualizarContadoresValue(data);
+
+        // 3. Renderizar tabla
         renderizarTablaScreener();
 
-        // 3. Si el servidor sigue escaneando, reanudar polling
+        // 4. Si el servidor sigue escaneando, reanudar polling
         if (data.status && data.status.is_scanning) {
             mostrarProgresoEscaneo(data.status);
             iniciarPollingEstado();
@@ -50,6 +59,80 @@ async function cargarScreener() {
     }
 }
 window.cargarScreener = cargarScreener;
+
+function actualizarContadoresValue(data) {
+    const totalGems = data.total_gems ?? screenerRawSignals.filter(s => s.is_value_gem).length;
+    const totalGraham = data.total_graham ?? screenerRawSignals.filter(s => s.passes_graham).length;
+    const totalBuffett = data.total_buffett ?? screenerRawSignals.filter(s => s.passes_buffett).length;
+    const totalDeuda = data.total_deuda ?? screenerRawSignals.filter(s => s.passes_deuda).length;
+
+    const bGem = document.getElementById('badge-count-gem');
+    if (bGem) bGem.textContent = totalGems;
+
+    const bGraham = document.getElementById('badge-count-graham');
+    if (bGraham) bGraham.textContent = totalGraham;
+
+    const bBuffett = document.getElementById('badge-count-buffett');
+    if (bBuffett) bBuffett.textContent = totalBuffett;
+
+    const bDeuda = document.getElementById('badge-count-deuda');
+    if (bDeuda) bDeuda.textContent = totalDeuda;
+
+    const gemsBadge = document.getElementById('screener-table-gems-badge');
+    if (gemsBadge) {
+        if (totalGems > 0) {
+            gemsBadge.textContent = `💎 ${totalGems} Joya${totalGems === 1 ? '' : 's'} Value`;
+            gemsBadge.classList.remove('d-none');
+        } else {
+            gemsBadge.classList.add('d-none');
+        }
+    }
+}
+
+function toggleFiltroValue(filtro) {
+    if (filtro === 'gem') {
+        screenerFilterGem = !screenerFilterGem;
+        if (screenerFilterGem) {
+            screenerFilterGraham = false;
+            screenerFilterBuffett = false;
+            screenerFilterDeuda = false;
+        }
+    } else if (filtro === 'graham') {
+        screenerFilterGraham = !screenerFilterGraham;
+        screenerFilterGem = false;
+    } else if (filtro === 'buffett') {
+        screenerFilterBuffett = !screenerFilterBuffett;
+        screenerFilterGem = false;
+    } else if (filtro === 'deuda') {
+        screenerFilterDeuda = !screenerFilterDeuda;
+        screenerFilterGem = false;
+    }
+    actualizarEstilosBotonesFiltro();
+    renderizarTablaScreener();
+}
+window.toggleFiltroValue = toggleFiltroValue;
+
+function limpiarFiltrosValue() {
+    screenerFilterGem = false;
+    screenerFilterGraham = false;
+    screenerFilterBuffett = false;
+    screenerFilterDeuda = false;
+    actualizarEstilosBotonesFiltro();
+    renderizarTablaScreener();
+}
+window.limpiarFiltrosValue = limpiarFiltrosValue;
+
+function actualizarEstilosBotonesFiltro() {
+    const btnGem = document.getElementById('btn-filtro-gem');
+    const btnGraham = document.getElementById('btn-filtro-graham');
+    const btnBuffett = document.getElementById('btn-filtro-buffett');
+    const btnDeuda = document.getElementById('btn-filtro-deuda');
+
+    if (btnGem) btnGem.classList.toggle('active-gem', screenerFilterGem);
+    if (btnGraham) btnGraham.classList.toggle('active', screenerFilterGraham);
+    if (btnBuffett) btnBuffett.classList.toggle('active', screenerFilterBuffett);
+    if (btnDeuda) btnDeuda.classList.toggle('active', screenerFilterDeuda);
+}
 
 function actualizarFiltrosScreener() {
     const slider = document.getElementById('screener-slider-umbral');
@@ -97,23 +180,38 @@ function renderizarTablaScreener(customUmbral = null, customTarget = null, custo
     const countBadge = document.getElementById('screener-table-count');
     if (!tbody) return;
 
-    // Filtrar por umbral y por mercado
+    // Filtrar por umbral, mercado y filtros Value Investing
     const filtradas = screenerRawSignals.filter(s => {
         if (s.williams_r > umbral) return false;
         if (screenerMarketFilter === 'SP500' && !s.market.includes('S&P')) return false;
         if (screenerMarketFilter === 'MC' && !s.market.includes('.MC')) return false;
+
+        if (screenerFilterGem && !s.is_value_gem) return false;
+        if (screenerFilterGraham && !s.passes_graham) return false;
+        if (screenerFilterBuffett && !s.passes_buffett) return false;
+        if (screenerFilterDeuda && !s.passes_deuda) return false;
+
         return true;
     });
 
     if (countBadge) countBadge.textContent = `${filtradas.length} señal${filtradas.length === 1 ? '' : 'es'}`;
 
     if (filtradas.length === 0) {
+        let msgFiltros = [];
+        if (screenerFilterGem) msgFiltros.push("💎 Joyas Value");
+        if (screenerFilterGraham) msgFiltros.push("🏛️ Graham");
+        if (screenerFilterBuffett) msgFiltros.push("👔 Buffett");
+        if (screenerFilterDeuda) msgFiltros.push("🛡️ Deuda");
+        const extraMsg = msgFiltros.length > 0 ? ` con filtros activos [${msgFiltros.join(', ')}]` : '';
+
         tbody.innerHTML = `
             <tr>
                 <td colspan="6" class="text-center py-5 text-secondary">
                     <div class="mb-2 fs-4">👌</div>
-                    <div>No hay activos bajo el umbral de sobreventa (${umbral}) con los filtros actuales.</div>
-                    <div class="small text-secondary mt-1">Prueba a elevar el umbral (ej. -75) o ejecuta un nuevo escaneo.</div>
+                    <div>No hay activos bajo el umbral de sobreventa (${umbral})${extraMsg}.</div>
+                    <div class="small text-secondary mt-1">
+                        ${msgFiltros.length > 0 ? '<a href="javascript:void(0)" class="text-primary text-decoration-none" onclick="limpiarFiltrosValue()">Restablecer filtros Value</a> o ' : ''}eleva el umbral en el deslizador.
+                    </div>
                 </td>
             </tr>
         `;
@@ -126,7 +224,6 @@ function renderizarTablaScreener(customUmbral = null, customTarget = null, custo
         const badgeText = isExtremo ? 'Sobreventa Extrema' : 'Sobreventa';
 
         // Porcentaje visual del oscilador (-100 a 0)
-        // Normalizamos: -100 es 0% (pegado al suelo), 0 es 100%
         const gaugePct = Math.min(Math.max(100 + s.williams_r, 0), 100);
 
         const curr = s.currency || (s.ticker.endsWith('.MC') ? 'EUR' : 'USD');
@@ -137,12 +234,38 @@ function renderizarTablaScreener(customUmbral = null, customTarget = null, custo
 
         const { targetPrice, grossPct } = calcularPrecioTargetLocal(s.close_price, cin, cout, targetGain);
 
+        // --- Renderizar Badges Value Investing ---
+        const gemBadgeHtml = s.is_value_gem 
+            ? '<span class="badge badge-gem font-monospace py-1 px-2" style="font-size:0.68rem;" title="💎 Joya Value: Supera los 3 filtros simultáneamente (Graham + Buffett + Deuda)">💎 Joya Value</span>'
+            : '';
+
+        // Graham: PER < 15 y P/B < 1.5
+        const peStr = s.trailing_pe !== null && s.trailing_pe !== undefined ? s.trailing_pe.toFixed(1) : 'N/D';
+        const pbStr = s.price_to_book !== null && s.price_to_book !== undefined ? s.price_to_book.toFixed(2) : 'N/D';
+        const grahamBadge = s.passes_graham
+            ? `<span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-40 font-monospace" style="font-size:0.68rem;" title="Graham Superado: PER ${peStr} (<15) · P/B ${pbStr} (<1.5)">🏛️ PER ${peStr} · P/B ${pbStr}</span>`
+            : `<span class="badge bg-dark border border-secondary border-opacity-25 text-secondary font-monospace opacity-75" style="font-size:0.68rem;" title="Graham: PER ${peStr} · P/B ${pbStr}">🏛️ PER ${peStr}</span>`;
+
+        // Buffett: ROE > 10% (0.10) y EPS > 0
+        const roeStr = s.return_on_equity !== null && s.return_on_equity !== undefined ? `${(s.return_on_equity * 100).toFixed(1)}%` : 'N/D';
+        const epsStr = s.trailing_eps !== null && s.trailing_eps !== undefined ? s.trailing_eps.toFixed(2) : 'N/D';
+        const buffettBadge = s.passes_buffett
+            ? `<span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-40 font-monospace" style="font-size:0.68rem;" title="Buffett Superado: ROE ${roeStr} (>10%) · BPA ${epsStr} (>0)">👔 ROE ${roeStr}</span>`
+            : `<span class="badge bg-dark border border-secondary border-opacity-25 text-secondary font-monospace opacity-75" style="font-size:0.68rem;" title="Buffett: ROE ${roeStr} · BPA ${epsStr}">👔 ROE ${roeStr}</span>`;
+
+        // Deuda: Debt/Equity < 100
+        const deStr = s.debt_to_equity !== null && s.debt_to_equity !== undefined ? s.debt_to_equity.toFixed(1) : 'N/D';
+        const deudaBadge = s.passes_deuda
+            ? `<span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-40 font-monospace" style="font-size:0.68rem;" title="Deuda Saludable: D/E ${deStr} (<100)">🛡️ D/E ${deStr}</span>`
+            : `<span class="badge ${s.debt_to_equity !== null ? 'bg-danger bg-opacity-15 text-danger border border-danger border-opacity-30' : 'bg-dark border border-secondary border-opacity-25 text-secondary'} font-monospace opacity-75" style="font-size:0.68rem;" title="D/E: ${deStr} ${s.debt_to_equity === null ? '(Bancos o no reportado)' : '(Excede 100)'}">🛡️ D/E ${deStr}</span>`;
+
         return `
             <tr>
                 <td class="ps-4">
                     <div class="fw-bold text-white fs-6 d-flex align-items-center gap-2">
                         <span>${s.ticker}</span>
                         ${mktBadge}
+                        ${gemBadgeHtml}
                     </div>
                     <div class="text-secondary small text-truncate" style="max-width: 250px;" title="${s.name}">${s.name}</div>
                 </td>
@@ -161,10 +284,12 @@ function renderizarTablaScreener(customUmbral = null, customTarget = null, custo
                         <div class="progress-bar ${isExtremo ? 'bg-danger' : 'bg-warning'}" style="width: ${gaugePct}%; border-radius: 4px;"></div>
                     </div>
                 </td>
-                <td class="text-center font-monospace text-secondary small">
-                    <span class="text-danger" title="Mínimo 14 sesiones">${UI.formatCurrency(s.low_14, curr)}</span>
-                    <span class="opacity-50"> - </span>
-                    <span class="text-info" title="Máximo 14 sesiones">${UI.formatCurrency(s.high_14, curr)}</span>
+                <td class="text-center px-2">
+                    <div class="d-flex flex-wrap gap-1 justify-content-center align-items-center">
+                        ${grahamBadge}
+                        ${buffettBadge}
+                        ${deudaBadge}
+                    </div>
                 </td>
                 <td class="text-end pe-4">
                     <div class="d-inline-flex flex-column align-items-end p-2 rounded-2" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25);">
@@ -183,6 +308,7 @@ function renderizarTablaScreener(customUmbral = null, customTarget = null, custo
 
     tbody.innerHTML = html;
 }
+
 
 // --- Gestión de Escaneo Asíncrono ---
 async function iniciarEscaneoScreener() {

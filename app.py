@@ -987,18 +987,36 @@ def api_get_screener():
         comision_out = float(request.args.get('comision_out', 0.12))
         target_gain = float(request.args.get('target_gain', 5.0))
         market_filter = request.args.get('market', 'ALL')
+        filtro_graham = request.args.get('graham', 'false').lower() in ('true', '1')
+        filtro_buffett = request.args.get('buffett', 'false').lower() in ('true', '1')
+        filtro_deuda = request.args.get('deuda', 'false').lower() in ('true', '1')
+        filtro_gem = request.args.get('gem', 'false').lower() in ('true', '1')
 
         data = screener_service.get_screener_data(
             umbral_wr=umbral_wr,
             comision_in=comision_in,
             comision_out=comision_out,
             target_gain=target_gain,
-            market_filter=market_filter
+            market_filter=market_filter,
+            filtro_graham=filtro_graham,
+            filtro_buffett=filtro_buffett,
+            filtro_deuda=filtro_deuda,
+            filtro_gem=filtro_gem
         )
         return jsonify(data)
     except Exception as e:
         log_debug(f"Error en /api/screener: {e}", "ERROR")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/screener/backfill', methods=['POST'])
+def api_backfill_screener():
+    try:
+        count = screener_service.backfill_fundamentals()
+        return jsonify({"ok": True, "updated_count": count})
+    except Exception as e:
+        log_debug(f"Error en /api/screener/backfill: {e}", "ERROR")
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/screener/scan', methods=['POST'])
 def api_trigger_screener_scan():

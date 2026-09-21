@@ -8,8 +8,10 @@ import json
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
+
 
 import pandas as pd
 import requests
@@ -171,6 +173,67 @@ def calculate_target_sell_price(
     }
 
 
+def fetch_ticker_fundamentals(ticker: str) -> Dict[str, Optional[float]]:
+    """
+    Obtiene métricas fundamentales vía yfinance para los filtros Value:
+    - trailingPE (PER)
+    - priceToBook (P/B)
+    - returnOnEquity (ROE)
+    - trailingEps (BPA)
+    - debtToEquity (Deuda / Capital)
+    """
+    try:
+        t = yf.Ticker(ticker)
+        info = t.info or {}
+
+        def _clean(val):
+            if val is None:
+                return None
+            try:
+                f = float(val)
+                return None if (f != f) else round(f, 4)
+            except (ValueError, TypeError):
+                return None
+
+        return {
+            "trailing_pe": _clean(info.get("trailingPE")),
+            "price_to_book": _clean(info.get("priceToBook")),
+            "return_on_equity": _clean(info.get("returnOnEquity")),
+            "trailing_eps": _clean(info.get("trailingEps")),
+            "debt_to_equity": _clean(info.get("debtToEquity"))
+        }
+    except Exception as e:
+        logger.debug(f"Error obteniendo fundamentales de {ticker}: {e}")
+        return {
+            "trailing_pe": None,
+            "price_to_book": None,
+            "return_on_equity": None,
+            "trailing_eps": None,
+            "debt_to_equity": None
+        }
+
+
+def check_graham(pe: Optional[float], pb: Optional[float]) -> bool:
+    """Filtro Benjamin Graham: PER < 15 y P/B < 1.5 (ambos positivos)."""
+    if pe is None or pb is None:
+        return False
+    return (0 < pe < 15.0) and (0 < pb < 1.5)
+
+
+def check_buffett(roe: Optional[float], eps: Optional[float]) -> bool:
+    """Filtro Warren Buffett: ROE > 10% (0.10) y EPS > 0."""
+    if roe is None or eps is None:
+        return False
+    return (roe > 0.10) and (eps > 0)
+
+
+def check_deuda(de: Optional[float]) -> bool:
+    """Filtro Deuda: Deuda/Capital < 100."""
+    if de is None:
+        return False
+    return (0 <= de < 100.0)
+
+
 def _run_scan_thread(batch_size: int = 50):
     """Worker en background que procesa el universo de activos en batches y persiste resultados."""
     try:
@@ -254,6 +317,23 @@ def _run_scan_thread(batch_size: int = 50):
 
             scanned_count += len(batch)
 
+        # 2.5 Descargar métricas fundamentales en paralelo para candidatos en sobreventa (W%R <= -70.0)
+        candidates = [r["ticker"] for r in results if r.get("williams_r", 0) <= -70.0]
+        if candidates:
+            set_scan_state(
+                message=f"Descargando fundamentales Value (Graham, Buffett, Deuda) para {len(candidates)} candidatos..."
+            )
+            try:
+                with ThreadPoolExecutor(max_workers=10) as executor:
+                    fund_results = list(executor.map(fetch_ticker_fundamentals, candidates))
+                fund_map = dict(zip(candidates, fund_results))
+                for r in results:
+                    t = r["ticker"]
+                    if t in fund_map:
+                        r.update(fund_map[t])
+            except Exception as e_fund:
+                logger.warning(f"Error descargando fundamentales concurrentes: {e_fund}")
+
         # 3. Guardar en SQLite
         scan_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         db.save_screener_results(results, scan_timestamp=scan_timestamp, total_scanned=total_assets)
@@ -269,6 +349,38 @@ def _run_scan_thread(batch_size: int = 50):
     except Exception as e:
         logger.error(f"Error en ejecución del screener: {e}", exc_info=True)
         set_scan_state(is_scanning=False, message=f"Error en escaneo: {str(e)}", last_error=str(e))
+
+
+def backfill_fundamentals(max_workers: int = 10) -> int:
+    """
+    Rellena métricas fundamentales en SQLite para todas las señales en sobreventa
+    que aún tengan los campos en NULL.
+    """
+    try:
+        raw_signals = db.get_screener_results()
+        pending = [
+            s["ticker"] for s in raw_signals
+            if s.get("trailing_pe") is None and s.get("williams_r", 0) <= -70.0
+        ]
+        if not pending:
+            return 0
+
+        logger.info(f"Rellenando fundamentales para {len(pending)} activos en BD...")
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            fund_data = list(executor.map(fetch_ticker_fundamentals, pending))
+
+        updates = []
+        for ticker, data in zip(pending, fund_data):
+            u = {"ticker": ticker}
+            u.update(data)
+            updates.append(u)
+
+        db.update_screener_fundamentals_batch(updates)
+        logger.info(f"Fundamentales actualizados con éxito para {len(updates)} activos.")
+        return len(updates)
+    except Exception as e:
+        logger.error(f"Error en backfill de fundamentales: {e}")
+        return 0
 
 
 def trigger_screener_scan(batch_size: int = 50) -> bool:
@@ -290,25 +402,63 @@ def get_screener_data(
     comision_in: float = 0.12,
     comision_out: float = 0.12,
     target_gain: float = 5.0,
-    market_filter: str = "ALL"
+    market_filter: str = "ALL",
+    filtro_graham: bool = False,
+    filtro_buffett: bool = False,
+    filtro_deuda: bool = False,
+    filtro_gem: bool = False
 ) -> Dict[str, Any]:
     """
-    Retorna el estado del escáner y la lista de señales filtradas por W%R con recálculo dinámico del precio target.
+    Retorna el estado del escáner y la lista de señales filtradas por W%R y filtros Value.
     """
     raw_signals = db.get_screener_results()
     meta = db.get_screener_meta()
     scan_state = get_scan_state()
 
     filtered_signals = []
+    total_gems = 0
+    total_graham = 0
+    total_buffett = 0
+    total_deuda = 0
+
     for s in raw_signals:
         wr = float(s.get("williams_r", 0))
-        # Filtro de sobreventa W%R < umbral (ej. -80)
+        # Filtro de sobreventa W%R <= umbral (ej. -80)
         if wr <= umbral_wr:
-            # Filtro opcional de mercado
             market = s.get("market", "")
             if market_filter == "SP500" and "S&P" not in market:
                 continue
             if market_filter == "MC" and ".MC" not in market:
+                continue
+
+            pe = s.get("trailing_pe")
+            pb = s.get("price_to_book")
+            roe = s.get("return_on_equity")
+            eps = s.get("trailing_eps")
+            de = s.get("debt_to_equity")
+
+            passes_g = check_graham(pe, pb)
+            passes_b = check_buffett(roe, eps)
+            passes_d = check_deuda(de)
+            is_gem = passes_g and passes_b and passes_d
+
+            if passes_g:
+                total_graham += 1
+            if passes_b:
+                total_buffett += 1
+            if passes_d:
+                total_deuda += 1
+            if is_gem:
+                total_gems += 1
+
+            # Filtrar según los filtros activos de Value Investing
+            if filtro_gem and not is_gem:
+                continue
+            if filtro_graham and not passes_g:
+                continue
+            if filtro_buffett and not passes_b:
+                continue
+            if filtro_deuda and not passes_d:
                 continue
 
             # Recalcular precio de venta límite según comisiones del usuario
@@ -332,7 +482,17 @@ def get_screener_data(
                 "date": s.get("date"),
                 "target_price": calc["target_price"],
                 "gross_gain_pct": calc["gross_gain_pct"],
-                "net_gain_pct": calc["net_gain_pct"]
+                "net_gain_pct": calc["net_gain_pct"],
+                # Fundamentales Value Investing
+                "trailing_pe": pe,
+                "price_to_book": pb,
+                "return_on_equity": roe,
+                "trailing_eps": eps,
+                "debt_to_equity": de,
+                "passes_graham": passes_g,
+                "passes_buffett": passes_b,
+                "passes_deuda": passes_d,
+                "is_value_gem": is_gem
             })
 
     # Ordenar por mayor sobreventa (W%R más bajo / negativo primero)
@@ -348,13 +508,22 @@ def get_screener_data(
         "last_scan_time": last_scan_time,
         "total_scanned": total_scanned,
         "total_signals": len(filtered_signals),
+        "total_gems": total_gems,
+        "total_graham": total_graham,
+        "total_buffett": total_buffett,
+        "total_deuda": total_deuda,
         "avg_williams_r": avg_wr,
         "params": {
             "umbral_wr": umbral_wr,
             "comision_in": comision_in,
             "comision_out": comision_out,
             "target_gain": target_gain,
-            "market_filter": market_filter
+            "market_filter": market_filter,
+            "filtro_graham": filtro_graham,
+            "filtro_buffett": filtro_buffett,
+            "filtro_deuda": filtro_deuda,
+            "filtro_gem": filtro_gem
         },
         "signals": filtered_signals
     }
+

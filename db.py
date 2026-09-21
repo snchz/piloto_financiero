@@ -212,10 +212,21 @@ def init_db():
                 high_14 REAL,
                 low_14 REAL,
                 williams_r REAL,
+                trailing_pe REAL,
+                price_to_book REAL,
+                return_on_equity REAL,
+                trailing_eps REAL,
+                debt_to_equity REAL,
                 date TEXT,
                 updated_at TEXT
             )
         ''')
+        for col in ["trailing_pe", "price_to_book", "return_on_equity", "trailing_eps", "debt_to_equity"]:
+            try:
+                c.execute(f"ALTER TABLE screener_results ADD COLUMN {col} REAL DEFAULT NULL")
+            except sqlite3.OperationalError:
+                pass
+
         c.execute('''
             CREATE TABLE IF NOT EXISTS screener_config (
                 key TEXT PRIMARY KEY,
@@ -666,11 +677,15 @@ def save_screener_results(results_list, scan_timestamp, total_scanned):
             for r in results_list:
                 conn.execute('''
                     INSERT OR REPLACE INTO screener_results 
-                    (ticker, name, market, currency, close_price, high_14, low_14, williams_r, date, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (ticker, name, market, currency, close_price, high_14, low_14, williams_r,
+                     trailing_pe, price_to_book, return_on_equity, trailing_eps, debt_to_equity, date, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     r['ticker'], r.get('name', r['ticker']), r.get('market', ''), r.get('currency', 'USD'),
-                    r['close_price'], r['high_14'], r['low_14'], r['williams_r'], r['date'], scan_timestamp
+                    r['close_price'], r['high_14'], r['low_14'], r['williams_r'],
+                    r.get('trailing_pe'), r.get('price_to_book'), r.get('return_on_equity'),
+                    r.get('trailing_eps'), r.get('debt_to_equity'),
+                    r['date'], scan_timestamp
                 ))
             conn.execute("INSERT OR REPLACE INTO screener_config (key, value) VALUES ('last_scan_time', ?)", (scan_timestamp,))
             conn.execute("INSERT OR REPLACE INTO screener_config (key, value) VALUES ('total_scanned', ?)", (str(total_scanned),))
@@ -697,5 +712,24 @@ def get_screener_meta():
     except Exception as e:
         print(f"Error fetching screener meta: {e}")
         return {}
+
+def update_screener_fundamentals_batch(updates_list):
+    try:
+        with get_db() as conn:
+            for u in updates_list:
+                conn.execute('''
+                    UPDATE screener_results
+                    SET trailing_pe = ?, price_to_book = ?, return_on_equity = ?, trailing_eps = ?, debt_to_equity = ?
+                    WHERE ticker = ?
+                ''', (
+                    u.get('trailing_pe'), u.get('price_to_book'), u.get('return_on_equity'),
+                    u.get('trailing_eps'), u.get('debt_to_equity'), u['ticker']
+                ))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error updating screener fundamentals: {e}")
+        return False
+
 
 
