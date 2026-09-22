@@ -301,6 +301,15 @@ function renderizarTablaScreener(customUmbral = null, customTarget = null, custo
                             <span class="text-secondary opacity-75">(+${grossPct.toFixed(2)}% bruto)</span>
                         </div>
                     </div>
+                    <div class="mt-1">
+                        <button type="button" 
+                                class="btn btn-sm btn-outline-success py-1 px-2 d-inline-flex align-items-center gap-1 font-monospace" 
+                                style="font-size: 0.7rem; border-color: rgba(16, 185, 129, 0.35);"
+                                onclick="crearAlertaOrdenLimitada('${s.ticker}', ${targetPrice}, ${targetGain}, this)" 
+                                title="Añadir alerta a Monitores con precio objetivo ${targetPrice.toFixed(2)} ${curr}">
+                            <span>🔔 Añadir Alerta</span>
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -308,6 +317,55 @@ function renderizarTablaScreener(customUmbral = null, customTarget = null, custo
 
     tbody.innerHTML = html;
 }
+
+// --- Crear Alerta desde Orden Limitada del Screener ---
+async function crearAlertaOrdenLimitada(ticker, targetPrice, targetGain = 5.0, btn = null) {
+    if (!ticker || !targetPrice || targetPrice <= 0) {
+        UI.showToast("Precio objetivo no válido", "error");
+        return;
+    }
+
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    }
+
+    try {
+        const payload = {
+            ticker: ticker,
+            target: parseFloat(targetPrice.toFixed(2)),
+            target_pct: parseFloat(targetGain.toFixed(1)) || 0
+        };
+
+        const res = await API.post('/api/add', payload);
+        if (res && res.ok) {
+            UI.showToast(`🔔 Alerta guardada para ${ticker} a ${targetPrice.toFixed(2)}`, "success");
+            if (btn) {
+                btn.className = "btn btn-sm btn-success py-1 px-2 d-inline-flex align-items-center gap-1 font-monospace text-white";
+                btn.innerHTML = '<span>✓ Alerta Creada</span>';
+                btn.disabled = true;
+            }
+            if (typeof window.cargarOperaciones === 'function') {
+                window.cargarOperaciones();
+            }
+        } else {
+            UI.showToast(res.error || "No se pudo crear la alerta", "error");
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+    } catch (err) {
+        console.error("Error creando alerta:", err);
+        UI.showToast("Error creando alerta: " + (err.message || err), "error");
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+}
+window.crearAlertaOrdenLimitada = crearAlertaOrdenLimitada;
 
 
 // --- Gestión de Escaneo Asíncrono ---
