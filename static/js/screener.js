@@ -430,12 +430,171 @@ function restaurarTickersEspanaDefault() {
 }
 window.restaurarTickersEspanaDefault = restaurarTickersEspanaDefault;
 
+// --- Sentimiento de Mercado & Posicionamiento Institucional (Metodología Cava) ---
+let _sentimentLoading = false;
+
+async function cargarSentimientoMercado(forzar = false) {
+    if (_sentimentLoading) return;
+    _sentimentLoading = true;
+
+    const spinner = document.getElementById('sentiment-spinner');
+    const label = document.getElementById('sentiment-refresh-label');
+    const statusBadge = document.getElementById('sentiment-status-badge');
+
+    if (spinner) spinner.classList.remove('d-none');
+    if (label) label.textContent = 'Actualizando...';
+
+    try {
+        const url = `/api/sentimiento${forzar ? '?refresh=1' : ''}`;
+        const data = await API.fetch(url);
+
+        // 1. VIX
+        const vix = data.vix || {};
+        const vixPriceEl = document.getElementById('sentiment-vix-price');
+        const vixChangeEl = document.getElementById('sentiment-vix-change');
+        const vixBadgeEl = document.getElementById('sentiment-vix-badge');
+        if (vixPriceEl) vixPriceEl.textContent = vix.current_price ? vix.current_price.toFixed(2) : '--';
+        if (vixChangeEl) {
+            const chg = vix.change || 0;
+            const pct = vix.pct_change || 0;
+            const sign = chg >= 0 ? '+' : '';
+            vixChangeEl.textContent = `${sign}${chg.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+            vixChangeEl.className = `small font-monospace ${chg > 0 ? 'text-danger' : 'text-success'}`;
+        }
+        if (vixBadgeEl) {
+            vixBadgeEl.textContent = vix.regimen || '--';
+            vixBadgeEl.className = `badge bg-${vix.color || 'secondary'} font-monospace`;
+        }
+
+        // 2. CNN Fear & Greed
+        const fg = data.fear_and_greed || {};
+        const fgScoreEl = document.getElementById('sentiment-fg-score');
+        const fgBadgeEl = document.getElementById('sentiment-fg-badge');
+        const fgBarEl = document.getElementById('sentiment-fg-bar');
+        const fgPrevEl = document.getElementById('sentiment-fg-prev');
+
+        if (fgScoreEl) fgScoreEl.textContent = fg.score !== undefined ? fg.score.toFixed(1) : '--';
+        if (fgBadgeEl) {
+            fgBadgeEl.textContent = fg.rating_es || fg.rating || '--';
+            fgBadgeEl.className = `badge bg-${fg.color || 'secondary'} font-monospace`;
+        }
+        if (fgBarEl) {
+            const score = fg.score || 50;
+            fgBarEl.style.width = `${Math.min(Math.max(score, 5), 100)}%`;
+            fgBarEl.className = `progress-bar bg-${fg.color || 'info'}`;
+        }
+        if (fgPrevEl) {
+            fgPrevEl.textContent = `Prev: ${fg.previous_close !== undefined ? fg.previous_close.toFixed(0) : '--'}`;
+        }
+
+        // 3. Ratio Put/Call
+        const pc = data.put_call || {};
+        const pcrVolEl = document.getElementById('sentiment-pcr-vol');
+        const pcr10dEl = document.getElementById('sentiment-pcr-10d');
+        const pcrOiEl = document.getElementById('sentiment-pcr-oi');
+        const pcrBadgeEl = document.getElementById('sentiment-pcr-badge');
+
+        const pcrVol = pc.pcr_volume || 0;
+        if (pcrVolEl) pcrVolEl.textContent = pcrVol.toFixed(2);
+        if (pcr10dEl) {
+            pcr10dEl.textContent = pc.pcr_10d_ma ? `MA10: ${pc.pcr_10d_ma.toFixed(2)}` : 'MA10: --';
+        }
+        if (pcrOiEl) {
+            pcrOiEl.textContent = pc.pcr_oi ? `OI: ${pc.pcr_oi.toFixed(2)}` : 'OI: --';
+        }
+        if (pcrBadgeEl) {
+            let pcrLabel = 'Neutral';
+            let pcrColor = 'secondary';
+            const valToCheck = pc.pcr_10d_ma || pcrVol;
+            if (valToCheck >= 1.05) {
+                pcrLabel = 'Pánico (>1.05)';
+                pcrColor = 'danger';
+            } else if (valToCheck <= 0.65) {
+                pcrLabel = 'Complacencia (<0.65)';
+                pcrColor = 'warning';
+            }
+            pcrBadgeEl.textContent = pcrLabel;
+            pcrBadgeEl.className = `badge bg-${pcrColor} font-monospace`;
+        }
+
+        // 4. Dealers Gamma & Muros
+        const gex = data.gamma_exposure || {};
+        const walls = data.walls || {};
+        const spxPriceEl = document.getElementById('sentiment-spx-price');
+        const zeroGammaEl = document.getElementById('sentiment-zero-gamma');
+        const gammaBadgeEl = document.getElementById('sentiment-gamma-badge');
+        const putWallEl = document.getElementById('sentiment-put-wall');
+        const callWallEl = document.getElementById('sentiment-call-wall');
+
+        if (spxPriceEl) {
+            const spx = data.spx_price || (data.spy_price ? data.spy_price * 10 : 0);
+            spxPriceEl.textContent = `SPX: ${spx ? Math.round(spx) : '--'}`;
+        }
+        if (zeroGammaEl) {
+            zeroGammaEl.textContent = `γ=0: ${gex.zero_gamma_spx ? Math.round(gex.zero_gamma_spx) : '--'}`;
+        }
+        if (gammaBadgeEl) {
+            const isPos = gex.is_positive_gamma;
+            gammaBadgeEl.textContent = isPos ? 'Gamma +' : 'Gamma -';
+            gammaBadgeEl.className = `badge ${isPos ? 'bg-primary' : 'bg-warning text-dark'} font-monospace`;
+            gammaBadgeEl.title = gex.regimen_desc || '';
+        }
+        if (putWallEl) {
+            putWallEl.textContent = `Put Wall: ${walls.put_wall_spx ? Math.round(walls.put_wall_spx) : '--'}`;
+        }
+        if (callWallEl) {
+            callWallEl.textContent = `Call Wall: ${walls.call_wall_spx ? Math.round(walls.call_wall_spx) : '--'}`;
+        }
+
+        // 5. Diagnóstico y Badge General
+        const diag = data.diagnostico || {};
+        if (statusBadge) {
+            statusBadge.textContent = diag.estado || 'Neutral';
+            statusBadge.className = `badge ${diag.badge_class || 'bg-secondary'} font-monospace`;
+        }
+        const diagDesc = document.getElementById('sentiment-diagnostico-desc');
+        if (diagDesc) {
+            diagDesc.textContent = diag.resumen || 'Sin diagnóstico disponible.';
+        }
+        const diagContainer = document.getElementById('sentiment-diagnostico-container');
+        if (diagContainer) {
+            const colorBorder = diag.color === 'danger' ? '#f43f5e' : (diag.color === 'success' ? '#10b981' : (diag.color === 'warning' ? '#f59e0b' : '#6366f1'));
+            diagContainer.style.borderLeftColor = colorBorder;
+        }
+
+        // 6. Información de Caché
+        const cacheInfo = document.getElementById('sentiment-cache-info');
+        if (cacheInfo) {
+            if (data.from_cache) {
+                const mins = Math.floor((data.cache_age_seconds || 0) / 60);
+                cacheInfo.textContent = `Caché: hace ${mins}m`;
+            } else {
+                cacheInfo.textContent = 'En vivo';
+            }
+        }
+
+    } catch (err) {
+        console.error("Error cargando sentimiento de mercado:", err);
+        if (statusBadge) {
+            statusBadge.textContent = 'Error';
+            statusBadge.className = 'badge bg-danger font-monospace';
+        }
+    } finally {
+        _sentimentLoading = false;
+        if (spinner) spinner.classList.add('d-none');
+        if (label) label.textContent = '🔄 Refrescar';
+    }
+}
+window.cargarSentimientoMercado = cargarSentimientoMercado;
+
 // Auto-carga al abrir la pestaña Screener
 document.addEventListener('DOMContentLoaded', () => {
     const screenerTabBtn = document.getElementById('screener-tab');
     if (screenerTabBtn) {
         screenerTabBtn.addEventListener('shown.bs.tab', () => {
             cargarScreener();
+            cargarSentimientoMercado();
         });
     }
 });
+

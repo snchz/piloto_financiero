@@ -38,6 +38,115 @@
             </div>
         </div>
 
+        <!-- Panel Termómetro y Sentimiento del Mercado (Metodología José Luis Cava) -->
+        <div class="glass-panel p-3" id="sentiment-panel">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2" style="border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fs-4">🧭</span>
+                    <div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <h6 class="m-0 fs-6 fw-bold text-white">Sentimiento de Mercado & Posicionamiento Institucional</h6>
+                            <span id="sentiment-status-badge" class="badge bg-secondary font-monospace" style="font-size: 0.72rem;">Cargando...</span>
+                        </div>
+                        <div class="text-secondary" style="font-size: 0.7rem;">Metodología Cava: VIX, Fear & Greed (CNN), Muros de Opciones y Régimen de Gamma de Dealers (S&P 500)</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="sentiment-cache-info" class="text-secondary small font-monospace" style="font-size: 0.68rem;"></span>
+                    <button type="button" id="btn-refresh-sentiment" class="btn time-btn py-1 px-2 d-flex align-items-center gap-1" onclick="cargarSentimientoMercado(true)" title="Forzar actualización de opciones y sentimiento">
+                        <span id="sentiment-spinner" class="spinner-border spinner-border-sm d-none"></span>
+                        <span id="sentiment-refresh-label">🔄 Refrescar</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bento 4 Métricas de Sentimiento -->
+            <div class="row g-2 mb-2">
+                <!-- VIX -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="glass-panel p-2 p-md-3 kpi-card h-100 d-flex flex-column justify-content-between" style="background: rgba(17, 20, 30, 0.45);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-secondary text-uppercase fw-medium" style="font-size: 0.68rem; letter-spacing: 0.05em;">Índice VIX (^VIX)</span>
+                            <span id="sentiment-vix-badge" class="badge bg-dark border border-secondary text-secondary font-monospace" style="font-size: 0.65rem;">--</span>
+                        </div>
+                        <div class="d-flex align-items-baseline gap-2 my-1">
+                            <span class="fs-4 fw-bold font-monospace text-white" id="sentiment-vix-price">--</span>
+                            <span class="small font-monospace" id="sentiment-vix-change">--</span>
+                        </div>
+                        <div class="text-secondary" style="font-size: 0.65rem;" id="sentiment-vix-sub">Complacencia &lt;13 | Pánico &gt;25</div>
+                    </div>
+                </div>
+
+                <!-- CNN Fear & Greed -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="glass-panel p-2 p-md-3 kpi-card h-100 d-flex flex-column justify-content-between" style="background: rgba(17, 20, 30, 0.45);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-secondary text-uppercase fw-medium" style="font-size: 0.68rem; letter-spacing: 0.05em;">CNN Fear & Greed</span>
+                            <span id="sentiment-fg-badge" class="badge bg-secondary font-monospace" style="font-size: 0.65rem;">--</span>
+                        </div>
+                        <div class="d-flex align-items-baseline gap-2 my-1">
+                            <span class="fs-4 fw-bold font-monospace text-white" id="sentiment-fg-score">--</span>
+                            <span class="text-secondary small font-monospace">/ 100</span>
+                        </div>
+                        <!-- Progress bar Fear & Greed -->
+                        <div class="progress my-1" style="height: 5px; background: rgba(255,255,255,0.08);">
+                            <div id="sentiment-fg-bar" class="progress-bar bg-info" role="progressbar" style="width: 50%;"></div>
+                        </div>
+                        <div class="text-secondary d-flex justify-content-between" style="font-size: 0.65rem;">
+                            <span>Miedo &lt;25</span>
+                            <span id="sentiment-fg-prev">Prev: --</span>
+                            <span>Codicia &gt;75</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ratio Put/Call -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="glass-panel p-2 p-md-3 kpi-card h-100 d-flex flex-column justify-content-between" style="background: rgba(17, 20, 30, 0.45);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-secondary text-uppercase fw-medium" style="font-size: 0.68rem; letter-spacing: 0.05em;">Ratio Put/Call (SPY)</span>
+                            <span id="sentiment-pcr-badge" class="badge bg-dark border border-secondary text-secondary font-monospace" style="font-size: 0.65rem;">--</span>
+                        </div>
+                        <div class="d-flex align-items-baseline gap-2 my-1">
+                            <span class="fs-4 fw-bold font-monospace text-white" id="sentiment-pcr-vol">--</span>
+                            <span class="text-secondary small font-monospace" id="sentiment-pcr-10d" title="Media móvil 10 sesiones">MA10: --</span>
+                        </div>
+                        <div class="text-secondary d-flex justify-content-between" style="font-size: 0.65rem;">
+                            <span>Complacencia &lt;0.65</span>
+                            <span id="sentiment-pcr-oi" title="Ratio por Open Interest">OI: --</span>
+                            <span>Pánico &gt;1.05</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dealers Gamma & Muros -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="glass-panel p-2 p-md-3 kpi-card h-100 d-flex flex-column justify-content-between" style="background: rgba(17, 20, 30, 0.45);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-secondary text-uppercase fw-medium" style="font-size: 0.68rem; letter-spacing: 0.05em;">Dealers Gamma & Muros</span>
+                            <span id="sentiment-gamma-badge" class="badge bg-secondary font-monospace" style="font-size: 0.65rem;">--</span>
+                        </div>
+                        <div class="d-flex align-items-baseline gap-2 my-1">
+                            <span class="fs-5 fw-bold font-monospace" id="sentiment-spx-price">SPX: --</span>
+                            <span class="small font-monospace" id="sentiment-zero-gamma" title="Nivel de Gamma Cero">γ=0: --</span>
+                        </div>
+                        <div class="d-flex justify-content-between text-secondary font-monospace" style="font-size: 0.65rem;">
+                            <span class="text-danger" id="sentiment-put-wall" title="Muro de Puts (Soporte institucional)">Put Wall: --</span>
+                            <span class="text-success" id="sentiment-call-wall" title="Muro de Calls (Resistencia institucional)">Call Wall: --</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Diagnóstico y Lectura Táctica Cava -->
+            <div id="sentiment-diagnostico-container" class="p-2 px-3 rounded-2" style="background: rgba(99, 102, 241, 0.08); border-left: 3px solid #6366f1;">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fw-semibold text-white small" id="sentiment-diagnostico-title">Diagnóstico Cava:</span>
+                    <span class="text-secondary small" id="sentiment-diagnostico-desc">Consultando señales de opciones, volatilidad y sentimiento...</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Bento Grid KPIs del Screener -->
         <div class="row g-2">
             <div class="col-xl-3 col-md-6">

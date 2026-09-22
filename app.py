@@ -16,6 +16,7 @@ import monitor_worker
 import portfolio_math
 import ine_api
 import screener_service
+import sentiment_service
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
@@ -1050,6 +1051,17 @@ def api_screener_tickers():
             return jsonify({"ok": True})
         except Exception as e:
             return jsonify({"error": str(e)}), 400
+
+# --- Market Sentiment API (Estilo José Luis Cava) ---
+@app.route('/api/sentimiento', methods=['GET'])
+def api_get_sentimiento():
+    try:
+        force_refresh = request.args.get('refresh', 'false').lower() in ('true', '1')
+        data = sentiment_service.get_consolidated_sentiment(force_refresh=force_refresh)
+        return jsonify(data)
+    except Exception as e:
+        log_debug(f"Error en /api/sentimiento: {e}", "ERROR")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/exchange-rate', methods=['GET'])
 def get_rate():

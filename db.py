@@ -172,6 +172,21 @@ def init_db():
             )
         ''')
         c.execute('''
+            CREATE TABLE IF NOT EXISTS cache_market_sentiment (
+                key TEXT PRIMARY KEY,
+                data_json TEXT,
+                updated_at REAL
+            )
+        ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS historico_put_call (
+                fecha TEXT PRIMARY KEY,
+                pcr_volume REAL,
+                pcr_oi REAL,
+                created_at REAL
+            )
+        ''')
+        c.execute('''
             CREATE TABLE IF NOT EXISTS inmuebles_config (
                 ticker TEXT PRIMARY KEY,
                 name TEXT,
@@ -713,6 +728,7 @@ def get_screener_meta():
         print(f"Error fetching screener meta: {e}")
         return {}
 
+
 def update_screener_fundamentals_batch(updates_list):
     try:
         with get_db() as conn:
@@ -730,6 +746,72 @@ def update_screener_fundamentals_batch(updates_list):
     except Exception as e:
         print(f"Error updating screener fundamentals: {e}")
         return False
+
+
+# --- Market Sentiment Database Helpers ---
+def get_sentiment_cache(key='market_sentiment', max_age_seconds=1800):
+    """Obtiene el JSON de sentimiento de la caché si no ha expirado el TTL."""
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT data_json, updated_at FROM cache_market_sentiment WHERE key = ?",
+                (key,)
+            ).fetchone()
+            if row:
+                age = time.time() - float(row['updated_at'])
+                if age <= max_age_seconds:
+                    import json
+                    data = json.loads(row['data_json'])
+                    data["cache_age_seconds"] = int(age)
+                    data["from_cache"] = True
+                    return data
+        return None
+    except Exception as e:
+        print(f"Error reading sentiment cache: {e}")
+        return None
+
+
+def save_sentiment_cache(key='market_sentiment', data_dict=None):
+    """Guarda en caché el estado de sentimiento y registra el ratio P/C del día."""
+    if not data_dict:
+        return False
+    try:
+        import json
+        with get_db() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO cache_market_sentiment (key, data_json, updated_at) VALUES (?, ?, ?)",
+                (key, json.dumps(data_dict), time.time())
+            )
+            # Guardar ratio diario en histórico si está presente
+            pcr_vol = data_dict.get("put_call", {}).get("pcr_volume")
+            pcr_oi = data_dict.get("put_call", {}).get("pcr_oi")
+            today_str = time.strftime('%Y-%m-%d')
+            if pcr_vol is not None:
+                conn.execute(
+                    "INSERT OR REPLACE INTO historico_put_call (fecha, pcr_volume, pcr_oi, created_at) VALUES (?, ?, ?, ?)",
+                    (today_str, float(pcr_vol), float(pcr_oi) if pcr_oi is not None else None, time.time())
+                )
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error saving sentiment cache: {e}")
+        return False
+
+
+def get_put_call_history(limit=30):
+    """Obtiene el histórico reciente de ratio put/call ordenado por fecha ascendente."""
+    try:
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT fecha, pcr_volume, pcr_oi FROM historico_put_call ORDER BY fecha DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+            # Devolver en orden cronológico ascendente
+            return [dict(r) for r in reversed(rows)]
+    except Exception as e:
+        print(f"Error fetching put/call history: {e}")
+        return []
+
 
 
 
