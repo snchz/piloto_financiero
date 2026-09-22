@@ -62,6 +62,15 @@ def init_db():
             c.execute("ALTER TABLE monitores ADD COLUMN hipoteca_inicial REAL DEFAULT 0.0")
         except sqlite3.OperationalError:
             pass
+        try:
+            c.execute("ALTER TABLE monitores ADD COLUMN created_at TEXT DEFAULT NULL")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            c.execute("UPDATE monitores SET created_at = current_price_time WHERE created_at IS NULL AND current_price_time IS NOT NULL")
+            c.execute("UPDATE monitores SET created_at = ? WHERE created_at IS NULL", (time.strftime('%d/%m/%Y %H:%M:%S'),))
+        except Exception:
+            pass
         
         c.execute('''
             CREATE TABLE IF NOT EXISTS alertas (

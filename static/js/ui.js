@@ -75,7 +75,7 @@ const UI = {
         if (!tbody) return;
         const entries = Object.entries(monitores);
         if (entries.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-secondary">No hay alertas configuradas</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-secondary">No hay alertas configuradas</td></tr>';
             return;
         }
 
@@ -87,6 +87,26 @@ const UI = {
             const distObj = (m.current > 0 && m.target) ? ((m.target - m.current) / m.current * 100) : null;
             const distObjText = distObj !== null ? `${distObj > 0 ? '+' : ''}${distObj.toFixed(2)}%` : '-';
             
+            let fechaStr = '-';
+            let horaStr = '';
+            if (m.created_at) {
+                const parts = m.created_at.split(' ');
+                let d = parts[0];
+                if (d && d.includes('-')) {
+                    const dParts = d.split('-');
+                    if (dParts.length === 3 && dParts[0].length === 4) {
+                        d = `${dParts[2]}/${dParts[1]}/${dParts[0]}`;
+                    }
+                }
+                fechaStr = d || '-';
+                if (parts[1]) {
+                    horaStr = parts[1].substring(0, 5);
+                }
+            }
+            const fechaHtml = horaStr 
+                ? `<div><span class="font-monospace text-white small">${fechaStr}</span><div class="text-secondary font-monospace opacity-75" style="font-size: 0.68rem;">${horaStr}</div></div>`
+                : `<span class="font-monospace text-secondary small">${fechaStr}</span>`;
+
             return `
             <tr>
                 <td class="ps-4">
@@ -100,6 +120,7 @@ const UI = {
                 <td class="text-end font-monospace fs-6 fw-semibold ${variacionClass}">${variacion ? `${variacionSign}${variacion.toFixed(2)}%` : '-'}</td>
                 <td class="text-end font-monospace fs-6 fw-semibold text-white">${UI.formatCurrency(m.target, m.currency)}</td>
                 <td class="text-end font-monospace fs-6 fw-semibold text-secondary">${distObjText}</td>
+                <td class="text-center">${fechaHtml}</td>
                 <td class="text-center">
                     <span class="badge-status ${m.triggered ? 'badge-alert' : 'badge-active'}">
                         ${m.triggered ? 'ALERTA' : 'Vigilando'}

@@ -212,7 +212,8 @@ def get_all_data():
                 'target_pct': r['target_pct'] or 0,
                 'pct_triggered_date': r['pct_triggered_date'],
                 'previous_close': r['previous_close'],
-                'current_price_time': price_time
+                'current_price_time': price_time,
+                'created_at': dict(r).get('created_at') or r['current_price_time']
             }
         
         alertas = [{'id': r['id'], 'msg': r['msg'], 'time': r['time']} for r in alertas_rows]

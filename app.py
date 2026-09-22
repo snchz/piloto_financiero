@@ -316,11 +316,12 @@ def add_monitor():
         current = round(current_price, 2)
         tipo = 'superior' if target > current_price else 'inferior'
         
+        current_time_str = time.strftime('%d/%m/%Y %H:%M:%S')
         with db.get_db() as conn:
             conn.execute('''
-                INSERT INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered, target_pct, previous_close, current_price_time)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
-            ''', (m_id, ticker_display, sym, name, currency, target, current, tipo, target_pct, current_price if not previous_close else previous_close, time.strftime('%d/%m/%Y %H:%M:%S')))
+                INSERT INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered, target_pct, previous_close, current_price_time, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
+            ''', (m_id, ticker_display, sym, name, currency, target, current, tipo, target_pct, current_price if not previous_close else previous_close, current_time_str, current_time_str))
             conn.commit()
             
         log_debug(f"Added monitor for {sym} at {target} with pct alert {target_pct}%")
@@ -1242,10 +1243,11 @@ def import_monitores():
                 if pd.isna(row.get('id')) or not m_id or m_id == 'nan' or m_id.strip() == '':
                     m_id = str(uuid.uuid4())
                 
+                created_at_val = str(row.get('created_at', '')) if pd.notna(row.get('created_at')) and str(row.get('created_at')).strip() else time.strftime('%d/%m/%Y %H:%M:%S')
                 conn.execute('''
-                    INSERT OR REPLACE INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered, target_pct, previous_close, current_price_time)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
-                ''', (str(m_id), ticker, sym, name, currency, target, current_price, tipo, target_pct, current_price if not previous_close else previous_close, time.strftime('%d/%m/%Y %H:%M:%S')))
+                    INSERT OR REPLACE INTO monitores (id, ticker, symbol, name, currency, target, current, tipo, triggered, target_pct, previous_close, current_price_time, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
+                ''', (str(m_id), ticker, sym, name, currency, target, current_price, tipo, target_pct, current_price if not previous_close else previous_close, time.strftime('%d/%m/%Y %H:%M:%S'), created_at_val))
             conn.commit()
         monitor_worker.sse_subs.notify()
         return jsonify({"ok": True})
