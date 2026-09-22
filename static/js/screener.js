@@ -546,20 +546,84 @@ async function cargarSentimientoMercado(forzar = false) {
             callWallEl.textContent = `Call Wall: ${walls.call_wall_spx ? Math.round(walls.call_wall_spx) : '--'}`;
         }
 
-        // 5. Diagnóstico y Badge General
+        // 5. Veredicto Hero Directo para Dummies
         const diag = data.diagnostico || {};
-        if (statusBadge) {
-            statusBadge.textContent = diag.estado || 'Neutral';
-            statusBadge.className = `badge ${diag.badge_class || 'bg-secondary'} font-monospace`;
+        const heroBadge = document.getElementById('sentiment-hero-badge');
+        if (heroBadge) {
+            heroBadge.textContent = diag.hay_panico || diag.estado || 'Neutral';
+            heroBadge.className = `badge ${diag.hay_panico_badge || diag.badge_class || 'bg-secondary'} font-monospace`;
         }
-        const diagDesc = document.getElementById('sentiment-diagnostico-desc');
-        if (diagDesc) {
-            diagDesc.textContent = diag.resumen || 'Sin diagnóstico disponible.';
+
+        const simpleTitle = document.getElementById('sentiment-simple-title');
+        if (simpleTitle) {
+            simpleTitle.textContent = diag.titular_simple || diag.estado || 'MERCADO EQUILIBRADO';
         }
-        const diagContainer = document.getElementById('sentiment-diagnostico-container');
-        if (diagContainer) {
-            const colorBorder = diag.color === 'danger' ? '#f43f5e' : (diag.color === 'success' ? '#10b981' : (diag.color === 'warning' ? '#f59e0b' : '#6366f1'));
-            diagContainer.style.borderLeftColor = colorBorder;
+
+        const simpleMsg = document.getElementById('sentiment-simple-msg');
+        if (simpleMsg) {
+            simpleMsg.textContent = diag.mensaje_simple || diag.resumen || '';
+        }
+
+        const simpleAdvice = document.getElementById('sentiment-simple-advice');
+        if (simpleAdvice) {
+            simpleAdvice.textContent = diag.consejo_simple || 'Operar con normalidad.';
+        }
+
+        const simplePill = document.getElementById('sentiment-simple-pill');
+        if (simplePill) {
+            simplePill.className = `badge ${diag.hay_panico_badge || 'bg-success'} font-monospace`;
+        }
+
+        // Divergencia explicada (si unos dicen miedo y otros calma)
+        const divBox = document.getElementById('sentiment-divergencia-box');
+        if (divBox) {
+            if (diag.explicacion_divergencia && diag.explicacion_divergencia.includes('💡')) {
+                divBox.textContent = diag.explicacion_divergencia;
+                divBox.classList.remove('d-none');
+            } else {
+                divBox.classList.add('d-none');
+            }
+        }
+
+        // Termómetro Global 0-100
+        const scoreGlobalEl = document.getElementById('sentiment-score-global');
+        const globalBar = document.getElementById('sentiment-global-bar');
+        const heroBox = document.getElementById('sentiment-veredicto-hero');
+
+        const score = diag.score_global !== undefined ? diag.score_global : 50;
+        if (scoreGlobalEl) scoreGlobalEl.textContent = score.toFixed(0);
+
+        if (globalBar) {
+            globalBar.style.width = `${Math.min(Math.max(score, 5), 100)}%`;
+            if (score <= 30) {
+                globalBar.className = 'progress-bar bg-danger';
+            } else if (score <= 45) {
+                globalBar.className = 'progress-bar bg-warning';
+            } else if (score <= 75) {
+                globalBar.className = 'progress-bar bg-success';
+            } else {
+                globalBar.className = 'progress-bar bg-info';
+            }
+        }
+
+        if (heroBox) {
+            if (score <= 30) {
+                heroBox.style.background = 'rgba(244, 63, 94, 0.1)';
+                heroBox.style.borderColor = 'rgba(244, 63, 94, 0.3)';
+                heroBox.style.borderLeftColor = '#f43f5e';
+            } else if (score <= 45) {
+                heroBox.style.background = 'rgba(245, 158, 11, 0.1)';
+                heroBox.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                heroBox.style.borderLeftColor = '#f59e0b';
+            } else if (score <= 75) {
+                heroBox.style.background = 'rgba(16, 185, 129, 0.1)';
+                heroBox.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                heroBox.style.borderLeftColor = '#10b981';
+            } else {
+                heroBox.style.background = 'rgba(99, 102, 241, 0.1)';
+                heroBox.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+                heroBox.style.borderLeftColor = '#6366f1';
+            }
         }
 
         // 6. Información de Caché

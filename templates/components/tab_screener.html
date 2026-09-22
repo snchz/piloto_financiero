@@ -38,17 +38,18 @@
             </div>
         </div>
 
-        <!-- Panel Termómetro y Sentimiento del Mercado (Metodología José Luis Cava) -->
+        <!-- Panel Termómetro y Sentimiento del Mercado (Resumen Claro + Detalle Opcional) -->
         <div class="glass-panel p-3" id="sentiment-panel">
+            <!-- Header con título y botón de refresco -->
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2" style="border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
                 <div class="d-flex align-items-center gap-2">
                     <span class="fs-4">🧭</span>
                     <div>
                         <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <h6 class="m-0 fs-6 fw-bold text-white">Sentimiento de Mercado & Posicionamiento Institucional</h6>
-                            <span id="sentiment-status-badge" class="badge bg-secondary font-monospace" style="font-size: 0.72rem;">Cargando...</span>
+                            <h6 class="m-0 fs-6 fw-bold text-white">Termómetro de Sentimiento del Mercado</h6>
+                            <span id="sentiment-hero-badge" class="badge bg-secondary font-monospace" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;">Calculando...</span>
                         </div>
-                        <div class="text-secondary" style="font-size: 0.7rem;">Metodología Cava: VIX, Fear & Greed (CNN), Muros de Opciones y Régimen de Gamma de Dealers (S&P 500)</div>
+                        <div class="text-secondary" style="font-size: 0.72rem;">Lectura sintética consolidada: ¿Hay pánico real en las bolsas o es falsa alarma?</div>
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
@@ -60,20 +61,70 @@
                 </div>
             </div>
 
-            <!-- Bento 4 Métricas de Sentimiento -->
+            <!-- BLOQUE HERO: RESUMEN ULTRA-CLARO PARA DUMMIES -->
+            <div id="sentiment-veredicto-hero" class="p-3 mb-3 rounded-3" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-left: 5px solid #10b981;">
+                <div class="row align-items-center g-3">
+                    <div class="col-lg-8">
+                        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                            <span class="badge bg-success font-monospace" id="sentiment-simple-pill" style="font-size: 0.72rem;">VEREDICTO DIRECTO</span>
+                            <span class="fw-bold fs-6 text-white" id="sentiment-simple-title">MERCADO EN CALMA Y CONTROLADO</span>
+                        </div>
+                        <div class="text-light small mb-2" id="sentiment-simple-msg" style="line-height: 1.45;">
+                            Cargando interpretación directa del mercado...
+                        </div>
+                        <!-- Explicación de divergencia destacada -->
+                        <div id="sentiment-divergencia-box" class="p-2 rounded-2 small text-secondary mb-2 d-none" style="background: rgba(0,0,0,0.3); border: 1px dashed rgba(255,255,255,0.15); font-size: 0.76rem; line-height: 1.4;">
+                            <!-- Explicación de por qué unos dicen miedo y otros calma -->
+                        </div>
+                        <div class="text-secondary small d-flex align-items-baseline gap-1" style="font-size: 0.72rem;">
+                            <span class="text-white-50">📌 <strong>Qué hacer:</strong></span>
+                            <span id="sentiment-simple-advice" class="text-light">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Termómetro Visual 0-100 -->
+                    <div class="col-lg-4 text-center border-start-lg ps-lg-3" style="border-color: rgba(255,255,255,0.08) !important;">
+                        <div class="text-secondary text-uppercase fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.05em;">Termómetro de Pánico / Calma</div>
+                        <div class="d-flex justify-content-center align-items-baseline gap-1 my-1">
+                            <span class="display-6 fw-bold font-monospace text-white" id="sentiment-score-global">--</span>
+                            <span class="text-secondary font-monospace" style="font-size: 0.9rem;">/ 100</span>
+                        </div>
+                        <div class="progress my-2" style="height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px;">
+                            <div id="sentiment-global-bar" class="progress-bar bg-success" role="progressbar" style="width: 50%;"></div>
+                        </div>
+                        <div class="d-flex justify-content-between text-secondary" style="font-size: 0.65rem;">
+                            <span class="text-danger fw-bold">🔴 0 Pánico</span>
+                            <span class="text-secondary">50 Neutro</span>
+                            <span class="text-success fw-bold">🟢 100 Calma</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DESGLOSE TÉCNICO (VIX, CNN, Put/Call, Muros Cava) -->
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-secondary small fw-semibold text-uppercase" style="font-size: 0.68rem; letter-spacing: 0.05em;">
+                    📊 Desglose de Componentes Técnicos
+                </span>
+                <span class="text-secondary" style="font-size: 0.65rem;">Muestra qué mide cada indicador individualmente</span>
+            </div>
+
             <div class="row g-2 mb-2">
                 <!-- VIX -->
                 <div class="col-xl-3 col-md-6">
                     <div class="glass-panel p-2 p-md-3 kpi-card h-100 d-flex flex-column justify-content-between" style="background: rgba(17, 20, 30, 0.45);">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="text-secondary text-uppercase fw-medium" style="font-size: 0.68rem; letter-spacing: 0.05em;">Índice VIX (^VIX)</span>
+                            <div>
+                                <span class="text-secondary text-uppercase fw-medium d-block" style="font-size: 0.68rem; letter-spacing: 0.05em;">Índice VIX (^VIX)</span>
+                                <span class="text-secondary" style="font-size: 0.62rem;">El dinero profesional</span>
+                            </div>
                             <span id="sentiment-vix-badge" class="badge bg-dark border border-secondary text-secondary font-monospace" style="font-size: 0.65rem;">--</span>
                         </div>
                         <div class="d-flex align-items-baseline gap-2 my-1">
                             <span class="fs-4 fw-bold font-monospace text-white" id="sentiment-vix-price">--</span>
                             <span class="small font-monospace" id="sentiment-vix-change">--</span>
                         </div>
-                        <div class="text-secondary" style="font-size: 0.65rem;" id="sentiment-vix-sub">Complacencia &lt;13 | Pánico &gt;25</div>
+                        <div class="text-secondary" style="font-size: 0.65rem;" id="sentiment-vix-sub">&lt;13 Calma | &gt;25 Pánico</div>
                     </div>
                 </div>
 
@@ -81,14 +132,16 @@
                 <div class="col-xl-3 col-md-6">
                     <div class="glass-panel p-2 p-md-3 kpi-card h-100 d-flex flex-column justify-content-between" style="background: rgba(17, 20, 30, 0.45);">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="text-secondary text-uppercase fw-medium" style="font-size: 0.68rem; letter-spacing: 0.05em;">CNN Fear & Greed</span>
+                            <div>
+                                <span class="text-secondary text-uppercase fw-medium d-block" style="font-size: 0.68rem; letter-spacing: 0.05em;">CNN Fear & Greed</span>
+                                <span class="text-secondary" style="font-size: 0.62rem;">Emoción calle / noticias</span>
+                            </div>
                             <span id="sentiment-fg-badge" class="badge bg-secondary font-monospace" style="font-size: 0.65rem;">--</span>
                         </div>
                         <div class="d-flex align-items-baseline gap-2 my-1">
                             <span class="fs-4 fw-bold font-monospace text-white" id="sentiment-fg-score">--</span>
                             <span class="text-secondary small font-monospace">/ 100</span>
                         </div>
-                        <!-- Progress bar Fear & Greed -->
                         <div class="progress my-1" style="height: 5px; background: rgba(255,255,255,0.08);">
                             <div id="sentiment-fg-bar" class="progress-bar bg-info" role="progressbar" style="width: 50%;"></div>
                         </div>
@@ -104,7 +157,10 @@
                 <div class="col-xl-3 col-md-6">
                     <div class="glass-panel p-2 p-md-3 kpi-card h-100 d-flex flex-column justify-content-between" style="background: rgba(17, 20, 30, 0.45);">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="text-secondary text-uppercase fw-medium" style="font-size: 0.68rem; letter-spacing: 0.05em;">Ratio Put/Call (SPY)</span>
+                            <div>
+                                <span class="text-secondary text-uppercase fw-medium d-block" style="font-size: 0.68rem; letter-spacing: 0.05em;">Ratio Put/Call (SPY)</span>
+                                <span class="text-secondary" style="font-size: 0.62rem;">Seguros caída vs apuestas alza</span>
+                            </div>
                             <span id="sentiment-pcr-badge" class="badge bg-dark border border-secondary text-secondary font-monospace" style="font-size: 0.65rem;">--</span>
                         </div>
                         <div class="d-flex align-items-baseline gap-2 my-1">
@@ -123,7 +179,10 @@
                 <div class="col-xl-3 col-md-6">
                     <div class="glass-panel p-2 p-md-3 kpi-card h-100 d-flex flex-column justify-content-between" style="background: rgba(17, 20, 30, 0.45);">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="text-secondary text-uppercase fw-medium" style="font-size: 0.68rem; letter-spacing: 0.05em;">Dealers Gamma & Muros</span>
+                            <div>
+                                <span class="text-secondary text-uppercase fw-medium d-block" style="font-size: 0.68rem; letter-spacing: 0.05em;">S&P 500 & Muros</span>
+                                <span class="text-secondary" style="font-size: 0.62rem;">Soporte y techo institucional</span>
+                            </div>
                             <span id="sentiment-gamma-badge" class="badge bg-secondary font-monospace" style="font-size: 0.65rem;">--</span>
                         </div>
                         <div class="d-flex align-items-baseline gap-2 my-1">
@@ -135,14 +194,6 @@
                             <span class="text-success" id="sentiment-call-wall" title="Muro de Calls (Resistencia institucional)">Call Wall: --</span>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Diagnóstico y Lectura Táctica Cava -->
-            <div id="sentiment-diagnostico-container" class="p-2 px-3 rounded-2" style="background: rgba(99, 102, 241, 0.08); border-left: 3px solid #6366f1;">
-                <div class="d-flex align-items-center gap-2">
-                    <span class="fw-semibold text-white small" id="sentiment-diagnostico-title">Diagnóstico Cava:</span>
-                    <span class="text-secondary small" id="sentiment-diagnostico-desc">Consultando señales de opciones, volatilidad y sentimiento...</span>
                 </div>
             </div>
         </div>

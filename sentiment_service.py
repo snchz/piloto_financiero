@@ -34,6 +34,28 @@ HTTP_HEADERS = {
 }
 
 
+def _clean_int(val: Any) -> int:
+    """Convierte de forma segura valores a entero evitando errores con float NaN."""
+    if val is None:
+        return 0
+    try:
+        f = float(val)
+        return 0 if (math.isnan(f) or math.isinf(f)) else int(f)
+    except (ValueError, TypeError):
+        return 0
+
+
+def _clean_float(val: Any, default: float = 0.0) -> float:
+    """Convierte de forma segura valores a float evitando NaN e Inf."""
+    if val is None:
+        return default
+    try:
+        f = float(val)
+        return default if (math.isnan(f) or math.isinf(f)) else f
+    except (ValueError, TypeError):
+        return default
+
+
 def _norm_pdf(x: float) -> float:
     """Función de densidad de probabilidad normal estándar."""
     return math.exp(-0.5 * x * x) / math.sqrt(2.0 * math.pi)
@@ -273,10 +295,10 @@ def fetch_spy_options_and_gex() -> Dict[str, Any]:
                 # Procesar Calls
                 if chain.calls is not None and not chain.calls.empty:
                     for _, row in chain.calls.iterrows():
-                        k = float(row.get("strike", 0))
-                        vol = int(row.get("volume", 0) or 0)
-                        oi = int(row.get("openInterest", 0) or 0)
-                        iv = float(row.get("impliedVolatility", 0) or 0.20)
+                        k = _clean_float(row.get("strike", 0))
+                        vol = _clean_int(row.get("volume", 0))
+                        oi = _clean_int(row.get("openInterest", 0))
+                        iv = _clean_float(row.get("impliedVolatility", 0.20), default=0.20)
 
                         total_call_vol += vol
                         total_call_oi += oi
@@ -294,10 +316,10 @@ def fetch_spy_options_and_gex() -> Dict[str, Any]:
                 # Procesar Puts
                 if chain.puts is not None and not chain.puts.empty:
                     for _, row in chain.puts.iterrows():
-                        k = float(row.get("strike", 0))
-                        vol = int(row.get("volume", 0) or 0)
-                        oi = int(row.get("openInterest", 0) or 0)
-                        iv = float(row.get("impliedVolatility", 0) or 0.20)
+                        k = _clean_float(row.get("strike", 0))
+                        vol = _clean_int(row.get("volume", 0))
+                        oi = _clean_int(row.get("openInterest", 0))
+                        iv = _clean_float(row.get("impliedVolatility", 0.20), default=0.20)
 
                         total_put_vol += vol
                         total_put_oi += oi
@@ -520,13 +542,81 @@ def _calcular_diagnostico_cava(vix: Dict[str, Any], fg: Dict[str, Any], options_
             f"Los creadores de mercado amortiguan las caídas comprando contra tendencia. Soporte clave en Muro de Puts ({walls.get('put_wall_spx')})."
         )
 
+    # --- Puntuación Sintética Unificada y Explicación para Humanos ("Dummy-friendly") ---
+    # Normalización a escala 0-100 (0 = pánico extremo, 100 = euforia/calma máxima)
+    score_fg = max(0.0, min(100.0, float(fg_val)))
+    score_vix = max(0.0, min(100.0, 100.0 - ((vix_val - 12.0) / 23.0) * 100.0))
+    score_pcr = max(0.0, min(100.0, 100.0 - ((pcr_effective - 0.55) / 0.70) * 100.0))
+    score_global = round(0.40 * score_fg + 0.35 * score_vix + 0.25 * score_pcr, 1)
+
+    # Veredicto directo en cristiano: ¿Hay pánico sí o no?
+    if vix_val >= 25.0 or (fg_val <= 20.0 and pcr_effective >= 1.05):
+        hay_panico = "SÍ, HAY PÁNICO GENERAL"
+        hay_panico_color = "danger"
+        hay_panico_badge = "bg-danger"
+        titular_simple = "🚨 PÁNICO GENERALIZADO EN EL MERCADO"
+        mensaje_simple = "El mercado está en modo capitulación. Tanto los inversores particulares como los grandes fondos están liquidando y pagando altos precios por seguros de caída."
+        consejo_simple = "Para inversores a largo plazo, los momentos de pánico extremo suelen ofrecer las mejores oportunidades de compra contraria. Evita vender en mínimos."
+    elif fg_val <= 45.0 and vix_val <= 18.0:
+        hay_panico = "NO HAY PÁNICO (Falsa alarma / Ruido mediático)"
+        hay_panico_color = "success"
+        hay_panico_badge = "bg-success"
+        titular_simple = "🟢 MERCADO EN CALMA (SIN PÁNICO REAL)"
+        mensaje_simple = f"Aunque los titulares y el público general están algo inquietos (Fear & Greed en {fg_val:.0f}), el dinero institucional y los grandes fondos están en calma absoluta (VIX bajo en {vix_val:.1f} y opciones con soporte firme)."
+        consejo_simple = "Manda el dinero profesional: la volatilidad está controlada y no hay peligro de colapso. No te dejes llevar por titulares alarmistas."
+    elif score_global >= 75.0:
+        hay_panico = "NO HAY PÁNICO (Euforia / Complacencia extrema)"
+        hay_panico_color = "info"
+        hay_panico_badge = "bg-info text-dark"
+        titular_simple = "🟣 EUFORIA Y EXCESO DE OPTIMISMO"
+        mensaje_simple = "No hay ningún pánico; de hecho, hay exceso de confianza. Nadie tiene seguros de cobertura y el mercado está muy confiado."
+        consejo_simple = "Cuando no hay nada de miedo, las bolsas son vulnerables a correcciones sorpresa. Precaución antes de comprar activos caros."
+    elif score_global >= 50.0:
+        hay_panico = "NO HAY PÁNICO (Mercado equilibrado)"
+        hay_panico_color = "success"
+        hay_panico_badge = "bg-success"
+        titular_simple = "🟢 MERCADO EN CALMA Y ESTABLE"
+        mensaje_simple = "Tanto la volatilidad como el posicionamiento de las opciones indican estabilidad. No se aprecian tensiones financieras anormales."
+        consejo_simple = "Situación saludable de mercado. Momento propicio para aportaciones periódicas sistemáticas."
+    else:
+        hay_panico = "PRECAUCIÓN (Tensión moderada)"
+        hay_panico_color = "warning"
+        hay_panico_badge = "bg-warning text-dark"
+        titular_simple = "🟡 MERCADO DEFENSIVO"
+        mensaje_simple = "Hay cierta inquietud y corrección en marcha, pero las ventas se están produciendo de forma ordenada y sin liquidaciones forzadas."
+        consejo_simple = "No hay pánico extremo, pero conviene no sobreoperar y esperar a que el precio confirme soporte."
+
+    # Explicación de divergencias si unos indicadores se contradicen
+    if abs(score_fg - score_vix) >= 20.0:
+        if fg_val < 45.0 and vix_val < 18.0:
+            explicacion_divergencia = (
+                f"💡 ¿Por qué unos indicadores dicen Miedo y otros Calma? "
+                f"El índice de CNN ({fg_val:.0f}) mide la emoción de la calle y las noticias, mientras que el VIX ({vix_val:.1f}) y las opciones de SPY miden los miles de millones del dinero profesional. "
+                f"Los titulares asustan, pero los grandes inversores no están pagando por seguros de caída. Mandan los grandes: NO hay pánico real."
+            )
+        else:
+            explicacion_divergencia = (
+                f"💡 Divergencia entre indicadores: El sentimiento de las noticias/público marca {fg_val:.0f}/100 mientras que la volatilidad institucional marca {vix_val:.1f}. "
+                f"En discrepancias entre prensa y opciones, el mercado de opciones suele reflejar la realidad del dinero inteligente."
+            )
+    else:
+        explicacion_divergencia = "Todos los indicadores van en la misma dirección sin contradicciones relevantes."
+
     return {
         "estado": estado,
         "color": color,
         "badge_class": badge_class,
         "resumen": resumen,
         "pcr_usado": round(pcr_effective, 3),
-        "es_10d_ma": bool(pcr_10d_ma is not None and pcr_10d_ma > 0)
+        "es_10d_ma": bool(pcr_10d_ma is not None and pcr_10d_ma > 0),
+        "score_global": score_global,
+        "hay_panico": hay_panico,
+        "hay_panico_color": hay_panico_color,
+        "hay_panico_badge": hay_panico_badge,
+        "titular_simple": titular_simple,
+        "mensaje_simple": mensaje_simple,
+        "consejo_simple": consejo_simple,
+        "explicacion_divergencia": explicacion_divergencia
     }
 
 
